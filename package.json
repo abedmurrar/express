@@ -101,7 +101,8 @@
     "test-tap": "mocha --reporter tap",
     "bench:install": "npm --prefix benchmarks/compare install",
     "bench": "node benchmarks/compare/run.ts",
-    "test:ecosystem-suites": "node scripts/ecosystem-suites.js"
+    "test:ecosystem-suites": "node scripts/ecosystem-suites.js",
+    "release": "node scripts/release.js"
   },
   "bugs": {
     "url": "https://github.com/abedmurrar/express/issues"

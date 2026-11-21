@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Add a release flow, adapted from the objection fork. `npm run release -- <patch|minor|...> [--dry-run]` checks lint and tests, bumps the version, turns "Unreleased (fork)" in History.md into a dated section, commits and tags. A `v*` tag runs CI and then publishes with npm provenance through trusted publishing. Publishing stays blocked until the package is renamed; see RELEASING.md.
 * Add a security test suite (`test/security/`). It checks that an auth guard always runs before the route it protects, however the path is spelled (case, slashes, percent-encoding, path arrays, RegExp paths, HEAD and OPTIONS, `next('route')`); that CR and LF never inject a header or split a response; exactly where redirects point; that no query string or body pollutes `Object.prototype`; and that `res.sendFile`, `res.download` and `express.static` never serve files outside their root or dotfiles. Each group was checked to fail when its guard is broken on purpose. Cases that fail today are skipped bug tests linked to the roadmap, including a new one: a RegExp path with the `g` or `y` flag.
 * Drop the `merge-descriptors`, `once` and `wrappy` packages in favour of short built-in equivalents, with the same behaviour.
 * A README and security policy for the fork: what it is (a drop-in replacement for Express 5.3.0 on Node 22, 24 and 26, not the official project), how to install it from GitHub, the development commands and credit to Express. `package.json` now points to this repository, and upstream's `funding` entry is removed.

@@ -9,17 +9,92 @@
 
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-const isPromise = require('is-promise')
-const Layer = require('./lib/layer')
-const { METHODS } = require('node:http')
-const { Buffer } = require('node:buffer')
-const parseUrl = require('parseurl')
-const Route = require('./lib/route')
-const debug = require('debug')('router')
-const deprecate = require('depd')('router')
+const isPromise = require('is-promise') as typeof import('is-promise').default
+const Layer = require('./lib/layer') as LayerConstructor
+const { METHODS } = require('node:http') as typeof import('node:http')
+const { Buffer } = require('node:buffer') as typeof import('node:buffer')
+const parseUrl = require('parseurl') as typeof import('parseurl')
+const Route = require('./lib/route') as RouteConstructor
+const debug = (require('debug') as typeof import('debug'))('router')
+const deprecate = (require('depd') as typeof import('depd'))('router')
+
+import type {
+  Layer as LayerInstance,
+  LayerConstructor,
+  LayerHandler,
+  NextFunction,
+  Params,
+  PathParams,
+  RouterRequest,
+  RouterResponse
+} from './lib/layer'
+import type { HandlerList, HttpMethod, HttpMethods, Route as RouteInstance, RouteConstructor } from './lib/route'
+
+export type {
+  ErrorRequestHandler,
+  LayerHandler,
+  NextFunction,
+  Params,
+  PathParams,
+  RequestHandler,
+  RouterRequest,
+  RouterResponse
+} from './lib/layer'
+export type { HandlerList, HttpMethod, HttpMethods, RouteMethod } from './lib/route'
+
+export interface RouterOptions {
+  caseSensitive?: boolean | undefined
+  mergeParams?: boolean | undefined
+  strict?: boolean | undefined
+}
+
+/** `router.param()` callbacks: a middleware that is also given the parameter's value and name. */
+export type ParamCallback = (
+  req: RouterRequest,
+  res: RouterResponse,
+  next: NextFunction,
+  value: string | string[],
+  name: string
+) => unknown
+
+/** `router.get(path, handlers...)` and the other methods: adds a route, returns the router. */
+export type RouterMethod = (path: PathParams, ...handlers: HandlerList[]) => Router
+
+/** A router: a middleware function, with the routing methods on its prototype. */
+export interface Router extends HttpMethods<RouterMethod> {
+  (req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  caseSensitive: boolean | undefined
+  mergeParams: boolean | undefined
+  params: Record<string, ParamCallback[]>
+  strict: boolean | undefined
+  stack: LayerInstance[]
+  param(name: string, fn: ParamCallback): Router
+  handle(req: RouterRequest, res: RouterResponse, callback: NextFunction): void
+  use(handler: PathParams | HandlerList, ...handlers: HandlerList[]): Router
+  route(path: PathParams): RouteInstance
+  all: RouterMethod
+}
+
+/** The `Router` constructor, which also works without `new`, with `Route` on it. */
+export interface RouterConstructor {
+  new (options?: RouterOptions): Router
+  (options?: RouterOptions): Router
+  prototype: Router
+  Route: RouteConstructor
+}
+
+/** What `router.param()` remembers per parameter name, within one request. */
+interface ParamCalled {
+  error: unknown
+  match: string | string[]
+  value: string | string[] | undefined
+}
 
 /**
  * Module variables.
@@ -28,7 +103,7 @@ const deprecate = require('depd')('router')
 
 const slice = Array.prototype.slice
 const flatten = Array.prototype.flat
-const methods = METHODS.map((method) => method.toLowerCase())
+const methods = METHODS.map((method) => method.toLowerCase()) as Array<HttpMethod | 'all'>
 
 /**
  * Expose `Router`.
@@ -50,15 +125,15 @@ module.exports.Route = Route
  * @public
  */
 
-function Router(options) {
+function Router(this: Router, options?: RouterOptions): Router {
   if (!(this instanceof Router)) {
-    return new Router(options)
+    return new (Router as RouterConstructor)(options)
   }
 
   const opts = options || {}
 
-  function router(req, res, next) {
-    router.handle(req, res, next)
+  function router(req: RouterRequest, res: RouterResponse, next: NextFunction) {
+    ;(router as Router).handle(req, res, next)
   }
 
   // inherit from the correct prototype
@@ -68,9 +143,9 @@ function Router(options) {
   router.mergeParams = opts.mergeParams
   router.params = {}
   router.strict = opts.strict
-  router.stack = []
+  router.stack = [] as LayerInstance[]
 
-  return router
+  return router as Router
 }
 
 /**
@@ -80,6 +155,13 @@ function Router(options) {
 /* istanbul ignore next */
 /* c8 ignore next: a function object only so routers inherit from Function; never called */
 Router.prototype = function RouterPrototype() {}
+
+/**
+ * The prototype, typed (a function declaration's `prototype` is untyped).
+ * @private
+ */
+
+const proto = Router.prototype as Router
 
 /**
  * Map the given param placeholder `name`(s) to the given callback.
@@ -114,7 +196,7 @@ Router.prototype = function RouterPrototype() {}
  * @public
  */
 
-Router.prototype.param = function param(name, fn) {
+proto.param = function param(name, fn) {
   if (!name) {
     throw new TypeError('argument name is required')
   }
@@ -148,7 +230,7 @@ Router.prototype.param = function param(name, fn) {
  * @private
  */
 
-Router.prototype.handle = function handleRequest(req, res, callback) {
+proto.handle = function handleRequest(req, res, callback) {
   if (!callback) {
     throw new TypeError('argument callback is required')
   }
@@ -156,13 +238,13 @@ Router.prototype.handle = function handleRequest(req, res, callback) {
   debug('dispatching %s %s', req.method, req.url)
 
   let idx = 0
-  let methods
+  let methods: string[] | undefined
   const protohost = getProtohost(req.url) || ''
   let removed = ''
   const self = this
   let slashAdded = false
   let sync = 0
-  const paramcalled = {}
+  const paramcalled: Record<string, ParamCalled> = {}
 
   // middleware and routes
   const stack = this.stack
@@ -187,7 +269,7 @@ Router.prototype.handle = function handleRequest(req, res, callback) {
 
   next()
 
-  function next(err) {
+  function next(err?: unknown): void | NodeJS.Immediate {
     let layerError = err === 'route' ? null : err
 
     // remove added slash
@@ -228,12 +310,12 @@ Router.prototype.handle = function handleRequest(req, res, callback) {
     }
 
     // find next matching layer
-    let layer
-    let match
-    let route
+    let layer!: LayerInstance
+    let match: unknown
+    let route: RouteInstance | undefined
 
     while (match !== true && idx < stack.length) {
-      layer = stack[idx++]
+      layer = stack[idx++] as LayerInstance
       match = matchLayer(layer, path)
       route = layer.route
 
@@ -282,8 +364,8 @@ Router.prototype.handle = function handleRequest(req, res, callback) {
     }
 
     // Capture one-time layer values
-    req.params = self.mergeParams ? mergeParams(layer.params, parentParams) : layer.params
-    const layerPath = layer.path
+    req.params = self.mergeParams ? mergeParams(layer.params as Params, parentParams) : (layer.params as Params)
+    const layerPath = layer.path as string
 
     // this should be done for the layer
     processParams(self.params, layer, paramcalled, req, res, function (err) {
@@ -299,7 +381,7 @@ Router.prototype.handle = function handleRequest(req, res, callback) {
     })
   }
 
-  function trimPrefix(layer, layerError, layerPath, path) {
+  function trimPrefix(layer: LayerInstance, layerError: unknown, layerPath: string, path: string) {
     if (layerPath.length !== 0) {
       // Validate path is a prefix match
       if (layerPath !== path.substring(0, layerPath.length)) {
@@ -356,14 +438,14 @@ Router.prototype.handle = function handleRequest(req, res, callback) {
  * @public
  */
 
-Router.prototype.use = function use(handler) {
+proto.use = function use(handler) {
   let offset = 0
-  let path = '/'
+  let path: PathParams = '/'
 
   // default path to '/'
   // disambiguate router.use([handler])
   if (typeof handler !== 'function') {
-    let arg = handler
+    let arg: unknown = handler
 
     while (Array.isArray(arg) && arg.length !== 0) {
       arg = arg[0]
@@ -372,11 +454,11 @@ Router.prototype.use = function use(handler) {
     // first arg is the path
     if (typeof arg !== 'function') {
       offset = 1
-      path = handler
+      path = handler as PathParams
     }
   }
 
-  const callbacks = flatten.call(slice.call(arguments, offset), Infinity)
+  const callbacks: unknown[] = flatten.call(slice.call(arguments, offset), Infinity)
 
   if (callbacks.length === 0) {
     throw new TypeError('argument handler is required')
@@ -399,7 +481,7 @@ Router.prototype.use = function use(handler) {
         strict: false,
         end: false
       },
-      fn
+      fn as LayerHandler
     )
 
     layer.route = undefined
@@ -423,7 +505,7 @@ Router.prototype.use = function use(handler) {
  * @public
  */
 
-Router.prototype.route = function route(path) {
+proto.route = function route(path) {
   const route = new Route(path)
 
   const layer = new Layer(
@@ -436,7 +518,7 @@ Router.prototype.route = function route(path) {
     handle
   )
 
-  function handle(req, res, next) {
+  function handle(req: RouterRequest, res: RouterResponse, next: NextFunction) {
     route.dispatch(req, res, next)
   }
 
@@ -448,7 +530,7 @@ Router.prototype.route = function route(path) {
 
 // create Router#VERB functions
 methods.concat('all').forEach(function (method) {
-  Router.prototype[method] = function (path) {
+  proto[method] = function (path) {
     const route = this.route(path)
     route[method].apply(route, slice.call(arguments, 1))
     return this
@@ -463,8 +545,8 @@ methods.concat('all').forEach(function (method) {
  * @private
  */
 
-function generateOptionsResponder(res, methods) {
-  return function onDone(fn, err) {
+function generateOptionsResponder(res: RouterResponse, methods: string[]) {
+  return function onDone(fn: NextFunction, err?: unknown) {
     if (err || methods.length === 0) {
       return fn(err)
     }
@@ -480,9 +562,9 @@ function generateOptionsResponder(res, methods) {
  * @private
  */
 
-function getPathname(req) {
+function getPathname(req: RouterRequest) {
   try {
-    return parseUrl(req).pathname
+    return (parseUrl(req) as import('node:url').Url).pathname
   } catch {
     return undefined
   }
@@ -495,7 +577,7 @@ function getPathname(req) {
  * @private
  */
 
-function getProtohost(url) {
+function getProtohost(url: string) {
   if (typeof url !== 'string' || url.length === 0 || url[0] === '/') {
     return undefined
   }
@@ -515,7 +597,7 @@ function getProtohost(url) {
  * @private
  */
 
-function matchLayer(layer, path) {
+function matchLayer(layer: LayerInstance, path: string): unknown {
   try {
     return layer.match(path)
   } catch (err) {
@@ -529,7 +611,7 @@ function matchLayer(layer, path) {
  * @private
  */
 
-function mergeParams(params, parent) {
+function mergeParams(params: Params, parent: Params | undefined): Params {
   if (typeof parent !== 'object' || !parent) {
     return params
   }
@@ -574,7 +656,14 @@ function mergeParams(params, parent) {
  * @private
  */
 
-function processParams(params, layer, called, req, res, done) {
+function processParams(
+  params: Record<string, ParamCallback[]>,
+  layer: LayerInstance,
+  called: Record<string, ParamCalled>,
+  req: RouterRequest,
+  res: RouterResponse,
+  done: NextFunction
+) {
   // captured parameters from the layer, keys and values
   const keys = layer.keys
 
@@ -583,16 +672,17 @@ function processParams(params, layer, called, req, res, done) {
     return done()
   }
 
+  // typed as set: nextParam checks them before paramCallback reads them
   let i = 0
   let paramIndex = 0
-  let key
-  let paramVal
-  let paramCallbacks
-  let paramCalled
+  let key: string
+  let paramVal: string | string[]
+  let paramCallbacks: ParamCallback[]
+  let paramCalled: ParamCalled
 
   // process params in order
   // param callbacks can be async
-  function nextParam(err) {
+  function nextParam(err?: unknown): void {
     if (err) {
       return done(err)
     }
@@ -602,10 +692,10 @@ function processParams(params, layer, called, req, res, done) {
     }
 
     paramIndex = 0
-    key = keys[i++]
-    paramVal = req.params[key]
-    paramCallbacks = params[key]
-    paramCalled = called[key]
+    key = keys[i++] as string
+    paramVal = req.params[key] as string | string[]
+    paramCallbacks = params[key] as ParamCallback[]
+    paramCalled = called[key] as ParamCalled
 
     if (paramVal === undefined || !paramCallbacks) {
       return nextParam()
@@ -630,7 +720,7 @@ function processParams(params, layer, called, req, res, done) {
   }
 
   // single param callbacks
-  function paramCallback(err) {
+  function paramCallback(err?: unknown) {
     const fn = paramCallbacks[paramIndex++]
 
     // store updated value
@@ -652,7 +742,7 @@ function processParams(params, layer, called, req, res, done) {
           deprecate('parameters that are Promise-like are deprecated, use a native Promise instead')
         }
 
-        ret.then(null, function (error) {
+        ret.then(null, function (error: unknown) {
           paramCallback(error || new Error('Rejected promise'))
         })
       }
@@ -670,19 +760,20 @@ function processParams(params, layer, called, req, res, done) {
  * @private
  */
 
-function restore(fn, obj) {
-  const props = new Array(arguments.length - 2)
-  const vals = new Array(arguments.length - 2)
+function restore<T extends object, K extends keyof T>(fn: NextFunction, obj: T, ...props: K[]): NextFunction
+function restore<T extends object, K extends keyof T>(fn: Function, obj: T): Function {
+  const props = new Array<K>(arguments.length - 2)
+  const vals = new Array<T[K]>(arguments.length - 2)
 
   for (let i = 0; i < props.length; i++) {
     props[i] = arguments[i + 2]
-    vals[i] = obj[props[i]]
+    vals[i] = obj[props[i] as K]
   }
 
-  return function () {
+  return function (this: unknown): unknown {
     // restore vals
     for (let i = 0; i < props.length; i++) {
-      obj[props[i]] = vals[i]
+      obj[props[i] as K] = vals[i] as T[K]
     }
 
     return fn.apply(this, arguments)
@@ -695,12 +786,12 @@ function restore(fn, obj) {
  * @private
  */
 
-function sendOptionsResponse(res, methods) {
-  const options = Object.create(null)
+function sendOptionsResponse(res: RouterResponse, methods: string[]) {
+  const options: Record<string, boolean> = Object.create(null)
 
   // build unique method map
   for (let i = 0; i < methods.length; i++) {
-    options[methods[i]] = true
+    options[methods[i] as string] = true
   }
 
   // construct the allow list
@@ -720,7 +811,7 @@ function sendOptionsResponse(res, methods) {
  * @private
  */
 
-function trySendOptionsResponse(res, methods, next) {
+function trySendOptionsResponse(res: RouterResponse, methods: string[], next: NextFunction) {
   try {
     sendOptionsResponse(res, methods)
   } catch (err) {
@@ -734,9 +825,9 @@ function trySendOptionsResponse(res, methods, next) {
  * @private
  */
 
-function wrap(old, fn) {
-  return function proxy() {
-    const args = new Array(arguments.length + 1)
+function wrap(old: NextFunction, fn: Function): NextFunction {
+  return function proxy(this: unknown) {
+    const args = new Array<unknown>(arguments.length + 1)
 
     args[0] = old
     for (let i = 0, len = arguments.length; i < len; i++) {

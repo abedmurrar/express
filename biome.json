@@ -4,6 +4,9 @@
     "includes": [
       "**/*.js",
       "**/*.ts",
+      "**/*.mjs",
+      "**/*.mts",
+      "**/*.cts",
       "!coverage",
       "!research",
       "!benchmarks/compare/node_modules",

@@ -16,6 +16,8 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 
 **Tooling:** Biome is the only linter and formatter (no ESLint, no Prettier).
 
+**Merging:** PRs that change code merge once CI is green. PRs that only change docs or the roadmap merge without waiting for the test matrix (the same rule as the objection fork).
+
 **Status:** `[ ]` to do, `[~]` in progress, `[x]` done (link the PR), `won't do` (with the reason).
 
 **Proof rule:** an item is done only with proof, and the type depends on the item:
@@ -126,11 +128,11 @@ The fork must never look like the official Express project. It keeps credit to E
 
 | Status | Item | Line | Proof | PR |
 |---|---|---|---|---|
-| [ ] | README for the fork: what it is, how it differs from Express 5.3.0 (link to this roadmap), install, credit to Express and its contributors, no Express logo | master | | |
-| [ ] | Docs website: fork expressjs/expressjs.com, mark it clearly as the fork's docs with credit and the original licence, and publish it on GitHub Pages | master | the site builds and is live on Pages | |
+| [x] | README for the fork: what it is, how it differs from Express 5.3.0 (link to this roadmap), install, credit to Express and its contributors, no Express logo | says what the fork is and isn't, the drop-in promise, how to install from GitHub, development commands and credit; no Express logo | [#16](https://github.com/abedmurrar/express/pull/16) |
+| [ ] | Docs website: start from the expressjs.com content (with its licence and credit), built with VitePress like the objection fork, marked clearly as the fork's docs, with the fork's additions in their own tab; deployed to GitHub Pages by a docs workflow on pushes to `master` | master | the site builds and is live on Pages | |
 | [ ] | Docs content: our changes, new APIs, TypeScript usage, the middleware-compatibility promise, and a "differences from Express 5.3.0" page | master | | |
-| [ ] | Update every project URL to the fork: `package.json` (`homepage`, `repository`, `bugs`; remove upstream's `funding`), README links and badges (CI, scorecard), the clone instructions, the security policy, links in code comments and error messages, and the generator templates. Links that cite upstream issues, PRs and history stay pointing upstream | master | a URL check in CI that fails on project links to upstream outside the allowed list | |
-| [ ] | Our own security policy (`SECURITY.md`) for reports about the fork | master | | |
+| [~] | Update every project URL to the fork: `package.json` (`homepage`, `repository`, `bugs`; remove upstream's `funding`), README links and badges (CI, scorecard), the clone instructions, the security policy, links in code comments and error messages, and the generator templates. Links that cite upstream issues, PRs and history stay pointing upstream | master | `package.json` (homepage, repository, bugs; upstream `funding` removed), README links and badges, the clone instructions and the security policy are done. Still to do: links in code comments and error messages, the generator templates, and the CI URL check | [#16](https://github.com/abedmurrar/express/pull/16) |
+| [x] | Our own security policy (`SECURITY.md`) for reports about the fork | private vulnerability reporting is turned on for the repository | [#16](https://github.com/abedmurrar/express/pull/16) |
 
 ## Tests
 
@@ -148,8 +150,9 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
 | [~] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | first 10 packages (11 scenarios incl. session, upload, auth, rate limiting) give byte-identical responses and morgan log lines on Express 5.3.0 and the fork (#14). The own suites of cors, express-session, multer and express-rate-limit (625 tests) pass on the fork exactly as on 5.3.0, in a CI workflow (#18). Still to do: growing to 25 packages | [#14](https://github.com/abedmurrar/express/pull/14), [#18](https://github.com/abedmurrar/express/pull/18) |
 | [ ] | Type tests for the whole public API, including route-parameter types from path strings | | master | Medium | type tests in CI | |
+| [ ] | Instruction-count benchmark gate on every PR, as in the objection fork: count CPU instructions with valgrind (cachegrind, pinned and checksum-verified) under deterministic-GC Node flags, against the merge-base, and fail when any scenario is more than 1% worse | | master | Medium | the gate fails on a deliberately slowed build | |
 | [ ] | Node version matrix for the published JavaScript (22, 24, 26, Linux and Windows) | | master | Small | CI matrix | |
-| [ ] | Decide on Node's built-in `node:test` versus mocha, measured on suite time and features | | master | Small | numbers in the PR | |
+| [ ] | Move the test suite from mocha to Vitest (decided 2026-11-21): one PR, every test kept (the same count before and after, including the skipped regression tests), `done` callbacks turned into awaited requests, mocha removed. `@vitest/coverage-v8` keeps the 100% gate and the two commented `c8 ignore` lines | | master | Large | the same test count, all passing, 100% coverage | |
 
 ## TypeScript
 
@@ -161,6 +164,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | [ ] | Convert the vendored router and send to TypeScript | | master | Large | their suites and the harness pass | |
 | [ ] | Public types in our source, ported from `@types/express` and `@types/express-serve-static-core` (MIT, credited), so `@types/express` users can switch without changes | #2818, #6370, #6385, #7231 | master | Large | type tests, plus typing real apps written against `@types/express` | |
 | [ ] | Typed route parameters from path strings, typed `req.body`/`req.query` through generics, and typed `res.locals` | | master | Medium | type tests | |
+| [ ] | Type tests run with `tsc` (strict and loose configs, plus expected-error tests), `attw --pack` to check the published types and exports, and a type-size budget; `@types/node` pinned to Node 22 so the compiler rejects newer Node APIs | | master | Medium | the type tests and `attw` run in CI | |
 | [ ] | Convert the test suite to TypeScript | | master | Large | same test count, all passing | |
 
 ## Dependencies
@@ -344,6 +348,16 @@ These are opt-in, and nothing existing changes.
 | HTTP/2 server push | #2781 | Browsers removed server push |
 | ETag that varies by CORS headers | #5986, PR #6884 | Set `Vary: Origin` instead; Express's ETag describes the body |
 | Path containment for view names | #7140, PR #7142 | View names are not user input, and containment breaks absolute view paths |
+
+## Releases
+
+Modelled on the objection fork's release flow. Publishing itself waits for your go-ahead (next section).
+
+| Status | Item | Line | Proof | PR |
+|---|---|---|---|---|
+| [ ] | A `## Unreleased` section in the changelog, and `npm run release -- patch\|minor`, which dates that section, bumps the version, commits and tags (and refuses an empty Unreleased section) | master | a dry run | |
+| [ ] | `release.yml` on `v*` tags: runs the tests, checks the tag matches `package.json`, publishes with `npm publish --provenance` (trusted publishing rather than a stored token), and creates the GitHub release from the changelog | master | a dry run on a test tag | |
+| [ ] | A patch or minor release for every merge that changes `lib/`, once publishing is approved; anything breaking only on the `6.x` line | both | | |
 
 ## Later, with your go-ahead
 

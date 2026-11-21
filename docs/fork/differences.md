@@ -13,6 +13,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 
 - **Node.js 22, 24 and 26 only.** `engines` is `>= 22`. Express 5.3.0 supports Node.js 18 and later. CI runs the three supported versions on Linux and Windows.
 - **Our own copies of `router` and `send`.** `router` 2.2.0 and `send` 1.2.1 are vendored into `lib/router` and `lib/send`, with their licences and test suites, so routing and file-sending bugs can be fixed in the fork. They're the same versions Express 5.3.0 installs, so nothing changes. See [VENDORED.md](https://github.com/abedmurrar/express/blob/master/VENDORED.md).
+- **Fewer dependencies.** The `merge-descriptors`, `once` and `wrappy` packages are gone, replaced by short built-in equivalents with the same behaviour.
 - **Project links** in `package.json` point to the fork, and upstream's `funding` entry is removed.
 
 ## Tests that guard the drop-in promise

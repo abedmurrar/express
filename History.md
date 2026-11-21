@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Run the benchmark comparison in CI (the `benchmark` workflow) on every PR that touches `lib/`, `index.js`, `package.json` or `benchmarks/`. The table goes to the run summary and the results are kept as an artifact. The CPU pinning now reads the machine's CPU topology instead of assuming 8 threads.
 * Biome replaces ESLint as the only linter and formatter (`npm run lint` is `biome ci .`; the pre-commit hook runs `biome check --staged`). It keeps the old lint rules, and its formatter covers indentation, trailing spaces and final newlines. The whole repo is formatted once; that commit is listed in `.git-blame-ignore-revs`. 63 fewer packages, and no Prettier.
 * Support Node.js 22, 24 and 26 only (`engines` `>= 22`). CI runs those three versions on Linux and Windows, and the legacy Node 16 and 17 workflow is removed. mocha moves to 12.0.3, which needs Node 22.12 or later.
 * Coverage is now measured with c8 (V8's own coverage, replacing `nyc` and its 137 installed packages) and must stay at 100% of statements, branches, functions and lines, or CI fails. New tests cover the last untested paths, including the `res.redirect` deprecations, Promise-like handler results, RegExp mounts, absolute-form URLs and nested path arrays. Three branches that could never run were removed. Every supported Node version (22, 24 and 26) runs it.

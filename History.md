@@ -1,3 +1,10 @@
+Unreleased (fork)
+=================
+
+## 🚀 Improvements
+
+* Add a benchmark comparison (`benchmarks/compare`, `npm run bench`). It measures this repository at the branch head and at a base ref against the original Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`, across 7 scenarios, after checking that each server returns the same response. Results go to `benchmarks/results/`. Written in strict TypeScript that Node 24 runs directly.
+
 5.3.0
 =====
 

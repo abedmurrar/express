@@ -22,9 +22,7 @@ import type {
   ParamCallback,
   PathParams,
   Router as RouterInstance,
-  RouterConstructor,
-  RouterRequest,
-  RouterResponse
+  RouterConstructor
 } from './router'
 import type { Route } from './router/lib/route'
 import type { QueryParser, TrustFunction } from './utils'
@@ -269,7 +267,7 @@ app.handle = function handle(this: Application, req: Request, res: ExpressRespon
 
   // set circular references
   req.res = res
-  ;(res as { req: unknown }).req = req
+  res.req = req
 
   // alter the prototypes, unless app.listen() already made req and res with them
   if (Object.getPrototypeOf(req) !== this.request) Object.setPrototypeOf(req, this.request)
@@ -280,7 +278,7 @@ app.handle = function handle(this: Application, req: Request, res: ExpressRespon
     res.locals = Object.create(null)
   }
 
-  this.router.handle(req as RouterRequest, res, done)
+  this.router.handle(req, res, done)
 }
 
 /**
@@ -334,9 +332,9 @@ app.use = function use(this: Application, fn: unknown) {
     fn.parent = this
 
     // restore .app property on req and res
-    router.use(path, function mounted_app(req: RouterRequest, res: RouterResponse, next: NextFunction) {
-      var orig = (req as RouterRequest & { app: Application }).app
-      fn.handle!(req as unknown as Request, res as ExpressResponse, function (err) {
+    router.use(path, function mounted_app(req: Request, res: ExpressResponse, next: NextFunction) {
+      var orig = req.app
+      fn.handle!(req, res, function (err) {
         Object.setPrototypeOf(req, orig.request)
         Object.setPrototypeOf(res, orig.response)
         next(err)

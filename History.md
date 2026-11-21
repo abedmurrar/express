@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Grow the differential harness with 3,306 generated scenarios (`test/differential/generated.js`). Every `res` method and every `req` property is called with many kinds of arguments, and combined with app settings, HTTP methods, paths and request headers so that every pair of values meets at least once. They run on Express 5.3.0 and on this fork in about 6 seconds and must give byte-identical responses and error logs. There are no differences.
 * Add an ecosystem check (`test/ecosystem/`). Ten popular middleware packages (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit) run on the original Express 5.3.0 and on this fork, and must give byte-identical responses and log lines, including multi-request flows such as sessions. The differential helpers now live in `test/differential/support.js`.
 * Biome replaces ESLint as the only linter and formatter (`npm run lint` is `biome ci .`; the pre-commit hook runs `biome check --staged`). It keeps the old lint rules, and its formatter covers indentation, trailing spaces and final newlines. The whole repo is formatted once; that commit is listed in `.git-blame-ignore-revs`. 63 fewer packages, and no Prettier.
 * Support Node.js 22, 24 and 26 only (`engines` `>= 22`). CI runs those three versions on Linux and Windows, and the legacy Node 16 and 17 workflow is removed. mocha moves to 12.0.3, which needs Node 22.12 or later.

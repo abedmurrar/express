@@ -8,26 +8,112 @@
 
 'use strict'
 
+import type { Accepts } from 'accepts'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { Socket } from 'node:net'
+import type {
+  Options as RangeParserOptions,
+  Ranges as RangeParserRanges,
+  Result as RangeParserResult
+} from 'range-parser'
+import type { QueryParser, TrustFunction } from './utils'
+
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-var accepts = require('accepts')
-var isIP = require('node:net').isIP
-var typeis = require('type-is')
-var http = require('node:http')
-var fresh = require('fresh')
-var parseRange = require('range-parser')
-var parse = require('parseurl')
-var proxyaddr = require('proxy-addr')
+const accepts = require('accepts') as typeof import('accepts')
+const isIP = (require('node:net') as typeof import('node:net')).isIP
+const typeis = require('type-is') as typeof import('type-is')
+const http = require('node:http') as typeof import('node:http')
+const fresh = require('fresh') as typeof import('fresh')
+const parseRange = require('range-parser') as typeof import('range-parser')
+const parse = require('parseurl') as typeof import('parseurl')
+const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
+
+/** A `next` function: call it to pass control on, or with an error to skip to the error handlers. */
+export type NextFunction = (err?: unknown) => void
+
+/**
+ * The parts of the application that a request reads: the settings it is
+ * configured by. The application's own type replaces this once it is converted.
+ */
+export interface RequestApplication {
+  get(setting: 'query parser fn'): QueryParser | undefined
+  get(setting: 'subdomain offset'): number
+  get(setting: 'trust proxy fn'): TrustFunction
+}
+
+/**
+ * The parts of the response that a request reads, for freshness. The
+ * response's own type replaces this once it is converted.
+ */
+export interface RequestResponse extends ServerResponse {
+  get(field: string): ReturnType<ServerResponse['getHeader']>
+}
+
+/**
+ * An Express request: Node's `IncomingMessage`, plus what this prototype
+ * adds and what the application and router set on it.
+ *
+ * The `accepts*` methods have the overloads of the matching `accepts`
+ * methods, which they call with their arguments unchanged.
+ */
+export interface Request extends IncomingMessage {
+  /** The application, set on each application's request prototype. */
+  app: RequestApplication
+  /** The response, set by the application. */
+  res: RequestResponse
+  /** The router's `next` for the current layer. */
+  next: NextFunction
+  /** The path the current router is mounted at. */
+  baseUrl: string
+  /** `req.url` as it arrived, before the routers rewrote it. */
+  originalUrl: string
+  /** The route parameters of the current layer. */
+  params: Record<string, string | string[]>
+  /** The route that matched, set by the router. */
+  route?: object
+  /** The cookie secret, set by cookie-parser and read by `res.cookie()`. */
+  secret?: string | undefined
+  /** The socket, which is a TLS socket (with `encrypted` set) for HTTPS. */
+  socket: Socket & { encrypted?: boolean }
+
+  get(name: 'set-cookie'): string[] | undefined
+  get(name: string): string | undefined
+  header(name: 'set-cookie'): string[] | undefined
+  header(name: string): string | undefined
+  accepts: Accepts['types']
+  acceptsEncodings: Accepts['encodings']
+  acceptsCharsets: Accepts['charsets']
+  acceptsLanguages: Accepts['languages']
+  range(size: number, options?: RangeParserOptions): RangeParserResult | RangeParserRanges | undefined
+  is(type: string | string[], ...types: string[]): string | false | null
+
+  readonly query: object
+  readonly protocol: string
+  readonly secure: boolean
+  readonly ip: string | undefined
+  readonly ips: string[]
+  readonly subdomains: string[]
+  readonly path: string | null
+  readonly host: string | undefined
+  readonly hostname: string | undefined
+  readonly fresh: boolean
+  readonly stale: boolean
+  readonly xhr: boolean
+}
 
 /**
  * Request prototype.
  * @public
  */
 
-var req = Object.create(http.IncomingMessage.prototype)
+var req = Object.create(http.IncomingMessage.prototype) as Request
 
 /**
  * Module exports.
@@ -60,7 +146,11 @@ module.exports = req
  * @public
  */
 
-req.get = req.header = function header(name) {
+req.get = req.header = header
+
+function header(this: Request, name: 'set-cookie'): string[] | undefined
+function header(this: Request, name: string): string | undefined
+function header(this: Request, name: string): string | string[] | undefined {
   if (!name) {
     throw new TypeError('name argument is required to req.get')
   }
@@ -122,10 +212,10 @@ req.get = req.header = function header(name) {
  * @public
  */
 
-req.accepts = function () {
+req.accepts = function (this: Request, ...types: string[]) {
   var accept = accepts(this)
-  return accept.types.apply(accept, arguments)
-}
+  return accept.types.apply(accept, types)
+} as Request['accepts']
 
 /**
  * Check if the given `encoding`s are accepted.
@@ -135,10 +225,10 @@ req.accepts = function () {
  * @public
  */
 
-req.acceptsEncodings = function () {
+req.acceptsEncodings = function (this: Request, ...encodings: string[]) {
   var accept = accepts(this)
-  return accept.encodings.apply(accept, arguments)
-}
+  return accept.encodings.apply(accept, encodings)
+} as Request['acceptsEncodings']
 
 /**
  * Checks if the specified `charset`s are acceptable based on the request's `Accept-Charset` header.
@@ -166,10 +256,10 @@ req.acceptsEncodings = function () {
  * @public
  */
 
-req.acceptsCharsets = function (...charsets) {
+req.acceptsCharsets = function (this: Request, ...charsets: string[]) {
   const accept = accepts(this)
   return accept.charsets(...charsets)
-}
+} as Request['acceptsCharsets']
 
 /**
  * Check if the given `lang`s are acceptable,
@@ -180,9 +270,9 @@ req.acceptsCharsets = function (...charsets) {
  * @public
  */
 
-req.acceptsLanguages = function (...languages) {
+req.acceptsLanguages = function (this: Request, ...languages: string[]) {
   return accepts(this).languages(...languages)
-}
+} as Request['acceptsLanguages']
 
 /**
  * Parse Range header field, capping to the given `size`.
@@ -233,7 +323,9 @@ defineGetter(req, 'query', function query() {
     return Object.create(null)
   }
 
-  var querystring = parse(this).query
+  // parseurl leaves the query unparsed: a string, or null when there is none,
+  // which the query parsers accept
+  var querystring = parse(this)!.query as string
 
   return queryparse(querystring)
 })
@@ -269,13 +361,14 @@ req.is = function is(types) {
 
   // support flattened arguments
   if (!Array.isArray(types)) {
-    arr = new Array(arguments.length)
+    arr = new Array<string>(arguments.length)
     for (var i = 0; i < arr.length; i++) {
       arr[i] = arguments[i]
     }
   }
 
-  return typeis(this, arr)
+  // an array either way, from the arguments or as given
+  return typeis(this, arr as string[])
 }
 
 /**
@@ -296,7 +389,8 @@ defineGetter(req, 'protocol', function protocol() {
   var proto = this.socket.encrypted ? 'https' : 'http'
   var trust = this.app.get('trust proxy fn')
 
-  if (!trust(this.socket.remoteAddress, 0)) {
+  // the address is passed as is, even when the socket is closed and it is undefined
+  if (!trust(this.socket.remoteAddress as string, 0)) {
     return proto
   }
 
@@ -393,7 +487,7 @@ defineGetter(req, 'subdomains', function subdomains() {
  */
 
 defineGetter(req, 'path', function path() {
-  return parse(this).pathname
+  return parse(this)!.pathname
 })
 
 /**
@@ -411,7 +505,7 @@ defineGetter(req, 'host', function host() {
   var trust = this.app.get('trust proxy fn')
   var val = this.get('X-Forwarded-Host')
 
-  if (!val || !trust(this.socket.remoteAddress, 0)) {
+  if (!val || !trust(this.socket.remoteAddress as string, 0)) {
     val = this.get('Host')
   } else if (val.indexOf(',') !== -1) {
     // Note: X-Forwarded-Host is normally only ever a
@@ -506,7 +600,7 @@ defineGetter(req, 'xhr', function xhr() {
  * @param {Function} getter
  * @private
  */
-function defineGetter(obj, name, getter) {
+function defineGetter<K extends keyof Request>(obj: Request, name: K, getter: (this: Request) => Request[K]): void {
   Object.defineProperty(obj, name, {
     configurable: true,
     enumerable: true,

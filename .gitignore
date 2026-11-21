@@ -18,3 +18,8 @@ benchmarks/graphs
 
 # ignore additional files using core.excludesFile
 # https://git-scm.com/docs/gitignore
+
+# research data that is regenerated, not committed
+research/raw/
+research/bench/node_modules/
+research/bench/express-*/

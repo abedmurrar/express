@@ -106,6 +106,7 @@
     "test-cov": "c8 --reporter=html --reporter=text npm test",
     "test-tap": "mocha --reporter tap",
     "bench:install": "npm --prefix benchmarks/compare install",
-    "bench": "node benchmarks/compare/run.ts"
+    "bench": "node benchmarks/compare/run.ts",
+    "test:ecosystem-suites": "node scripts/ecosystem-suites.js"
   }
 }

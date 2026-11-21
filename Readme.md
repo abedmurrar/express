@@ -29,7 +29,8 @@ The full plan, with a decision for every open upstream issue and pull request, i
   * the same check with popular middleware (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit);
   * a fuzzer that builds random apps and requests and runs that check on each, and property tests that check query parsing, routing, content negotiation, cookies, ranges, ETags and freshness on random inputs;
   * a 100% coverage gate.
-* **Regression tests for 20 confirmed bugs**, which stay skipped until each fix lands.
+* **Regression tests for 21 confirmed bugs**, which stay skipped until each fix lands.
+* **A security test suite** that checks auth guards against path tricks (case, slashes, encoding, RegExp paths), header injection, redirect targets, prototype pollution and path traversal. Each check was shown to fail when its guard is broken on purpose.
 * **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
 * **Our own copies of `router` and `send`** (see [VENDORED.md](VENDORED.md)), so routing and file-sending bugs can be fixed here.
 * **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.

@@ -122,3 +122,59 @@ describe('property: ETag', function () {
     )
   })
 })
+
+// utils.etag and utils.wetag compute the tag with crypto.hash() (and hash
+// UTF-8 strings without copying them into a Buffer). They must give exactly
+// what the etag package (1.8.1) gives for the body's bytes, for every
+// encoding res.send can pass.
+describe('property: the ETag generator matches the etag package', function () {
+  var etagPackage = require('etag')
+  var utils = require('../../lib/utils')
+  var encodings = [undefined, 'utf8', 'utf-8', 'latin1', 'binary', 'ascii', 'hex', 'base64', 'ucs2', 'utf16le']
+  var anyBody = fc.oneof(
+    fc.string({ unit: 'binary', maxLength: 3000 }),
+    fc.string({ unit: 'grapheme', maxLength: 300 }),
+    fc.uint8Array({ maxLength: 3000 }).map((a) => Buffer.from(a))
+  )
+
+  function expected(b, encoding, weak) {
+    return etagPackage(Buffer.isBuffer(b) ? b : Buffer.from(b, encoding), { weak: weak })
+  }
+
+  for (var weak of [false, true]) {
+    var generate = weak ? utils.wetag : utils.etag
+    var label = weak ? 'wetag' : 'etag'
+
+    it(label + ': equal for any body and encoding', function () {
+      var g = generate
+      var w = weak
+      check(
+        fc.property(anyBody, fc.constantFrom.apply(fc, encodings), function (b, encoding) {
+          assert.strictEqual(g(b, encoding), expected(b, encoding, w))
+        })
+      )
+    })
+
+    it(label + ': equal for empty bodies, lone surrogates, NUL and the 1000-character boundary', function () {
+      var cases = [
+        '',
+        Buffer.alloc(0),
+        '\ud800',
+        'a\udc00b',
+        '\u0000',
+        'x'.repeat(999),
+        'x'.repeat(1000),
+        'é'.repeat(700)
+      ]
+      for (var b of cases) {
+        for (var encoding of encodings) {
+          assert.strictEqual(
+            generate(b, encoding),
+            expected(b, encoding, weak),
+            JSON.stringify([b, encoding]).slice(0, 60)
+          )
+        }
+      }
+    })
+  }
+})

@@ -17,10 +17,10 @@
 
 import { Buffer } from 'node:buffer'
 import type { ServerResponse } from 'node:http'
-import type { Stream } from 'node:stream'
 import type { CookieSerializeOptions } from 'cookie'
 import type { Application } from './application'
 import type { Request } from './request'
+import type { SendFunction, SendStream } from './send'
 import type { ETagFunction } from './utils'
 
 const contentDisposition = require('content-disposition') as typeof import('content-disposition')
@@ -30,7 +30,6 @@ const encodeUrl = require('encodeurl') as typeof import('encodeurl')
 const escapeHtml = require('escape-html') as typeof import('escape-html')
 const http = require('node:http') as typeof import('node:http')
 const onFinished = require('on-finished') as typeof import('on-finished')
-const mime = require('mime-types') as typeof import('mime-types')
 const path = require('node:path') as typeof import('node:path')
 const pathIsAbsolute = (require('node:path') as typeof import('node:path')).isAbsolute
 const statuses = require('statuses') as typeof import('statuses')
@@ -38,6 +37,7 @@ const sign = (require('cookie-signature') as typeof import('cookie-signature')).
 const normalizeType = (require('./utils') as typeof import('./utils')).normalizeType
 const normalizeTypes = (require('./utils') as typeof import('./utils')).normalizeTypes
 const setCharset = (require('./utils') as typeof import('./utils')).setCharset
+const mimeContentType = (require('./utils') as typeof import('./utils')).mimeContentType
 const cookie = require('cookie') as typeof import('cookie')
 const send = require('./send') as SendFunction
 const extname = path.extname
@@ -123,18 +123,6 @@ export interface ExpressResponse extends ServerResponse<Request> {
   vary(field: string | string[]): this
   render(view: string, options?: RenderOptions | RenderCallback, callback?: RenderCallback): void
 }
-
-/**
- * The vendored `send` stream, as response.ts uses it.
- *
- * TODO: use the types from `src/send` once it is converted to TypeScript.
- */
-interface SendStream extends Stream {
-  pipe<T extends NodeJS.WritableStream>(res: T): T
-}
-
-/** The vendored `send` function. */
-type SendFunction = (req: Request, path: string, options: SendFileOptions) => SendStream
 
 /**
  * Response prototype.
@@ -635,7 +623,7 @@ res.download = function download(
  */
 
 res.contentType = res.type = function contentType(this: ExpressResponse, type: string) {
-  var ct = type.indexOf('/') === -1 ? mime.contentType(type) || 'application/octet-stream' : type
+  var ct = type.indexOf('/') === -1 ? mimeContentType(type) || 'application/octet-stream' : type
 
   return this.set('Content-Type', ct)
 }
@@ -809,7 +797,7 @@ res.set = res.header = function header(this: ExpressResponse, field: string | Re
       if (Array.isArray(value)) {
         throw new TypeError('Content-Type cannot be set to an Array')
       }
-      value = mime.contentType(value)
+      value = mimeContentType(value)
     }
 
     // mime.contentType gives false for an unknown type, and Node writes it as "false"

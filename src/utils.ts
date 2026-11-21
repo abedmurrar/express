@@ -16,11 +16,11 @@
  */
 
 import { Buffer } from 'node:buffer'
+import { hash } from 'node:crypto'
 import { METHODS } from 'node:http'
 import querystring from 'node:querystring'
 
 const contentType = require('content-type') as typeof import('content-type')
-const etag = require('etag') as typeof import('etag')
 const mime = require('mime-types') as typeof import('mime-types')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
 const qs = require('qs') as typeof import('qs')
@@ -254,14 +254,68 @@ export function setCharset(type: string | undefined, charset: string | undefined
     return type
   }
 
-  // parse type
-  var parsed = contentType.parse(type)
+  var byType = setCharsetCache.get(charset)
+  var formatted = byType && byType.get(type)
 
-  // set charset
-  parsed.parameters.charset = charset
+  if (formatted === undefined) {
+    // parse type (throws on an invalid type, before anything is cached)
+    var parsed = contentType.parse(type)
 
-  // format type
-  return contentType.format(parsed)
+    // set charset
+    parsed.parameters.charset = charset
+
+    // format type
+    formatted = contentType.format(parsed)
+
+    if (byType === undefined) {
+      byType = new Map()
+      remember(setCharsetCache, charset, byType)
+    }
+    remember(byType, type, formatted)
+  }
+
+  return formatted
+}
+
+/**
+ * `mime.contentType`, remembered by its input: a response sets one of a
+ * handful of types, and each lookup through the mime database costs a few
+ * hundred nanoseconds. `false` (an unknown type) is remembered too.
+ *
+ * @param {String} value
+ * @return {String|false}
+ * @api private
+ */
+
+export function mimeContentType(value: string): string | false {
+  var resolved = mimeContentTypeCache.get(value)
+
+  if (resolved === undefined) {
+    resolved = remember(mimeContentTypeCache, value, mime.contentType(value))
+  }
+
+  return resolved
+}
+
+/**
+ * The memo caches for setCharset and mimeContentType, ported from upstream
+ * PR #7481 (Nigro Simone). setCharset keeps one map of type to result per
+ * charset, since a key joining the two strings would be hashed again on
+ * every call. Each map holds at most CACHE_LIMIT entries and is emptied when
+ * full, so types taken from requests can't grow them without bound.
+ * @private
+ */
+
+const CACHE_LIMIT = 100
+const setCharsetCache = new Map<string, Map<string, string>>()
+const mimeContentTypeCache = new Map<string, string | false>()
+
+function remember<V>(cache: Map<string, V>, key: string, value: V): V {
+  if (cache.size >= CACHE_LIMIT) {
+    cache.clear()
+  }
+  cache.set(key, value)
+  return value
 }
 
 /**
@@ -274,11 +328,40 @@ export function setCharset(type: string | undefined, charset: string | undefined
  */
 
 function createETagGenerator(options: { weak: boolean }): ETagFunction {
+  var prefix = options.weak ? 'W/' : ''
+
   return function generateETag(body, encoding) {
+    // UTF-8 strings are hashed as they are, which skips copying them into a
+    // Buffer first; crypto.hash encodes strings as UTF-8 exactly as
+    // Buffer.from does. Other encodings still go through a Buffer.
+    if (typeof body === 'string' && (encoding === undefined || encoding === 'utf8' || encoding === 'utf-8')) {
+      return prefix + entityTag(body, Buffer.byteLength(body, 'utf8'))
+    }
+
     var buf = !Buffer.isBuffer(body) ? Buffer.from(body, encoding) : body
 
-    return etag(buf, options)
+    return prefix + entityTag(buf, buf.length)
   }
+}
+
+/**
+ * The entity tag of `etag` 1.8.1 for a body: its byte length in hex and the
+ * first 27 characters of its base64 SHA-1, in quotes. The same output, through
+ * Node's one-shot crypto.hash() instead of createHash().update().digest().
+ *
+ * @param {String|Buffer} entity
+ * @param {Number} length the entity's length in bytes
+ * @return {String}
+ * @private
+ */
+
+function entityTag(entity: string | Buffer, length: number): string {
+  if (length === 0) {
+    // the SHA-1 of an empty body
+    return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"'
+  }
+
+  return '"' + length.toString(16) + '-' + hash('sha1', entity, 'base64').substring(0, 27) + '"'
 }
 
 /**

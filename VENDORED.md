@@ -43,6 +43,22 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 - `src/send/index.js`: `SendStream.prototype.error` no longer falls back to `String(status)` when a status has no standard message. Every caller passes 400, 403, 404, 412, 416 or 500, so the fallback could never run.
 
 - `src/send/index.js`: `SendStream.prototype.send` wraps `this.setHeader(path, stat)` in a try/catch and passes a throw to `this.error(500, err)`. A throwing `headers` listener (for example Express's `res.sendFile` `headers` option with a CR or LF in a value) used to be an uncaught exception, because it runs in an `fs.stat` callback. Not in upstream.
+- The file is strict TypeScript: `src/send/index.ts`. Only types were added: the statements, their order, the `var` declarations, the function names and the comments are upstream's (with the edits above). When re-syncing, apply upstream's JavaScript changes to this file and type the new lines the same way. Dependencies are loaded with `require` and typed with `typeof import(...)`, and the types the file exports (`SendOptions`, `SendStream`, `SendFunction` and `SendErrorDetails`) are declared after the `require` lines. The compiled `lib/send/index.js` differs from the JavaScript build only in the prototype assignments (`proto.error = ...` instead of `SendStream.prototype.error = ...`, after `const proto = SendStream.prototype as SendStream`) and in TypeScript's `__esModule` marker, which lands on the `exports` object that `module.exports = send` replaces. The lines that read differently from upstream:
+  - The `require` lines: `Buffer` is `(require('node:buffer') as typeof import('node:buffer')).Buffer` and `debug` is `(require('debug') as typeof import('debug'))('send')`.
+  - `send`: `new (SendStream as unknown as SendStreamConstructor)(req, path, options)`, because `SendStream` is only ever called with `new`.
+  - `SendStream`: takes `this: SendStreamInit`, the stream type with `_maxage` widened to `number | string | undefined` for the three lines that convert the option to milliseconds. The second of them calls `ms(this._maxage as StringValue)`.
+  - The prototype methods are assigned through `const proto = SendStream.prototype as SendStream`, which comes right after `util.inherits(SendStream, Stream)`.
+  - `error`: `function error(status, err): boolean | void`. It returns `this.emit(...)` when there are `error` listeners and nothing otherwise, which `noImplicitReturns` only accepts with that return type.
+  - `isRangeFresh`: `ifRange.indexOf(etag as string)`.
+  - `pipe`: `this.res = res as unknown as ServerResponse`. `pipe` keeps `Stream`'s generic signature, which it overrides, so the response comes in typed as a writable stream.
+  - `pipe`: `var parts: string[]`.
+  - `send` (`sendPath`): `var opts: SendOptions = {}`, `var ranges: string | undefined | RangeResult | Ranges = req.headers.range`, `this.error(500, err as Error)` in our try/catch, `BYTES_RANGE_REGEXP.test(ranges as string)`, `parseRange(len, ranges as string, {`, and `(ranges[0] as Range)` in the two lines that adjust `offset` and `len`.
+  - `sendFile` and `sendIndex`: `nextExtension(err?: NodeJS.ErrnoException)` and `nextIndex(err?: NodeJS.ErrnoException)`, and `join(path, self._index[i] as string)`.
+  - `containsDotFile`: `var part = parts[i] as string`. `setHeaders`: `var key = keys[i] as string` and `headers[key] as OutgoingHttpHeader`.
+  - `normalizeList`: `([] as string[]).concat(val || [])`.
+  - `parseHttpDate`: `Date.parse(date as string)`. A header value can be a number, which `Date.parse` turns into a string, as before.
+  - `parseTokenList`: `var list: string[] = []`.
+  - Every other line gained parameter and return types only.
 
 ### send tests
 

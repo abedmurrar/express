@@ -12,9 +12,11 @@ var assert = require('node:assert')
 var baseline = require('express-baseline')
 var ours = require('../..')
 var { scenarios, allowed } = require('./scenarios')
-var { serve, sequence, close } = require('./support')
+var { serve, sequence, close, useFixedClock } = require('./support')
 
 describe('differential: responses match Express 5.3.0', function () {
+  useFixedClock()
+
   scenarios.forEach(function (scenario) {
     it(scenario.name, async function () {
       var a = await serve(baseline, scenario.setup)

@@ -20,8 +20,9 @@ const pathRegexp = require('path-to-regexp') as typeof import('path-to-regexp')
 const debug = (require('debug') as typeof import('debug'))('router:layer')
 const deprecate = (require('depd') as typeof import('depd'))('router')
 
-import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { MatchFunction, MatchOptions, ParamData } from 'path-to-regexp'
+import type { Request } from '../../request'
+import type { ExpressResponse } from '../../response'
 import type { Route } from './route'
 
 /** Call it to pass control on, or with an error (or `'route'`, `'router'`) to skip ahead. */
@@ -29,18 +30,14 @@ export type NextFunction = (err?: unknown) => void
 export type Params = ParamData
 export type PathParams = string | RegExp | Array<string | RegExp>
 
-/** What the router reads and sets on the request, on top of Node's `IncomingMessage`. */
-export interface RouterRequest extends IncomingMessage {
-  url: string
-  baseUrl: string
-  originalUrl: string
-  params: Params
-  route?: Route
-  next: NextFunction
-}
+/**
+ * The request: the Express request, which declares what the router reads and
+ * sets on it (`url`, `baseUrl`, `originalUrl`, `params`, `route`, `next`).
+ */
+export type RouterRequest = Request
 
 /** The response, which the router writes to only for the automatic OPTIONS response. */
-export interface RouterResponse extends ServerResponse {}
+export type RouterResponse = ExpressResponse
 
 export type RequestHandler = (req: RouterRequest, res: RouterResponse, next: NextFunction) => unknown
 /** Told apart from a request handler by taking four arguments. */

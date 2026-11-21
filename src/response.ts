@@ -16,9 +16,11 @@
  */
 
 import { Buffer } from 'node:buffer'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { ServerResponse } from 'node:http'
 import type { Stream } from 'node:stream'
 import type { CookieSerializeOptions } from 'cookie'
+import type { Application } from './application'
+import type { Request } from './request'
 import type { ETagFunction } from './utils'
 
 const contentDisposition = require('content-disposition') as typeof import('content-disposition')
@@ -50,7 +52,7 @@ export type HeaderValue = number | string | readonly string[]
 export type NextFunction = (err?: unknown) => void
 
 /** A `res.format` handler. */
-export type FormatHandler = (req: ResponseRequest, res: ExpressResponse, next: NextFunction) => void
+export type FormatHandler = (req: Request, res: ExpressResponse, next: NextFunction) => void
 
 /** The `res.sendFile` and `res.download` callback. */
 export type SendFileCallback = (err?: NodeJS.ErrnoException) => void
@@ -81,39 +83,14 @@ export interface RenderOptions {
 }
 
 /**
- * The application fields response.ts uses.
- *
- * TODO: replace with the shared application interface once `src/application`
- * is converted to TypeScript.
- */
-export interface ResponseApp {
-  get(setting: string): unknown
-  enabled(setting: string): boolean
-  render(name: string, options: RenderOptions, callback: RenderCallback): void
-}
-
-/**
- * The request fields response.ts uses.
- *
- * TODO: replace with the shared request interface once `src/request` is
- * converted to TypeScript (it is being converted in a separate PR).
- */
-export interface ResponseRequest extends IncomingMessage {
-  app: ResponseApp
-  fresh: boolean
-  next: NextFunction
-  query: Record<string, unknown>
-  secret?: string | undefined
-  accepts(types: string[]): string | false
-}
-
-/**
  * The Express response: Node's `ServerResponse` with the helpers below.
  * Parameters are as loose as the JavaScript accepts, and each method narrows
  * them the way the JavaScript does.
  */
-export interface ExpressResponse extends ServerResponse<ResponseRequest> {
-  app: ResponseApp
+export interface ExpressResponse extends ServerResponse<Request> {
+  app: Application
+  /** The request, set by the application. */
+  req: Request
   locals: Record<string, unknown>
   status(code: unknown): this
   links(links: Record<string, string | string[]>): this
@@ -157,7 +134,7 @@ interface SendStream extends Stream {
 }
 
 /** The vendored `send` function. */
-type SendFunction = (req: ResponseRequest, path: string, options: SendFileOptions) => SendStream
+type SendFunction = (req: Request, path: string, options: SendFileOptions) => SendStream
 
 /**
  * Response prototype.
@@ -410,7 +387,7 @@ res.jsonp = function jsonp(this: ExpressResponse, obj?: unknown) {
   var spaces = app.get('json spaces')
   var body = stringify(obj, replacer, spaces, escape)
   // the setting is used as a property key as it is
-  var callback: unknown = this.req.query[app.get('jsonp callback name') as string]
+  var callback: unknown = (this.req.query as Record<string, unknown>)[app.get('jsonp callback name') as string]
 
   // content-type
   if (!this.get('Content-Type')) {
@@ -729,7 +706,8 @@ res.format = function (this: ExpressResponse, obj: Record<string, FormatHandler>
     return v !== 'default'
   })
 
-  var key = keys.length > 0 ? req.accepts(keys) : false
+  // a non-empty list gives one type, or false
+  var key = keys.length > 0 ? (req.accepts(keys) as string | false) : false
 
   this.vary('Accept')
 

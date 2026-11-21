@@ -136,7 +136,15 @@ const NODE_FLAGS = [
 ]
 
 function count(scenario: Scenario, dir: string, requests: number): Promise<number> {
-  const argv = [...counter.args, process.execPath, ...NODE_FLAGS, path.join(here, 'worker.ts'), scenario, dir, String(requests)]
+  const argv = [
+    ...counter.args,
+    process.execPath,
+    ...NODE_FLAGS,
+    path.join(here, 'worker.ts'),
+    scenario,
+    dir,
+    String(requests)
+  ]
   return new Promise((resolve, reject) => {
     const proc = spawn(counter.command, argv, { stdio: ['ignore', 'ignore', 'pipe'] })
     let stderr = ''
@@ -296,7 +304,12 @@ async function main(): Promise<void> {
     if (maxChange !== undefined && change > maxChange) {
       tooSlow.push(`${result.scenario}: +${change.toFixed(2)}% (limit ${maxChange}%)`)
     }
-    rows.push([result.scenario, format(result.before), format(result.after), `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`])
+    rows.push([
+      result.scenario,
+      format(result.before),
+      format(result.after),
+      `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`
+    ])
   }
 
   const report = [
@@ -311,7 +324,8 @@ async function main(): Promise<void> {
       : `More instructions than allowed${args['report-only'] ? ' (report only, not failing)' : ''}:\n\n${tooSlow.map((l) => `- ${l}`).join('\n')}`
   ].join('\n')
   console.log(`\n${report}`)
-  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Instruction count\n\n${report}\n`)
+  if (process.env.GITHUB_STEP_SUMMARY)
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Instruction count\n\n${report}\n`)
   if (tooSlow.length > 0 && !args['report-only']) process.exitCode = 1
 }
 

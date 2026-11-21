@@ -1,0 +1,11 @@
+# Every test file under test/, so a new test folder needs no script change.
+require: test/support/env
+check-leaks: true
+recursive: true
+spec:
+  - test/**/*.js
+ignore:
+  - test/**/support/**
+  - test/**/fixtures/**
+  - test/**/support.js
+  - test/differential/scenarios.js

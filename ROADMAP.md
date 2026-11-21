@@ -59,7 +59,7 @@ Docs ride along with each item.
 | [~] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [~] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [ ] | Re-sync the vendored router to 2.3.0 once it is 7 days old (from 2026-11-24) | #4059, router#206, router#174, router#196 | master | Small | router tests, harness, repro 4059 | |
-| [ ] | Update mocha and supertest | #7547, PR #7600 | master | Small | suite passes | |
+| [~] | Update mocha and supertest | #7547, PR #7600 | master | Small | same 2,123 tests pass; mocha 11.8.0 here, mocha 12 (Node 20.19+) on 6.x | [#7](https://github.com/abedmurrar/express/pull/7) |
 | [ ] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | tests pass | |
 | [ ] | ESLint 9 and a pre-commit lint hook | PRs #6118, #6480, #6912 | master | Small | lint passes | |
 
@@ -129,7 +129,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
-| [ ] | Dev dependencies: mocha 12, supertest 7.3, ESLint 9 flat config, `c8` instead of `nyc`, TypeScript 7 | | | Update | master |
+| [ ] | Dev dependencies: supertest 7.3, ESLint 10 flat config, `c8` instead of `nyc`, TypeScript 7 on master; mocha 12 on 6.x (it needs Node 20.19+, and master still tests Node 16 to 19) | | | Update | both |
 
 ## Bug fixes on the compatible line
 

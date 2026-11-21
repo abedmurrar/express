@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Update the test tooling: supertest 7.3.2 (upstream PR #7600 by krzysdz, cherry-picked) and mocha 11.8.0. Test files are now found by `.mocharc.yml` globs, so new test folders need no script change. mocha 12 needs Node 20.19 or later, so it waits for the 6.x line, whose minimum is Node 24.
 * Add a benchmark comparison (`benchmarks/compare`, `npm run bench`). It measures this repository at the branch head and at a base ref against the original Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`, across 7 scenarios, after checking that each server returns the same response. Results go to `benchmarks/results/`. Written in strict TypeScript that Node 24 runs directly.
 * Vendor `router` 2.2.0 into `lib/router` and `send` 1.2.1 into `lib/send`, with their licences and test suites, so this fork can fix routing and file-sending bugs directly. They're the same versions Express 5.3.0 installs, so nothing changes. See `VENDORED.md`.
 

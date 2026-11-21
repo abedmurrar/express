@@ -247,7 +247,7 @@ Baseline on this machine (Node 24.17.0, requests per second): Hello World 33,776
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | measured +11–14% | |
+| [x] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | CI benchmark against `master`: hello +11.7%, json +8.3%, params +7.7%, mw10 +9.3%, routes100 +5.2%, post-json +4.1%, not-found +11.4%; differential scenarios also run on `app.listen()` | [#38](https://github.com/abedmurrar/express/pull/38) |
 | [ ] | Cache the trust-proxy getters (`req.ip`, `protocol`, `host`, `hostname`), keyed on their inputs | PR #7519 | master | Small | bench and harness | |
 | [ ] | Cache the `accepts` instance per request | PR #7008 | master | Small | bench and harness | |
 | [ ] | Memoise content-type lookups | PR #7481 | master | Small | bench and harness | |

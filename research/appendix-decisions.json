@@ -1,0 +1,1391 @@
+{
+  "issues": {
+    "1980": {
+      "decision": "wont-do",
+      "reason": "Route handlers already take middleware arguments; a route-level use() adds API for no gain.",
+      "note": "Asks for app.route(path).use() middleware."
+    },
+    "2151": {
+      "decision": "wont-do",
+      "reason": "Routers are independent of the app by design; register shared param callbacks on each router with a helper.",
+      "note": "Wants app.param callbacks to apply inside mounted routers."
+    },
+    "2216": {
+      "decision": "wont-do",
+      "reason": "Renaming or reshaping the settings API breaks every app for no user gain; app.set and app.get stay.",
+      "note": "Proposes removing app.get/app.set for settings."
+    },
+    "2217": {
+      "decision": "wont-do",
+      "reason": "A view-engine rewrite belongs in a separate package; we only fix lookup and render bugs.",
+      "note": "2014 idea to move the view system into its own library."
+    },
+    "2246": {
+      "decision": "wont-do",
+      "reason": "Defining your own OPTIONS handler already replaces the automatic one; CORS belongs in the cors package.",
+      "note": "Asks for a switch to turn off automatic OPTIONS responses."
+    },
+    "2247": {
+      "decision": "wont-do",
+      "reason": "Registering app.head() before app.get() already overrides it; a setting adds config for no gain.",
+      "note": "Asks for a switch to turn off automatic HEAD handling."
+    },
+    "2249": {
+      "decision": "roadmap",
+      "item": "`res.send(object)` throws; use `res.json`",
+      "note": "Deprecate res.send(obj) as a JSON shortcut."
+    },
+    "2263": {
+      "decision": "new-item",
+      "proposed_item": "Default error logger skips 4xx errors",
+      "line": "6.x",
+      "milestone": "Our 6.0",
+      "note": "Default error handler console.errors client (4xx) errors."
+    },
+    "2281": {
+      "decision": "roadmap",
+      "item": "Opt-in strict routing on mount paths",
+      "note": "Strict routing ignored on a mount path; reproduced."
+    },
+    "2414": {
+      "decision": "wont-do",
+      "reason": "Express can't know every allowed method across middleware; 405 handling belongs in middleware.",
+      "note": "Asks route() to answer 405 Method Not Allowed."
+    },
+    "2432": {
+      "decision": "wont-do",
+      "reason": "Moving req/res extensions to another package is churn with no user benefit for our fork.",
+      "note": "Proposes splitting req/res prototype extensions into a separate repo."
+    },
+    "2472": {
+      "decision": "roadmap",
+      "item": "No ETag when `Cache-Control: no-store`",
+      "note": "Wants a way to skip ETag on certain routes."
+    },
+    "2474": {
+      "decision": "wont-do",
+      "reason": "A render event adds magic; set res.locals in middleware or wrap res.render instead.",
+      "note": "Asks for a render event so views can see req.route."
+    },
+    "2483": {
+      "decision": "wont-do",
+      "reason": "Moving param errors into route-level handlers changes error flow; catch them after the route.",
+      "note": "Errors from router.param skip error handlers inside the route."
+    },
+    "2501": {
+      "decision": "new-item",
+      "proposed_item": "Full matched route path on the request (`req.originalRoute`)",
+      "line": "master",
+      "milestone": "Additions on the compatible line",
+      "note": "Asks for the full matched route pattern, like originalUrl."
+    },
+    "2511": {
+      "decision": "new-item",
+      "proposed_item": "Warn about route paths that can never match",
+      "line": "master",
+      "milestone": "Additions on the compatible line",
+      "note": "Routes with raw spaces register but can never match."
+    },
+    "2524": {
+      "decision": "wont-do",
+      "reason": "Settings live on apps by design; use a sub-app when a section needs its own settings.",
+      "note": "Asks for router.set() per-router settings."
+    },
+    "2526": {
+      "decision": "support",
+      "note": "By design: routes don't match while an error is pending; use app.use(path, errorHandler)."
+    },
+    "2552": {
+      "decision": "roadmap",
+      "item": "Decide and build sub-app settings inheritance",
+      "note": "Sub-app settings inheritance is inconsistent."
+    },
+    "2562": {
+      "decision": "wont-do",
+      "reason": "Turning the app into a class is a refactor with no user gain and breaks the function mixin.",
+      "note": "Proposes making Application a real class."
+    },
+    "2563": {
+      "decision": "roadmap",
+      "item": "Router: static method helpers plus `router.method()`",
+      "note": "app.all and app.VERB differ from router versions on unknown verbs."
+    },
+    "2564": {
+      "decision": "roadmap",
+      "item": "Decide and build sub-app settings inheritance",
+      "note": "Case-sensitive routing setting does not reach new routers."
+    },
+    "2575": {
+      "decision": "roadmap",
+      "item": "`res.links()` accepts arrays",
+      "note": "res.links can't express attributes beyond rel."
+    },
+    "2603": {
+      "decision": "support",
+      "note": "Call app.param twice; the router runs every callback registered for a name in order."
+    },
+    "2698": {
+      "decision": "wont-do",
+      "reason": "Runtime toggling is the debug package's concern, and we are moving to util.debuglog.",
+      "note": "Wants debug logging enabled or disabled at runtime."
+    },
+    "2708": {
+      "decision": "new-item",
+      "proposed_item": "View lookup tries every registered engine for names without a known extension",
+      "line": "master",
+      "milestone": "Additions on the compatible line",
+      "note": "View names containing dots break engine lookup; wants extname ignored."
+    },
+    "2739": {
+      "decision": "wont-do",
+      "reason": "Named routes and URL generation belong in a plugin, not core.",
+      "note": "Asks for named routes and href generation."
+    },
+    "2756": {
+      "decision": "wont-do",
+      "reason": "Param typing and coercion belong in validation middleware, not the router.",
+      "note": "Asks for typed route params like :id{number}."
+    },
+    "2781": {
+      "decision": "wont-do",
+      "reason": "Browsers removed HTTP/2 server push, so there is nothing worth exposing.",
+      "note": "Wants an API for HTTP/2 push promises."
+    },
+    "2811": {
+      "decision": "wont-do",
+      "reason": "Response transforms belong in middleware such as on-headers, not a core hook API.",
+      "note": "Wants a supported way to transform responses before the socket."
+    },
+    "2812": {
+      "decision": "wont-do",
+      "reason": "req/res prototypes depend on server state; for tests use light-my-request as the docs will show.",
+      "note": "Wants express.request/response usable outside an app."
+    },
+    "2818": {
+      "decision": "roadmap",
+      "item": "Ship TypeScript types in the repo, from `@types/express`",
+      "note": "Ship TypeScript typings with the package."
+    },
+    "2878": {
+      "decision": "wont-do",
+      "reason": "Too niche for core; set Accept-Patch in the handler that supports PATCH.",
+      "note": "Asks for an automatic Accept-Patch header."
+    },
+    "2888": {
+      "decision": "upstream-process",
+      "note": "Upstream discussion about commit message guidelines."
+    },
+    "2896": {
+      "decision": "roadmap",
+      "item": "Explicit error-handler API (`app.error`, `router.error`); counting arguments still works",
+      "note": "Error handlers are detected by counting arguments."
+    },
+    "2907": {
+      "decision": "wont-do",
+      "reason": "Scope creep: view composers belong in a template-engine plugin.",
+      "note": "Asks for view composers like Laravel."
+    },
+    "2945": {
+      "decision": "wont-do",
+      "reason": "express.static is standalone middleware with its own options; reading app settings couples them.",
+      "note": "Wants express.static to follow the app etag setting."
+    },
+    "2982": {
+      "decision": "support",
+      "note": "Set a custom View class with app.set('view', ...) to load templates from a database."
+    },
+    "3057": {
+      "decision": "roadmap",
+      "item": "Decide and build sub-app settings inheritance",
+      "note": "app.locals are not inherited by mounted sub-apps."
+    },
+    "3062": {
+      "decision": "wont-do",
+      "reason": "Namespace naming is the debug package's concern, and we are moving to util.debuglog.",
+      "note": "Debug namespaces don't distinguish services."
+    },
+    "3097": {
+      "decision": "wont-do",
+      "reason": "parseurl(req).search already gives the raw query string; another property adds little.",
+      "note": "Asks for req.search with the unparsed query string."
+    },
+    "3346": {
+      "decision": "roadmap",
+      "item": "`env` defaults to production when `NODE_ENV` is unset, and we keep reading `NODE_ENV`",
+      "note": "Default env to production when NODE_ENV is unset."
+    },
+    "3367": {
+      "decision": "roadmap",
+      "item": "Explicit error-handler API (`app.error`, `router.error`); counting arguments still works",
+      "note": "Suggests naming error handlers instead of arity detection."
+    },
+    "3379": {
+      "decision": "wont-do",
+      "reason": "Handlers already read all params from req.params; multi-name param callbacks add complexity.",
+      "note": "Wants router.param() for several parameter names at once."
+    },
+    "3485": {
+      "decision": "new-item",
+      "proposed_item": "View lookup tries every registered engine for names without a known extension",
+      "line": "master",
+      "milestone": "Additions on the compatible line",
+      "note": "Wants extension lookup across multiple view engines."
+    },
+    "3536": {
+      "decision": "wont-do",
+      "reason": "Per-response settings overrides add hidden state; pass options to the call instead.",
+      "note": "Asks to override app settings per response."
+    },
+    "3555": {
+      "decision": "roadmap",
+      "item": "Skip the per-request prototype swap when `app.listen()` made the server",
+      "note": "Node's custom IncomingMessage option could replace prototype patching."
+    },
+    "3798": {
+      "decision": "roadmap",
+      "item": "Mount-path edge case from #3798",
+      "note": "Strict routing mount-path edge case."
+    },
+    "3945": {
+      "decision": "wont-do",
+      "reason": "Scope creep: pre-send hooks belong in middleware such as on-headers.",
+      "note": "Asks for a hook that runs just before the response is sent."
+    },
+    "3951": {
+      "decision": "roadmap",
+      "item": "`req.get('referer')` prefers `Referer`",
+      "note": "req.get checks Referrer before Referer."
+    },
+    "4059": {
+      "decision": "roadmap",
+      "item": "A `req.url` rewrite in a mounted router loses a slash",
+      "note": "Rewriting req.url in a mounted router loses a slash; reproduced."
+    },
+    "4099": {
+      "decision": "duplicate",
+      "of": 2216,
+      "note": "Asks to change the settings interface; same as issue 2216."
+    },
+    "4186": {
+      "decision": "wont-do",
+      "reason": "Express 5 already forwards rejected promises, and AsyncLocalStorage replaces Zone.js.",
+      "note": "Proposes Zone.js for async error handling."
+    },
+    "4298": {
+      "decision": "wont-do",
+      "reason": "By design: req.params belong to the matched route and reset when the error leaves it.",
+      "note": "req.params is gone in the handler after res.format's 406."
+    },
+    "4523": {
+      "decision": "roadmap",
+      "item": "`app.listRoutes()`",
+      "note": "Router events to enable route documentation."
+    },
+    "4536": {
+      "decision": "wont-do",
+      "reason": "Body reading belongs to body-parser, and Node's stream/consumers already offers json(req) and text(req).",
+      "note": "Wants fetch-style req.json(), req.text() body readers."
+    },
+    "4557": {
+      "decision": "roadmap",
+      "item": "A `//` mount also matches `/`",
+      "note": "app.use('//') also matches '/'; reproduced."
+    },
+    "4594": {
+      "decision": "new-item",
+      "proposed_item": "View engine extension matching ignores case",
+      "line": "master",
+      "milestone": "Bug fixes on the compatible line",
+      "note": "View engine extension should match case-insensitively."
+    },
+    "4697": {
+      "decision": "wont-do",
+      "reason": "It is one line from req.protocol, req.host and req.originalUrl; not worth new API.",
+      "note": "Asks for req.completeURL()."
+    },
+    "4750": {
+      "decision": "roadmap",
+      "item": "`sendFile` ignores a per-call `etag: false`",
+      "note": "Custom ETag ignored by sendFile; per-call etag:false ignored, reproduced."
+    },
+    "4755": {
+      "decision": "roadmap",
+      "item": "`json serializer` setting, so plugins can use fast-json-stringify",
+      "note": "Wants req/res context inside the JSON replacer."
+    },
+    "4889": {
+      "decision": "support",
+      "note": "How to hold a response open for long polling."
+    },
+    "4944": {
+      "decision": "roadmap",
+      "item": "`/proc` files are sent empty",
+      "note": "res.download sends /proc files empty; reproduced."
+    },
+    "4959": {
+      "decision": "roadmap",
+      "item": "Express on `http2.createSecureServer({ allowHTTP1: true })`, fixing on-finished and the colon headers",
+      "note": "Native SNICallback / secure server support."
+    },
+    "5004": {
+      "decision": "roadmap",
+      "item": "`debug` warning for duplicate routes at startup",
+      "note": "Warn when a GET route shadows a later HEAD route."
+    },
+    "5006": {
+      "decision": "wont-do",
+      "reason": "A global mergeParams setting is more config; pass mergeParams to each router.",
+      "note": "Asks for an app-level mergeParams default."
+    },
+    "5008": {
+      "decision": "support",
+      "note": "ERR_EMPTY_RESPONSE from other devices; a network or firewall problem."
+    },
+    "5150": {
+      "decision": "roadmap",
+      "item": "`res.cookie` adds Expires despite `expires: 0`",
+      "note": "res.cookie adds Expires despite expires: 0; reproduced."
+    },
+    "5249": {
+      "decision": "wont-do",
+      "reason": "A final error-handling middleware already is the global handler; response envelopes are app code.",
+      "note": "Asks for a global error and response wrapper."
+    },
+    "5309": {
+      "decision": "upstream-process",
+      "note": "Upstream plan to move examples to their own repo."
+    },
+    "5462": {
+      "decision": "roadmap",
+      "item": "Express on `http2.createSecureServer({ allowHTTP1: true })`, fixing on-finished and the colon headers",
+      "note": "HTTP/2 support initiative, most-reacted topic."
+    },
+    "5623": {
+      "decision": "wont-do",
+      "reason": "Express 5 already validates 100-999 like Node; tightening to 1xx-5xx breaks apps for little gain.",
+      "note": "Lock valid status codes to 1xx through 5xx."
+    },
+    "5626": {
+      "decision": "already-fixed",
+      "evidence": "Repro research/repro/5626.js does not reproduce on master: 200 with the header and body.",
+      "note": "OPTIONS + setHeader + json said to throw HEADERS_SENT."
+    },
+    "5878": {
+      "decision": "roadmap",
+      "item": "Too many query parameters gives a 400 instead of dropping them",
+      "note": "Query params past 1000 silently dropped; reproduced."
+    },
+    "5906": {
+      "decision": "roadmap",
+      "item": "Cache the `accepts` instance per request",
+      "note": "Cache the accepts instance per request."
+    },
+    "5986": {
+      "decision": "wont-do",
+      "reason": "Not Express's job: set Vary: Origin; ETags shouldn't depend on CORS headers.",
+      "note": "Wants ETag to vary by CORS headers."
+    },
+    "5995": {
+      "decision": "wont-do",
+      "reason": "Cookie encryption belongs in cookie-session or a dedicated package, not res.cookie.",
+      "note": "Asks for encrypted signed cookies."
+    },
+    "6039": {
+      "decision": "wont-do",
+      "reason": "Express targets node:http objects; foreign req/res implementations must extend Node's classes.",
+      "note": "Breaks when req/res don't extend Node's http classes."
+    },
+    "6370": {
+      "decision": "roadmap",
+      "item": "Ship TypeScript types in the repo, from `@types/express`",
+      "note": "Wrong types for req.body and next()."
+    },
+    "6385": {
+      "decision": "roadmap",
+      "item": "Ship TypeScript types in the repo, from `@types/express`",
+      "note": "Send typings accept a Promise that is never awaited."
+    },
+    "6395": {
+      "decision": "wont-do",
+      "reason": "Scope creep: caching and DDoS protection belong in a proxy or middleware.",
+      "note": "Proposes a built-in short-term cache against traffic spikes."
+    },
+    "6541": {
+      "decision": "roadmap",
+      "item": "Numeric `trust proxy` throws at startup; X-Forwarded-Host/Proto use the trusted hop",
+      "note": "Trust proxy callback runs once per hop."
+    },
+    "6579": {
+      "decision": "wont-do",
+      "reason": "The router yields every 100 sync layers to avoid stack overflows; code relying on full sync runs must change.",
+      "note": "Long app.all middleware chains broken since 4.18; no repro given."
+    },
+    "6647": {
+      "decision": "wont-do",
+      "reason": "Most duplicates come from qs, which we keep; the statuses duplicate is already fixed.",
+      "note": "Tracks duplicate and replaceable packages in the dependency graph."
+    },
+    "6669": {
+      "decision": "roadmap",
+      "item": "Express on `http2.createSecureServer({ allowHTTP1: true })`, fixing on-finished and the colon headers",
+      "note": "Tracks where Express and deps monkey-patch Node http."
+    },
+    "6711": {
+      "decision": "wont-do",
+      "reason": "path-to-regexp 8 removed `*` and `?` on purpose; we document the new syntax instead (Won't do table).",
+      "note": "Restore app.all('*') wildcard in Express 5."
+    },
+    "6724": {
+      "decision": "roadmap",
+      "item": "Express 5 path syntax: a clearer error and a migration page",
+      "note": "Missing parameter name error from Express 5 path syntax."
+    },
+    "6739": {
+      "decision": "wont-do",
+      "reason": "On Node 24, import already works with the CommonJS build (Won't do table).",
+      "note": "Asks for ESM support."
+    },
+    "6756": {
+      "decision": "wont-do",
+      "reason": "BigInt status codes are invalid input and should fail, not be supported (Won't do table).",
+      "note": "BigInt to sendStatus gives a serialize error instead of the intended message."
+    },
+    "6809": {
+      "decision": "roadmap",
+      "item": "A router cycle gives a stack overflow instead of a clear error",
+      "note": "Router cycles give a stack overflow; reproduced."
+    },
+    "6863": {
+      "decision": "support",
+      "note": "How to run Express on http2.createSecureServer."
+    },
+    "6926": {
+      "decision": "support",
+      "note": "Cookies not set across Vercel and Render hosts."
+    },
+    "6941": {
+      "decision": "roadmap",
+      "item": "`res.redirect` throws on a bad url or status",
+      "note": "res.redirect(undefined) sends Location: undefined."
+    },
+    "6951": {
+      "decision": "new-item",
+      "proposed_item": "Stable `code` on every error Express throws",
+      "line": "master",
+      "milestone": "Additions on the compatible line",
+      "note": "Standardize error codes on errors Express throws."
+    },
+    "7034": {
+      "decision": "roadmap",
+      "item": "`res.set` sends `Content-Type: false` for unknown types",
+      "note": "res.set Content-Type becomes literal 'false'; reproduced."
+    },
+    "7140": {
+      "decision": "wont-do",
+      "reason": "View names are not user input; containment would break absolute view paths (working as designed).",
+      "note": "View lookup lacks path containment like send."
+    },
+    "7145": {
+      "decision": "roadmap",
+      "item": "Remove the `res.set` Content-Type magic",
+      "note": "Remove the Content-Type magic from res.set."
+    },
+    "7231": {
+      "decision": "roadmap",
+      "item": "Ship TypeScript types in the repo, from `@types/express`",
+      "note": "Docs for using Express with TypeScript."
+    },
+    "7334": {
+      "decision": "wont-do",
+      "reason": "SSE is a few lines with res.write; a helper belongs in a separate package.",
+      "note": "Proposes a native Server-Sent Events helper."
+    },
+    "7350": {
+      "decision": "roadmap",
+      "item": "A view name ending in `.` throws synchronously",
+      "note": "View name ending in '.' throws opaque TypeError; reproduced."
+    },
+    "7362": {
+      "decision": "roadmap",
+      "item": "`res.send` corrupts ArrayBuffer, DataView and typed-array bodies",
+      "note": "res.send(ArrayBuffer) sends {} as JSON; reproduced."
+    },
+    "7427": {
+      "decision": "new-item",
+      "proposed_item": "`router.use(subApp)` restores req/res prototypes like `app.use`",
+      "line": "master",
+      "milestone": "Bug fixes on the compatible line",
+      "note": "router.use(subApp) skips prototype restoration."
+    },
+    "7502": {
+      "decision": "upstream-process",
+      "note": "Upstream maintainer's internal audit of dependencies for v6 planning."
+    },
+    "7506": {
+      "decision": "roadmap",
+      "item": "`res.redirect` sends Content-Length with Transfer-Encoding",
+      "note": "res.redirect sets Content-Length with Transfer-Encoding; reproduced."
+    },
+    "7510": {
+      "decision": "roadmap",
+      "item": "`res.send` corrupts ArrayBuffer, DataView and typed-array bodies",
+      "note": "res.send(DataView) drops the bytes; reproduced."
+    },
+    "7525": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "req.query getter JSDoc has the wrong return type."
+    },
+    "7527": {
+      "decision": "wont-do",
+      "reason": "Cosmetic README wording with no user impact.",
+      "note": "README capitalisation of Express.js."
+    },
+    "7532": {
+      "decision": "roadmap",
+      "item": "`req.subdomains` splits IPv6 literals",
+      "note": "req.subdomains splits IPv6 literals; reproduced."
+    },
+    "7538": {
+      "decision": "roadmap",
+      "item": "`res.send` corrupts ArrayBuffer, DataView and typed-array bodies",
+      "note": "Non-Uint8Array typed arrays corrupt or 500; reproduced."
+    },
+    "7547": {
+      "decision": "roadmap",
+      "item": "Update mocha and supertest",
+      "note": "Update to mocha 12."
+    },
+    "7560": {
+      "decision": "roadmap",
+      "item": "`res.render` after a send crashes the process",
+      "note": "res.render after send crashes the process; reproduced."
+    },
+    "7564": {
+      "decision": "already-fixed",
+      "evidence": "Express 4 only: 4.x pins body-parser ~1.20.9 via merged #7565; our master uses body-parser ^2.4.0.",
+      "note": "Express 4 body-parser security minimum."
+    },
+    "7588": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Outdated res.send() syntax in a JSDoc example."
+    },
+    "7592": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "README quick start uses a non-portable directory."
+    }
+  },
+  "prs": {
+    "2422": {
+      "decision": "roadmap",
+      "item": "`json serializer` setting, so plugins can use fast-json-stringify",
+      "note": "Per-response JSON replacer and spaces."
+    },
+    "2653": {
+      "decision": "cherry-pick",
+      "item": "Async view lookup (no sync file I/O after startup)",
+      "note": "Resolve view paths asynchronously; approved, needs rebase."
+    },
+    "2738": {
+      "decision": "cherry-pick",
+      "item": "`res.links()` accepts arrays",
+      "note": "Array support in res.links(); needs rebase."
+    },
+    "2935": {
+      "decision": "wont-do",
+      "reason": "Per-request settings overrides add hidden state; pass options to the call instead.",
+      "note": "Override app settings per request."
+    },
+    "3114": {
+      "decision": "wont-do",
+      "reason": "A custom View class via app.set('view') already bypasses the file system.",
+      "note": "Engine options and filesystem bypass on the dead 5.0 base."
+    },
+    "3427": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Rewrites examples in ES6 syntax."
+    },
+    "3538": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Rewrites an example in ES6 syntax."
+    },
+    "3569": {
+      "decision": "new-item",
+      "proposed_item": "View lookup tries every registered engine for names without a known extension",
+      "line": "master",
+      "milestone": "Additions on the compatible line",
+      "note": "Auto extension lookup across multiple view engines."
+    },
+    "3613": {
+      "decision": "wont-do",
+      "reason": "Another settings knob; pass engine options to res.render or app.locals.",
+      "note": "Adds a 'view options' setting for engines."
+    },
+    "3714": {
+      "decision": "wont-do",
+      "reason": "Renaming or reshaping the settings API breaks every app for no user gain; app.set and app.get stay.",
+      "note": "Moves settings methods to app.settings with deprecations."
+    },
+    "3730": {
+      "decision": "roadmap",
+      "item": "Express on `http2.createSecureServer({ allowHTTP1: true })`, fixing on-finished and the colon headers",
+      "note": "2018 HTTP/2 support on the dead 5.0 base."
+    },
+    "3770": {
+      "decision": "wont-do",
+      "reason": "A magic string in next() is the wrong API; split the stack into routers instead.",
+      "note": "Adds next('last') to skip to the last layer."
+    },
+    "3981": {
+      "decision": "roadmap",
+      "item": "`json serializer` setting, so plugins can use fast-json-stringify",
+      "note": "Pass a JSON replacer with options."
+    },
+    "4044": {
+      "decision": "wont-do",
+      "reason": "Renaming or reshaping the settings API breaks every app for no user gain; app.set and app.get stay.",
+      "note": "Lets app.set accept an object of settings."
+    },
+    "4680": {
+      "decision": "wont-do",
+      "reason": "A new example app on a dead base branch; our docs pages cover these topics instead.",
+      "note": "Adds an SSL example app."
+    },
+    "4794": {
+      "decision": "wont-do",
+      "reason": "A new example app on a dead base branch; our docs pages cover these topics instead.",
+      "note": "Adds an ESM example on the 5.0 base."
+    },
+    "4942": {
+      "decision": "wont-do",
+      "reason": "A new example app on a dead base branch; our docs pages cover these topics instead.",
+      "note": "Adds a TypeScript example on the 5.0 base."
+    },
+    "4946": {
+      "decision": "wont-do",
+      "reason": "A new example app on a dead base branch; our docs pages cover these topics instead.",
+      "note": "Adds a clean-architecture example."
+    },
+    "4958": {
+      "decision": "wont-do",
+      "reason": "It is one line from req.protocol, req.host and req.originalUrl; not worth new API.",
+      "note": "Adds req.completeUrl, no tests."
+    },
+    "5007": {
+      "decision": "wont-do",
+      "reason": "A global mergeParams setting is more config; pass mergeParams to each router.",
+      "note": "Adds an app-level 'merge params' setting."
+    },
+    "5151": {
+      "decision": "cherry-pick",
+      "item": "`res.cookie` adds Expires despite `expires: 0`",
+      "note": "Skip auto Expires when expires is 0; needs a test."
+    },
+    "5225": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Updates the redis example for modern node-redis."
+    },
+    "5311": {
+      "decision": "upstream-process",
+      "note": "Upstream draft splitting examples out of the core repo."
+    },
+    "5320": {
+      "decision": "wont-do",
+      "reason": "Stripping content headers on 204 and 304 is correct and saves bytes.",
+      "note": "Keep content headers on body-less status codes."
+    },
+    "5492": {
+      "decision": "upstream-process",
+      "note": "Upstream integration tests for the examples split."
+    },
+    "5503": {
+      "decision": "upstream-process",
+      "note": "Upstream governance doc about GitHub access structure."
+    },
+    "5652": {
+      "decision": "cherry-pick",
+      "item": "`isAbsolute` default value",
+      "note": "Default value for utils.isAbsolute."
+    },
+    "5662": {
+      "decision": "upstream-process",
+      "note": "Upstream release-process ASCII diagram."
+    },
+    "5856": {
+      "decision": "wont-do",
+      "reason": "Express 5 already validates 100-999 like Node; a strictness setting adds config.",
+      "note": "Adds a strict status codes setting."
+    },
+    "5901": {
+      "decision": "roadmap",
+      "item": "Too many query parameters gives a 400 instead of dropping them",
+      "note": "Lets later query parser middleware overwrite req.query."
+    },
+    "6047": {
+      "decision": "wont-do",
+      "reason": "Express targets node:http objects; foreign req/res implementations must extend Node's classes.",
+      "note": "Keep non-Node req/res methods during prototype setup."
+    },
+    "6086": {
+      "decision": "wont-do",
+      "reason": "Rewrites a working method with no bug to fix; accepts already handles these inputs.",
+      "note": "Reworks req.acceptsEncodings argument handling."
+    },
+    "6101": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Refactors req.is argument handling."
+    },
+    "6110": {
+      "decision": "upstream-process",
+      "note": "Upstream pull request template."
+    },
+    "6113": {
+      "decision": "roadmap",
+      "item": "`cookie@1`",
+      "note": "Bundled upgrade of cookie, cookie-parser and cookie-session."
+    },
+    "6118": {
+      "decision": "new-item",
+      "proposed_item": "ESLint 9 and a pre-commit lint hook",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Upgrades ESLint."
+    },
+    "6126": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Arrow-function refactor of method assignment in app."
+    },
+    "6133": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "JSDoc fix for the req.host getter."
+    },
+    "6136": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Refactors query parsing code and JSDoc."
+    },
+    "6138": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Spread syntax in req.acceptsCharsets."
+    },
+    "6139": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Spread syntax in req.acceptsEncodings."
+    },
+    "6140": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Rest parameters in req.accepts."
+    },
+    "6145": {
+      "decision": "wont-do",
+      "reason": "A version-specific comment in an example; the path-syntax migration page covers it.",
+      "note": "Adds an Express 5 wildcard remark to an example."
+    },
+    "6153": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Updates obsolete code in the online example."
+    },
+    "6286": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Online example for Redis v4+ without outdated deps."
+    },
+    "6306": {
+      "decision": "wont-do",
+      "reason": "Its assertions are self-fulfilling per maintainer review, so they prove nothing.",
+      "note": "Tests for View.prototype.render."
+    },
+    "6382": {
+      "decision": "cherry-pick",
+      "item": "Ship TypeScript types in the repo, from `@types/express`",
+      "note": "Moves @types/express into the repo."
+    },
+    "6404": {
+      "decision": "cherry-pick",
+      "item": "`res.redirect` throws on a bad url or status",
+      "note": "res.redirect throws on bad url or status."
+    },
+    "6412": {
+      "decision": "upstream-process",
+      "note": "Upstream dependency navigator doc, moved to discussions."
+    },
+    "6480": {
+      "decision": "new-item",
+      "proposed_item": "ESLint 9 and a pre-commit lint hook",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Adds an ESLint pre-commit hook."
+    },
+    "6689": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Fixes ReDoS-prone regexes in examples."
+    },
+    "6703": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "More req.is() test cases."
+    },
+    "6742": {
+      "decision": "wont-do",
+      "reason": "Node already dumps unread request bodies when the response ends; this pokes stream internals.",
+      "note": "Dumps GET/HEAD request bodies via stream internals."
+    },
+    "6758": {
+      "decision": "wont-do",
+      "reason": "BigInt status codes are invalid input and should fail, not be supported (Won't do table).",
+      "note": "Correct error message for BigInt in res.status."
+    },
+    "6786": {
+      "decision": "upstream-process",
+      "note": "Rewrites upstream changelog entries about send."
+    },
+    "6800": {
+      "decision": "wont-do",
+      "reason": "Cosmetic syntax rewrite with no behaviour or speed gain (Won't do table).",
+      "note": "Modernises View#lookup syntax."
+    },
+    "6856": {
+      "decision": "duplicate",
+      "of": 7600,
+      "note": "Fixes static tests for supertest 7; superseded by 7600."
+    },
+    "6865": {
+      "decision": "wont-do",
+      "reason": "We keep the extended parser; dropping qs breaks every app that uses nested query objects.",
+      "note": "Removes the qs dependency and the extended parser."
+    },
+    "6875": {
+      "decision": "cherry-pick",
+      "item": "`cookie@1`",
+      "note": "cookie@1 plus null maxAge handling."
+    },
+    "6884": {
+      "decision": "wont-do",
+      "reason": "Not Express's job: set Vary: Origin; ETags shouldn't depend on CORS headers.",
+      "note": "Includes Access-Control-Allow-Origin in the ETag."
+    },
+    "6892": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Test for comma-separated X-Forwarded-Host with trust proxy."
+    },
+    "6893": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Test ignoring X-Forwarded-Host when trust proxy is off."
+    },
+    "6912": {
+      "decision": "new-item",
+      "proposed_item": "ESLint 9 and a pre-commit lint hook",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Moves to ESLint 9."
+    },
+    "6959": {
+      "decision": "cherry-pick",
+      "item": "`diagnostics_channel` events",
+      "note": "diagnostics_channel events for request lifecycle and routing."
+    },
+    "6970": {
+      "decision": "upstream-process",
+      "note": "Upstream npm-publish reusable workflow."
+    },
+    "6982": {
+      "decision": "new-item",
+      "proposed_item": "Stable `code` on every error Express throws",
+      "line": "master",
+      "milestone": "Additions on the compatible line",
+      "note": "Adds stable error codes to thrown errors."
+    },
+    "6993": {
+      "decision": "cherry-pick",
+      "item": "`req.get('referer')` prefers `Referer`",
+      "note": "Prefer Referer over Referrer in req.get."
+    },
+    "6994": {
+      "decision": "cherry-pick",
+      "item": "No ETag when `Cache-Control: no-store`",
+      "note": "Skip ETag when Cache-Control: no-store."
+    },
+    "7008": {
+      "decision": "cherry-pick",
+      "item": "Cache the `accepts` instance per request",
+      "note": "Caches the accepts instance on req."
+    },
+    "7035": {
+      "decision": "cherry-pick",
+      "item": "`res.set` sends `Content-Type: false` for unknown types",
+      "note": "Stops Content-Type being set to 'false'."
+    },
+    "7038": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Unit tests for compileQueryParser, compileTrust, normalizeTypes."
+    },
+    "7041": {
+      "decision": "roadmap",
+      "item": "`diagnostics_channel` events",
+      "note": "diagnostics_channel events for app initialization."
+    },
+    "7045": {
+      "decision": "duplicate",
+      "of": 7407,
+      "note": "Redirect body shows undefined for non-standard status; 7407 has tests."
+    },
+    "7050": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Edge-case tests for res.set()."
+    },
+    "7051": {
+      "decision": "new-item",
+      "proposed_item": "View engine extension matching ignores case",
+      "line": "master",
+      "milestone": "Bug fixes on the compatible line",
+      "note": "Case-insensitive view engine extension matching."
+    },
+    "7059": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Bumps connect-redis to v9 in examples."
+    },
+    "7061": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Bumps express-session to 1.19 in examples."
+    },
+    "7092": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Replaces deprecated module.parent in examples."
+    },
+    "7113": {
+      "decision": "wont-do",
+      "reason": "Cookie encryption belongs in cookie-session or a dedicated package, not res.cookie.",
+      "note": "Adds cookie encryption to res.cookie."
+    },
+    "7117": {
+      "decision": "roadmap",
+      "item": "Too many query parameters gives a 400 instead of dropping them",
+      "note": "Configurable query parameter limit for truncation."
+    },
+    "7119": {
+      "decision": "upstream-process",
+      "note": "README note about upstream's express-generator still being 4.x."
+    },
+    "7130": {
+      "decision": "duplicate",
+      "of": 6758,
+      "note": "BigInt status handling; same as 6758."
+    },
+    "7142": {
+      "decision": "wont-do",
+      "reason": "View names are not user input; containment would break absolute view paths (working as designed).",
+      "note": "Adds path containment to View lookup."
+    },
+    "7146": {
+      "decision": "cherry-pick",
+      "item": "Remove the `res.set` Content-Type magic",
+      "note": "Removes implicit mime lookup and charset in res.set."
+    },
+    "7151": {
+      "decision": "cherry-pick",
+      "item": "Repeated query keys stay arrays up to the parameter limit",
+      "note": "Repeated extended query keys stay arrays past 20."
+    },
+    "7161": {
+      "decision": "cherry-pick",
+      "item": "A JSONP callback that sanitises to nothing gives broken JS",
+      "note": "Falls back to JSON when the JSONP callback sanitises to empty."
+    },
+    "7275": {
+      "decision": "wont-do",
+      "reason": "Throwing on circular JSON is correct; custom handling goes through the json serializer setting.",
+      "note": "Opt-in circular-structure handling in res.json."
+    },
+    "7283": {
+      "decision": "duplicate",
+      "of": 7146,
+      "note": "Removes res.set Content-Type magic; same as 7146."
+    },
+    "7286": {
+      "decision": "cherry-pick",
+      "item": "A `//` mount also matches `/`",
+      "note": "Normalises all-slash mount paths to '/'."
+    },
+    "7317": {
+      "decision": "cherry-pick",
+      "item": "Userinfo in the Host header becomes `req.hostname`",
+      "note": "Strips userinfo from the Host header."
+    },
+    "7320": {
+      "decision": "cherry-pick",
+      "item": "`res.links` with empty values",
+      "note": "res.links skips empty-array rel values."
+    },
+    "7330": {
+      "decision": "cherry-pick",
+      "item": "Uppercase `X-Forwarded-Proto: HTTPS` is not secure",
+      "note": "Lowercases X-Forwarded-Proto before the secure check."
+    },
+    "7331": {
+      "decision": "new-item",
+      "proposed_item": "`req.subdomains` ignores a trailing root dot",
+      "line": "master",
+      "milestone": "Bug fixes on the compatible line",
+      "note": "Ignore a trailing root dot in req.subdomains."
+    },
+    "7332": {
+      "decision": "new-item",
+      "proposed_item": "`res.append` keeps an existing empty header value",
+      "line": "master",
+      "milestone": "Bug fixes on the compatible line",
+      "note": "res.append preserves an existing empty header value."
+    },
+    "7338": {
+      "decision": "wont-do",
+      "reason": "SSE is a few lines with res.write; a helper belongs in a separate package.",
+      "note": "Adds res.sse() for Server-Sent Events."
+    },
+    "7339": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Tests for res.contentType alias and res.type params."
+    },
+    "7351": {
+      "decision": "cherry-pick",
+      "item": "A view name ending in `.` throws synchronously",
+      "note": "Handles view names ending in '.'."
+    },
+    "7363": {
+      "decision": "cherry-pick",
+      "item": "`res.send` corrupts ArrayBuffer, DataView and typed-array bodies",
+      "note": "res.send treats a raw ArrayBuffer as binary."
+    },
+    "7369": {
+      "decision": "wont-do",
+      "reason": "It points users to third-party starters; our types item brings its own docs.",
+      "note": "README note on TypeScript generator options."
+    },
+    "7387": {
+      "decision": "cherry-pick",
+      "item": "Numeric `trust proxy` throws at startup; X-Forwarded-Host/Proto use the trusted hop",
+      "note": "Tests for function-based trust proxy hop behaviour."
+    },
+    "7388": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Fixes JSDoc typos; approved upstream."
+    },
+    "7392": {
+      "decision": "duplicate",
+      "of": 7351,
+      "note": "View names ending in a dot; same as 7351."
+    },
+    "7395": {
+      "decision": "wont-do",
+      "reason": "Node documents headers as lowercase; Express shouldn't patch over code that breaks that (Won't do table).",
+      "note": "Case-insensitive req.get header lookup."
+    },
+    "7396": {
+      "decision": "roadmap",
+      "item": "Decide and build sub-app settings inheritance",
+      "note": "Adds app-aware router creation that inherits settings."
+    },
+    "7407": {
+      "decision": "new-item",
+      "proposed_item": "`res.redirect` body says `undefined` for non-standard status codes",
+      "line": "master",
+      "milestone": "Bug fixes on the compatible line",
+      "note": "Redirect body falls back to 'Redirecting' for non-standard status."
+    },
+    "7408": {
+      "decision": "wont-do",
+      "reason": "BigInt status codes are invalid input and should fail, not be supported (Won't do table).",
+      "note": "Adds BigInt support to res.send."
+    },
+    "7410": {
+      "decision": "duplicate",
+      "of": 7363,
+      "note": "Raw ArrayBuffer in res.send; conflicting, same as 7363."
+    },
+    "7423": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "sendStatus tests for null, string and NaN codes."
+    },
+    "7452": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Clarifies what req.accepts* functions accept."
+    },
+    "7467": {
+      "decision": "cherry-pick",
+      "item": "`sendFile` ignores a per-call `etag: false`",
+      "note": "Treats the app etag setting as a sendFile default."
+    },
+    "7470": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Fixes a parameter name in req.acceptsLanguages JSDoc."
+    },
+    "7479": {
+      "decision": "cherry-pick",
+      "item": "Quoted `;` in `acceptParams`",
+      "note": "acceptParams keeps quoted values containing ';'."
+    },
+    "7481": {
+      "decision": "cherry-pick",
+      "item": "Memoise content-type lookups",
+      "note": "Memoises Content-Type resolution in res.set, type, setCharset."
+    },
+    "7485": {
+      "decision": "already-fixed",
+      "evidence": "4.x backport; master already has the fix as 18e5985b (#4893), see lib/response.js line 182.",
+      "note": "Content-Length only without Transfer-Encoding, for 4.x."
+    },
+    "7495": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Fixes stored XSS in the online example."
+    },
+    "7496": {
+      "decision": "new-item",
+      "proposed_item": "Examples: fix security bugs and outdated dependencies",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Fixes prototype pollution via __proto__ in an example."
+    },
+    "7501": {
+      "decision": "cherry-pick",
+      "item": "`app.listen` leaves its error listener attached",
+      "note": "Removes the listen error handler after a successful start."
+    },
+    "7508": {
+      "decision": "cherry-pick",
+      "item": "`res.redirect` sends Content-Length with Transfer-Encoding",
+      "note": "res.redirect avoids Content-Length with Transfer-Encoding."
+    },
+    "7511": {
+      "decision": "duplicate",
+      "of": 7574,
+      "note": "Preserves DataView byte ranges; 7574 covers all views."
+    },
+    "7515": {
+      "decision": "roadmap",
+      "item": "Re-review the other perf PRs against the bench",
+      "note": "Skips content-type re-parse in setCharset for utf-8."
+    },
+    "7516": {
+      "decision": "cherry-pick",
+      "item": "Write the default HTML and JSON content types directly",
+      "note": "Sets default HTML and JSON content types directly."
+    },
+    "7517": {
+      "decision": "cherry-pick",
+      "item": "`req.query` is cached per request, so changes to it stick",
+      "note": "Caches parsed req.query per request."
+    },
+    "7519": {
+      "decision": "cherry-pick",
+      "item": "Cache the trust-proxy getters (`req.ip`, `protocol`, `host`, `hostname`), keyed on their inputs",
+      "note": "Caches trust proxy lookups in req.ip, protocol and host."
+    },
+    "7526": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Fixes the req.query JSDoc return type."
+    },
+    "7531": {
+      "decision": "cherry-pick",
+      "item": "`app.listRoutes()`",
+      "note": "Adds app.listRoutes with sub-application support."
+    },
+    "7533": {
+      "decision": "cherry-pick",
+      "item": "`req.subdomains` splits IPv6 literals",
+      "note": "req.subdomains doesn't split IPv6 hosts."
+    },
+    "7534": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "sendFile JSDoc example uses res.status()."
+    },
+    "7539": {
+      "decision": "wont-do",
+      "reason": "Cosmetic README wording with no user impact.",
+      "note": "Capitalises Express.js in the README."
+    },
+    "7541": {
+      "decision": "cherry-pick",
+      "item": "`res.render` mutates the caller's options",
+      "note": "res.render stops mutating the options object."
+    },
+    "7542": {
+      "decision": "duplicate",
+      "of": 7574,
+      "note": "Raw bytes for typed arrays; 7574 covers all views."
+    },
+    "7546": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Test for zero maxAge cookie expiry."
+    },
+    "7548": {
+      "decision": "duplicate",
+      "of": 7557,
+      "note": "Mocha 12 update; same as 7557."
+    },
+    "7549": {
+      "decision": "cherry-pick",
+      "item": "`env` defaults to production when `NODE_ENV` is unset, and we keep reading `NODE_ENV`",
+      "note": "6.x: env defaults to production."
+    },
+    "7550": {
+      "decision": "wont-do",
+      "reason": "They're the most-used Express APIs, and removing them gains users nothing (Won't do table).",
+      "note": "6.x: removes the body-parser re-exports."
+    },
+    "7551": {
+      "decision": "wont-do",
+      "reason": "They're the most-used Express APIs, and removing them gains users nothing (Won't do table).",
+      "note": "6.x: removes the express.static re-export."
+    },
+    "7552": {
+      "decision": "cherry-pick",
+      "item": "Node.js 24 minimum",
+      "note": "6.x: requires Node.js 24 or higher."
+    },
+    "7553": {
+      "decision": "cherry-pick",
+      "item": "`res.send(object)` throws; use `res.json`",
+      "note": "6.x: res.send stops serialising objects as JSON."
+    },
+    "7554": {
+      "decision": "cherry-pick",
+      "item": "Drop `X-Powered-By`",
+      "note": "6.x: removes the X-Powered-By header."
+    },
+    "7555": {
+      "decision": "cherry-pick",
+      "item": "Skip the per-request prototype swap when `app.listen()` made the server",
+      "note": "Skips the req/res prototype switch for app.listen()."
+    },
+    "7557": {
+      "decision": "cherry-pick",
+      "item": "Update mocha and supertest",
+      "note": "Bumps mocha to 12."
+    },
+    "7559": {
+      "decision": "cherry-pick",
+      "item": "`res.render` after a send crashes the process",
+      "note": "Forwards render send errors to next."
+    },
+    "7561": {
+      "decision": "cherry-pick",
+      "item": "Decide and build sub-app settings inheritance",
+      "note": "Tests for sub-app routing settings inheritance."
+    },
+    "7572": {
+      "decision": "new-item",
+      "proposed_item": "Port upstream test-coverage PRs",
+      "line": "master",
+      "milestone": "Foundation",
+      "note": "Tests for unsatisfiable and invalid ranges in req.range."
+    },
+    "7573": {
+      "decision": "upstream-process",
+      "note": "Upstream CI matrix tweak adding Node 27."
+    },
+    "7574": {
+      "decision": "cherry-pick",
+      "item": "`res.send` corrupts ArrayBuffer, DataView and typed-array bodies",
+      "note": "Preserves raw bytes of all ArrayBuffer views in res.send."
+    },
+    "7578": {
+      "decision": "cherry-pick",
+      "item": "`res.links` with empty values",
+      "note": "res.links ignores an empty object."
+    },
+    "7593": {
+      "decision": "new-item",
+      "proposed_item": "Fix JSDoc and README errors",
+      "line": "master",
+      "milestone": "Docs",
+      "note": "Cross-platform directory in the README quick start."
+    },
+    "7600": {
+      "decision": "cherry-pick",
+      "item": "Update mocha and supertest",
+      "note": "Bumps supertest to 7.3.2."
+    },
+    "7603": {
+      "decision": "roadmap",
+      "item": "`json serializer` setting, so plugins can use fast-json-stringify",
+      "note": "Request-aware JSON replacers."
+    }
+  }
+}

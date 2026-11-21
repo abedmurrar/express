@@ -94,6 +94,7 @@ Unreleased (fork)
 
 ## ⚡ Performance
 
+* With a trust list in `trust proxy` (for example `'loopback, 10.0.0.0/8'`), each address's trust decision is remembered (at most 1,000 per setting) instead of being re-parsed and matched against every subnet on each `req.ip`, `req.ips`, `req.protocol`, `req.secure` and `req.host` read. Behind a trusted proxy with a different client per request, `req.ip` takes about 4.4 µs instead of 7.7 µs and `req.protocol` 1.5 µs instead of 4.7 µs. Custom trust functions and hop counts are unchanged.
 * `res.type`, `res.set` and `res.send` remember content-type results (`mime.contentType` and the charset rewrite) in maps capped at 100 entries, instead of looking them up on every response. A `res.json` or string `res.send` saves about 1–2 µs. Ported from upstream PR #7481 by Nigro Simone.
 * Avoid duplicate Content-Type header processing in `res.send()` when sending string responses without an explicit Content-Type header - by [@bjohansebas](https://github.com/bjohansebas) in [#6991](https://github.com/expressjs/express/pull/6991)
 

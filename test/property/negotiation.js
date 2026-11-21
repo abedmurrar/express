@@ -243,3 +243,74 @@ describe('property: remembered content types match the uncached functions', func
     }
   })
 })
+
+// compileTrust remembers each address's decision for a trust list. For any
+// list and any sequence of addresses (including after the map is emptied),
+// it must decide exactly what proxy-addr's compiled function decides, and two
+// apps with different lists must never share decisions.
+describe('property: remembered trust decisions match proxy-addr', function () {
+  var proxyaddr = require('proxy-addr')
+  var utils = require('../../lib/utils')
+
+  var octet = fc.integer({ min: 0, max: 255 })
+  var ipv4 = fc.tuple(octet, octet, octet, octet).map((o) => o.join('.'))
+  var hex = fc.integer({ min: 0, max: 0xffff }).map((n) => n.toString(16))
+  var ipv6 = fc.array(hex, { minLength: 8, maxLength: 8 }).map((h) => h.join(':'))
+  var address = fc.oneof(
+    ipv4,
+    ipv6,
+    ipv4.map((a) => '::ffff:' + a),
+    fc.constantFrom('127.0.0.1', '::1', '10.0.0.1', '192.168.1.1', 'fe80::1', 'localhost', '', 'not an ip')
+  )
+  var subnet = fc.oneof(
+    fc.constantFrom('loopback', 'linklocal', 'uniquelocal'),
+    ipv4,
+    fc.tuple(ipv4, fc.integer({ min: 0, max: 32 })).map(([a, n]) => a + '/' + n),
+    fc.tuple(ipv6, fc.integer({ min: 0, max: 128 })).map(([a, n]) => a + '/' + n),
+    ipv4.map((a) => '::ffff:' + a + '/120')
+  )
+  var list = fc.array(subnet, { minLength: 1, maxLength: 4 })
+
+  it('decides like proxy-addr for any list and sequence of addresses', function () {
+    check(
+      fc.property(list, fc.array(address, { minLength: 1, maxLength: 200 }), function (subnets, addrs) {
+        var reference
+        try {
+          reference = proxyaddr.compile(subnets)
+        } catch (err) {
+          // an invalid list must fail to compile the same way
+          assert.throws(() => utils.compileTrust(subnets.join(', ')), { message: err.message })
+          return
+        }
+        var remembered = utils.compileTrust(subnets.join(', '))
+        for (var a of addrs.concat(addrs)) {
+          assert.strictEqual(remembered(a, 0), reference(a, 0), a + ' against ' + subnets.join(', '))
+        }
+      }),
+      { numRuns: 100 }
+    )
+  })
+
+  it('stays correct across many clears (3,000 distinct addresses)', function () {
+    var remembered = utils.compileTrust('loopback, 10.0.0.0/8')
+    var reference = proxyaddr.compile(['loopback', '10.0.0.0/8'])
+    for (var i = 0; i < 3000; i++) {
+      var a = '10.' + ((i >> 8) & 255) + '.' + (i & 255) + '.1'
+      var b = '11.' + ((i >> 8) & 255) + '.' + (i & 255) + '.1'
+      assert.strictEqual(remembered(a, 0), reference(a, 0))
+      assert.strictEqual(remembered(b, 0), reference(b, 0))
+      assert.strictEqual(remembered('127.0.0.1', 0), true)
+    }
+  })
+
+  it('never shares decisions between two compiled lists', function () {
+    var a = utils.compileTrust('10.0.0.0/8')
+    var b = utils.compileTrust('192.168.0.0/16')
+    for (var i = 0; i < 3; i++) {
+      assert.strictEqual(a('10.1.2.3', 0), true)
+      assert.strictEqual(b('10.1.2.3', 0), false)
+      assert.strictEqual(b('192.168.1.1', 0), true)
+      assert.strictEqual(a('192.168.1.1', 0), false)
+    }
+  })
+})

@@ -228,14 +228,68 @@ export function compileTrust(val: unknown): TrustFunction {
     }
   }
 
+  return compileTrustList(val)
+}
+
+/**
+ * Compile a trust list (a comma-separated string, an array, or nothing) with
+ * proxy-addr. A non-empty list is wrapped so each address's decision is
+ * remembered: proxy-addr's compiled function parses the address and matches
+ * it against every subnet on each call (several microseconds for a list like
+ * "loopback, 10.0.0.0/8"), and its result depends only on the address.
+ * Kept out of compileTrust so V8 names its anonymous functions as before.
+ *
+ * @param {String|Array} val
+ * @return {Function}
+ * @private
+ */
+
+function compileTrustList(val: unknown): TrustFunction {
   // Support comma-separated values
-  return proxyaddr.compile(
-    (typeof val === 'string'
+  var subnets = (
+    typeof val === 'string'
       ? val.split(',').map(function (v) {
           return v.trim()
         })
-      : val || []) as string | string[]
-  )
+      : val || []
+  ) as string | string[]
+  var compiled = proxyaddr.compile(subnets)
+
+  // @types/proxy-addr declares (addr, i), but the compiled function only
+  // reads the address (trustSingle and trustMulti take one parameter)
+  return subnets.length > 0 ? rememberTrust(compiled as (addr: string) => boolean) : compiled
+}
+
+/**
+ * Remember a compiled trust function's decisions by address, in a map of at
+ * most TRUST_CACHE_LIMIT entries that is emptied when full. One map per
+ * compiled function, so apps with different settings never share one. The
+ * limit is higher than the content-type caches because client addresses
+ * vary per request, while the proxies' own addresses repeat.
+ *
+ * @param {Function} compiled
+ * @return {Function}
+ * @private
+ */
+
+const TRUST_CACHE_LIMIT = 1000
+
+function rememberTrust(compiled: (addr: string) => boolean): TrustFunction {
+  var decisions = new Map<string, boolean>()
+
+  return function trust(addr: string): boolean {
+    var decision = decisions.get(addr)
+
+    if (decision === undefined) {
+      decision = compiled(addr)
+      if (decisions.size >= TRUST_CACHE_LIMIT) {
+        decisions.clear()
+      }
+      decisions.set(addr, decision)
+    }
+
+    return decision
+  }
 }
 
 /**

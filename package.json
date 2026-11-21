@@ -59,6 +59,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.6.7",
     "@types/content-type": "^1.1.9",
+    "@types/debug": "^4.1.13",
+    "@types/depd": "^1.1.38",
     "@types/etag": "^1.8.4",
     "@types/mime-types": "^3.0.1",
     "@types/node": "^22.20.5",

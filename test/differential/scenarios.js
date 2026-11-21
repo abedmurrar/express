@@ -1215,6 +1215,106 @@ var scenarios = [
   }
 ]
 
+// Routing fast paths: the router skips a route that has no handler for the
+// method before matching its path. One app with routes that test where that
+// could go wrong (methods, HEAD and OPTIONS, all(), route chains, case, escapes,
+// which match raw with their hex digits in any case, trailing slashes,
+// segment-bounded middleware, a mounted router with mergeParams, a bad
+// escape in a route the method skips), and the requests that hit them, with
+// and without case-sensitive and strict routing. Non-ASCII paths are in
+// test/router/fork-fast-paths.js: Node's HTTP parser rejects them.
+function fastPathApp(settings) {
+  return function (app, express) {
+    Object.keys(settings).forEach(function (name) {
+      app.set(name, settings[name])
+    })
+    function reply(label) {
+      return function (req, res) {
+        res.json([label, req.method, req.params, req.baseUrl, req.url])
+      }
+    }
+    app.use('/api', function (req, res, next) {
+      res.append('x-seen', 'api ' + req.baseUrl + ' ' + req.url)
+      next()
+    })
+    app.param('id', function (req, res, next, id) {
+      res.append('x-param', id)
+      next()
+    })
+    app.get('/users/:id', reply('get user'))
+    app.post('/users/:id', reply('post user'))
+    app.all('/any/:id', reply('all'))
+    app.route('/chain').get(reply('chain get')).post(reply('chain post'))
+    app.put('/put', reply('put'))
+    app.get('/Mixed/Case', reply('mixed'))
+    app.get('/a%2Fb', reply('escaped'))
+    app.get('/caf%C3%A9/:x', reply('cafe'))
+    app.get('/dir/', reply('dir'))
+    app.get('/apix', reply('apix'))
+    app.get('/api/users/:id', reply('api user'))
+    var org = express.Router({ mergeParams: true })
+    org.get('/team/:team', reply('get team'))
+    org.delete('/team/:team', reply('delete team'))
+    app.use('/org/:org', org)
+    app.use(function (err, req, res, next) {
+      res.status(err.status || 500).send('error ' + err.message)
+    })
+  }
+}
+
+var FAST_PATH_REQUESTS = [
+  ['GET', '/users/1'],
+  ['POST', '/users/1'],
+  ['PUT', '/users/1'],
+  ['DELETE', '/USERS/1'],
+  ['HEAD', '/users/1'],
+  ['OPTIONS', '/users/1'],
+  ['OPTIONS', '/chain'],
+  ['OPTIONS', '/put'],
+  ['HEAD', '/put'],
+  ['POST', '/chain'],
+  ['PATCH', '/chain'],
+  ['PATCH', '/any/1'],
+  ['OPTIONS', '/any/1'],
+  ['HEAD', '/any/1'],
+  ['GET', '/MIXED/case'],
+  ['GET', '/Mixed/Case'],
+  ['GET', '/a%2fb'],
+  ['GET', '/a%2Fb'],
+  ['GET', '/a/b'],
+  ['GET', '/caf%C3%A9/1'],
+  ['GET', '/CAF%c3%a9/1'],
+  ['GET', '/caf%C3%89/1'],
+  ['GET', '/cafe/1'],
+  ['GET', '/dir'],
+  ['GET', '/dir/'],
+  ['GET', '/api'],
+  ['GET', '/apix'],
+  ['GET', '/API/users/1'],
+  ['POST', '/api/users/1'],
+  ['POST', '/users/%E0'],
+  ['GET', '/users/%E0'],
+  ['DELETE', '/org/acme/team/blue'],
+  ['GET', '/ORG/acme/TEAM/blue'],
+  ['POST', '/org/acme/team/blue'],
+  ['OPTIONS', '/org/acme/team/blue']
+]
+
+var FAST_PATH_SETTINGS = [
+  { label: '', settings: {} },
+  { label: ', case sensitive and strict', settings: { 'case sensitive routing': true, 'strict routing': true } }
+]
+
+FAST_PATH_SETTINGS.forEach(function (variant) {
+  FAST_PATH_REQUESTS.forEach(function (r) {
+    scenarios.push({
+      name: 'routing fast paths' + variant.label + ': ' + r[0] + ' ' + r[1],
+      setup: fastPathApp(variant.settings),
+      req: { method: r[0], path: r[1], headers: {} }
+    })
+  })
+})
+
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
 var allowed = {}

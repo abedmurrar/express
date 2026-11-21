@@ -108,6 +108,28 @@ describe('regressions: request, app and routing', function () {
     }
   )
 
+  // Found by the property tests (test/property/query.js). With a "#" in the
+  // request target, parseurl falls back to Node's legacy url.parse, which
+  // reads a leading "//" as the start of a host. Express 5.3.0 does the same.
+  bug(
+    'a "#" fragment in the request target does not change the routed path',
+    'A `#` fragment in the request target changes the routed path',
+    async function () {
+      var app = express()
+      app.get('/admin', function (req, res) {
+        res.send('admin')
+      })
+      app.get('*splat', function (req, res) {
+        res.send('splat ' + req.path)
+      })
+      var plain = await request(app, { path: '//x@evil.example/admin' })
+      var withFragment = await request(app, { path: '//x@evil.example/admin#z' })
+      assert.strictEqual(withFragment.body.toString(), plain.body.toString())
+      var empty = await request(app, { path: '//?q#a@b' })
+      assert.strictEqual(empty.body.toString(), 'splat //')
+    }
+  )
+
   describe('behaviour this line keeps (pinned)', function () {
     it('#2526 a route-level error handler does not run for errors from earlier layers (by design)', async function () {
       var app = express()

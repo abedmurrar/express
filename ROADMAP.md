@@ -141,8 +141,8 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | [x] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | 100% statements, branches, functions and lines; `test-ci` exits 1 when the new tests are removed. Two commented `c8 ignore` lines: the never-called `Router.prototype` function and a race guard in `sendFile` | [#10](https://github.com/abedmurrar/express/pull/10) |
 | [ ] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | mutation report committed | |
 | [ ] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 0 unexplained diffs | |
-| [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
-| [ ] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | fuzz runs in CI with a fixed seed, plus a longer nightly run | |
+| [x] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | 38 properties hold for 10,000 runs each (with the fixed seed and with seed 7), and 9 deliberate one-line breaks across the areas each make them fail. They found one bug that Express 5.3.0 has too (a `#` fragment changes the routed path), now a skipped regression test | |
+| [x] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | runs in CI with a fixed seed (300 random apps); 10,000 apps with each of two seeds show 0 differences, and deliberate breaks in routing, `req.hostname` and `X-Forwarded-Host` handling are caught; `FUZZ_RUNS` and `FUZZ_SEED` set a longer run. The nightly job is not added yet | |
 | [ ] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | each case fails on a deliberately broken build | |
 | [ ] | Robustness: client aborts, slow clients, pipelining, keep-alive reuse, large bodies, many concurrent requests | | master | Medium | new tests | |
 | [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
@@ -221,6 +221,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | A `//` mount also matches `/` | #4557, PR #7286, router#190 | master | Medium | repro 4557 | |
 | [ ] | A `req.url` rewrite in a mounted router loses a slash | #4059 | master | Small | repro 4059; fixed by the router 2.3.0 re-sync | |
 | [ ] | A router cycle gives a stack overflow instead of a clear error | #6809, router#183 | master | Small | repro 6809 | |
+| [ ] | A `#` fragment in the request target changes the routed path | | master | Small | regression test (found by the property tests) | |
 | [ ] | Mount-path edge case from #3798 | #3798, router#206 | master | Small | new test | |
 | [ ] | `res.links` with empty values | PRs #7320, #7578 | master | Small | new test | |
 | [ ] | Quoted `;` in `acceptParams` | PR #7479 | master | Small | new test | |

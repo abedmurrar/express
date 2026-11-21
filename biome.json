@@ -7,7 +7,10 @@
       "!research",
       "!benchmarks/compare/node_modules",
       "!benchmarks/compare/.refs",
-      "!benchmarks/count/node_modules"
+      "!benchmarks/count/node_modules",
+      "!docs/node_modules",
+      "!docs/.vitepress/cache",
+      "!docs/.vitepress/dist"
     ]
   },
   "formatter": {

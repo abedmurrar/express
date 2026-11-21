@@ -130,8 +130,8 @@ The fork must never look like the official Express project. It keeps credit to E
 | Status | Item | Line | Proof | PR |
 |---|---|---|---|---|
 | [x] | README for the fork: what it is, how it differs from Express 5.3.0 (link to this roadmap), install, credit to Express and its contributors, no Express logo | says what the fork is and isn't, the drop-in promise, how to install from GitHub, development commands and credit; no Express logo | [#16](https://github.com/abedmurrar/express/pull/16) |
-| [ ] | Docs website: start from the expressjs.com content (with its licence and credit), built with VitePress like the objection fork, marked clearly as the fork's docs, with the fork's additions in their own tab; deployed to GitHub Pages by a docs workflow on pushes to `master` | master | the site builds and is live on Pages | |
-| [ ] | Docs content: our changes, new APIs, TypeScript usage, the middleware-compatibility promise, and a "differences from Express 5.3.0" page | master | | |
+| [x] | Docs website: start from the expressjs.com content (with its licence and credit), built with VitePress like the objection fork, marked clearly as the fork's docs, with the fork's additions in their own tab; deployed to GitHub Pages by a docs workflow on pushes to `master` | master | `docs/` builds with VitePress (27 English 5.x pages from expressjs.com under CC BY 4.0, credited in the footer and `docs/LICENSE.md`; a Fork tab; a notice on every page). The `docs` workflow builds it on PRs and deploys it on pushes to `master`. The first deploy needs GitHub Pages turned on in the repository settings, with the source "GitHub Actions" | |
+| [~] | Docs content: our changes, new APIs, TypeScript usage, the middleware-compatibility promise, and a "differences from Express 5.3.0" page | master | Done: the differences from Express 5.3.0, the compatibility promise and how it's checked, benchmarks, a roadmap summary and install steps, in the Fork tab. Still to do: new APIs and TypeScript usage, once they exist | |
 | [~] | Update every project URL to the fork: `package.json` (`homepage`, `repository`, `bugs`; remove upstream's `funding`), README links and badges (CI, scorecard), the clone instructions, the security policy, links in code comments and error messages, and the generator templates. Links that cite upstream issues, PRs and history stay pointing upstream | master | `package.json` (homepage, repository, bugs; upstream `funding` removed), README links and badges, the clone instructions and the security policy are done. Still to do: links in code comments and error messages, the generator templates, and the CI URL check | [#16](https://github.com/abedmurrar/express/pull/16) |
 | [x] | Our own security policy (`SECURITY.md`) for reports about the fork | private vulnerability reporting is turned on for the repository | [#16](https://github.com/abedmurrar/express/pull/16) |
 
@@ -142,18 +142,19 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
 | [x] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | 100% statements, branches, functions and lines; `test-ci` exits 1 when the new tests are removed. Two commented `c8 ignore` lines: the never-called `Router.prototype` function and a race guard in `sendFile` | [#10](https://github.com/abedmurrar/express/pull/10) |
+| [ ] | Reach 100% under the stricter branch counting of `@vitest/coverage-v8` (it counts each side of `&&`, `\|\|` and `??` as a branch); today it reads 79.8% of branches on the same tests where c8 reads 100% | | master | Large | the coverage gate switches provider and stays at 100% | |
 | [ ] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | mutation report committed | |
-| [x] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 3,306 generated scenarios (all-pairs over 20 `res` methods and 47 `req` reads, with 9 app settings, 5 HTTP methods, 9 paths and 12 request headers), 0 diffs, about 6 seconds. On a broken build, a changed `res.send` charset fails 1,037 of them, a no-op `res.vary` fails 306, and keeping the whole `X-Forwarded-Proto` list fails 2 (the 143 hand-written scenarios: 56, 10 and 1). Two commented normalisations: no stack frames in error pages and logs, and `Expires` on `maxAge` cookies | |
-| [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
-| [ ] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | fuzz runs in CI with a fixed seed, plus a longer nightly run | |
-| [x] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | 1,125 tests in `test/security/` (18 of them skipped bug tests for 3 bug-fix rows). Each group fails on a deliberately broken build, one guard at a time: a router fast path that skips middleware (49 failures), case-sensitive middleware (31), routes matching decoded paths (82), header writes that skip Node's checks (15), unencoded `res.location` (4 and 27), no backslash handling in redirects (12), a naive query parser (9) or JSON merge (5), and no `..` check in either `send` (46 and 45) | |
+| [x] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 3,306 generated scenarios (all-pairs over 20 `res` methods and 47 `req` reads, with 9 app settings, 5 HTTP methods, 9 paths and 12 request headers), 0 diffs, about 6 seconds. On a broken build, a changed `res.send` charset fails 1,037 of them, a no-op `res.vary` fails 306, and keeping the whole `X-Forwarded-Proto` list fails 2 (the 143 hand-written scenarios: 56, 10 and 1). Two commented normalisations: no stack frames in error pages and logs, and `Expires` on `maxAge` cookies | [#20](https://github.com/abedmurrar/express/pull/20) |
+| [x] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | 38 properties hold for 10,000 runs each (with the fixed seed and with seed 7), and 9 deliberate one-line breaks across the areas each make them fail. They found one bug that Express 5.3.0 has too (a `#` fragment changes the routed path), now a skipped regression test | [#26](https://github.com/abedmurrar/express/pull/26) |
+| [x] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | runs in CI with a fixed seed (300 random apps); 10,000 apps with each of two seeds show 0 differences, and deliberate breaks in routing, `req.hostname` and `X-Forwarded-Host` handling are caught; `FUZZ_RUNS` and `FUZZ_SEED` set a longer run. The nightly job is not added yet | [#26](https://github.com/abedmurrar/express/pull/26) |
+| [x] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | 1,125 tests in `test/security/` (18 of them skipped bug tests for 3 bug-fix rows). Each group fails on a deliberately broken build, one guard at a time: a router fast path that skips middleware (49 failures), case-sensitive middleware (31), routes matching decoded paths (82), header writes that skip Node's checks (15), unencoded `res.location` (4 and 27), no backslash handling in redirects (12), a naive query parser (9) or JSON merge (5), and no `..` check in either `send` (46 and 45) | [#23](https://github.com/abedmurrar/express/pull/23) |
 | [ ] | Robustness: client aborts, slow clients, pipelining, keep-alive reuse, large bodies, many concurrent requests | | master | Medium | new tests | |
 | [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
 | [~] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | first 10 packages (11 scenarios incl. session, upload, auth, rate limiting) give byte-identical responses and morgan log lines on Express 5.3.0 and the fork (#14). The own suites of cors, express-session, multer and express-rate-limit (625 tests) pass on the fork exactly as on 5.3.0, in a CI workflow (#18). Still to do: growing to 25 packages | [#14](https://github.com/abedmurrar/express/pull/14), [#18](https://github.com/abedmurrar/express/pull/18) |
 | [ ] | Type tests for the whole public API, including route-parameter types from path strings | | master | Medium | type tests in CI | |
 | [~] | Instruction-count benchmark gate on every PR, as in the objection fork: count CPU instructions with valgrind (cachegrind, pinned and checksum-verified) under deterministic-GC Node flags, against the merge-base, and fail when any scenario is more than 1% worse | | master | Medium | the gate fails on a deliberately slowed build. Built in `benchmarks/count/` and `.github/workflows/instruction-count.yml`. Run-to-run spread of the same tree so far: hello 0.09%, json 0.07%; the other 5 scenarios and the slowed-build proof are still to do | |
 | [ ] | Node version matrix for the published JavaScript (22, 24, 26, Linux and Windows) | | master | Small | CI matrix | |
-| [ ] | Move the test suite from mocha to Vitest (decided 2026-11-21): one PR, every test kept (the same count before and after, including the skipped regression tests), `done` callbacks turned into awaited requests, mocha removed. `@vitest/coverage-v8` keeps the 100% gate and the two commented `c8 ignore` lines | | master | Large | the same test count, all passing, 100% coverage | |
+| [x] | Move the test suite from mocha to Vitest (decided 2026-11-21): one PR, every test kept (the same count before and after, including the skipped regression tests), `done` callbacks turned into awaited requests, mocha removed. `@vitest/coverage-v8` keeps the 100% gate and the two commented `c8 ignore` lines | | master | Large | the same 6,767 unique test titles with the same statuses under mocha and Vitest (6,752 passing, 37 skipped); 100% coverage kept with c8 around Vitest (threads); a deliberate global leak fails the file. Full run about 14 s against mocha's 9–11 s, for per-file isolation | [#29](https://github.com/abedmurrar/express/pull/29) |
 
 ## TypeScript
 
@@ -172,26 +173,28 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 
 Each dependency is moved to its latest release once it is outside the 7-day npm release-age window, or replaced, or vendored. Any change in behaviour found by the harness sends that upgrade to 6.x.
 
+**ES-module-only releases stay off the compatible line.** Jest (and other CommonJS module loaders) can't `require()` an ES module, so an ESM-only dependency makes Express fail to load under Jest. The middleware suites check found this when content-type 3, encodeurl 3 and content-disposition 3 were tried (closed PR #21): 206 of express-rate-limit's 245 tests stopped passing. These packages stay on their last CommonJS release until our forks of them ship CommonJS builds (Forks section), or until 6.x.
+
 | Status | Package | Now | Latest (published) | Plan | Line |
 |---|---|---|---|---|---|
 | [ ] | `accepts` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `body-parser` | ^2.4.0 | 2.4.0 (2026-10-22) | Keep; vendor on 6.x for the JSON `__proto__` check | 6.x |
-| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Update after the window, harness-checked | master |
-| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Update, harness-checked | master |
+| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
+| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
 | [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
 | [ ] | `cookie-signature` | ^1.2.1 | 1.2.2 | Update | master |
 | [ ] | `debug` | ^4.4.0 | 4.4.3 | Replace with `util.debuglog` (the `DEBUG=express:*` switch changes, so 6.x) | 6.x |
 | [ ] | `depd` | ^2.0.0 | 2.0.0 | Replace with `util.deprecate` | 6.x |
-| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Update, harness-checked | master |
+| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
 | [ ] | `escape-html` | ^1.0.3 | 1.0.3 | Keep (Node has no built-in) | master |
 | [ ] | `etag` | ^1.8.1 | 2.0.0 (2026-11-21, inside the window until 2026-11-28) | Update after the window, harness-checked | master |
 | [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
 | [ ] | `fresh` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `http-errors` | ^2.0.0 | 2.0.1 | Update | master |
-| [ ] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Drop: `Object.defineProperties` with `Object.getOwnPropertyDescriptors` | master |
+| [x] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Dropped (#24): a three-line `mixin` with `Object.getOwnPropertyNames` and `Object.defineProperty`, same semantics (skips names the app already has) | master |
 | [ ] | `mime-types` | ^3.0.0 | 3.0.2 | Update | master |
 | [ ] | `on-finished` | ^2.4.1 | 2.4.2 | Update | master |
-| [ ] | `once` | ^1.4.0 | 1.4.0 | Drop: a three-line local helper | master |
+| [x] | `once` | ^1.4.0 | 1.4.0 | Dropped (#24): a small local `once` in `app.listen`; this also removes `wrappy` | master |
 | [ ] | `parseurl` | ^1.3.3 | 1.3.3 | Keep (WHATWG `URL` parses differently) | master |
 | [ ] | `proxy-addr` | ^2.0.8 | 2.0.8 | Keep | master |
 | [ ] | `qs` | ^6.16.0 | 6.17.1 | Update | master |
@@ -200,7 +203,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `send` | vendored 1.2.1 | 1.2.1 | Vendored | master |
 | [ ] | `serve-static` | ^2.2.0 | 2.2.1 | Update; vendor if `express.static` needs the `send` fixes | master |
 | [ ] | `statuses` | ^2.0.1 | 2.0.2 | Update; check whether `http.STATUS_CODES` can replace it on 6.x | both |
-| [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
+| [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Stays on 2.x: 3.x is ESM-only (breaks Jest users, #21) and changes what `req.is()` returns. Our fork, or 6.x | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
 | [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; replaced by Biome, #13), `c8` instead of `nyc` (done, #10), TypeScript 7, and mocha 12 on master (done, #12) | | | Update | both |
@@ -226,6 +229,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | A `//` mount also matches `/` | #4557, PR #7286, router#190 | master | Medium | repro 4557 | |
 | [ ] | A `req.url` rewrite in a mounted router loses a slash | #4059 | master | Small | repro 4059; fixed by the router 2.3.0 re-sync | |
 | [ ] | A router cycle gives a stack overflow instead of a clear error | #6809, router#183 | master | Small | repro 6809 | |
+| [ ] | A `#` fragment in the request target changes the routed path | | master | Small | regression test (found by the property tests) | |
 | [ ] | Mount-path edge case from #3798 | #3798, router#206 | master | Small | new test | |
 | [ ] | `res.links` with empty values | PRs #7320, #7578 | master | Small | new test | |
 | [ ] | Quoted `;` in `acceptParams` | PR #7479 | master | Small | new test | |
@@ -241,9 +245,14 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 
 Baseline on this machine (Node 24.17.0, requests per second): Hello World 33,776, JSON 30,503, 10 middleware 30,395, 100 routes 24,654. Fastify 5.12.8 does about 1.8x these numbers.
 
+**Built-ins first.** We support Node 22.13 and later only, so code written for old Node versions can go, as it did in the objection fork, which dropped lodash and bluebird for what Node has built in. Node's own versions are usually faster than the old workarounds. Each change keeps the same results (the differential harness checks this) and is measured by the benchmark in its PR. This applies to our code and to every fork of a dependency below.
+
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
 | [ ] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | measured +11–14% | |
+| [ ] | Use Node's built-ins instead of old workarounds in our own code: rest parameters and spread instead of copying `arguments` by hand (32 places in application, request, response, view and the router), `Object.hasOwn`, and similar. Functions keep their `name` and `length` | | master | Medium | bench and harness | |
+| [ ] | ETags through the one-shot `crypto.hash()` instead of the `createHash().update().digest()` chain, with the same output. A quick local measurement: about 2x faster on an 11-byte body, 1.1–1.4x at 16 KB (machine under load; CI numbers decide) | | master | Small | bench and harness | |
+| [ ] | The same built-ins pass in every fork of a dependency, measured in each fork's own benchmark | | master | Large | each fork's bench and harness | |
 | [ ] | Cache the trust-proxy getters (`req.ip`, `protocol`, `host`, `hostname`), keyed on their inputs | PR #7519 | master | Small | bench and harness | |
 | [ ] | Cache the `accepts` instance per request | PR #7008 | master | Small | bench and harness | |
 | [ ] | Memoise content-type lookups | PR #7481 | master | Small | bench and harness | |
@@ -357,8 +366,8 @@ Modelled on the objection fork's release flow. Publishing itself waits for your 
 
 | Status | Item | Line | Proof | PR |
 |---|---|---|---|---|
-| [ ] | A `## Unreleased` section in the changelog, and `npm run release -- patch\|minor`, which dates that section, bumps the version, commits and tags (and refuses an empty Unreleased section) | master | a dry run | |
-| [ ] | `release.yml` on `v*` tags: runs the tests, checks the tag matches `package.json`, publishes with `npm publish --provenance` (trusted publishing rather than a stored token), and creates the GitHub release from the changelog | master | a dry run on a test tag | |
+| [x] | An `Unreleased (fork)` section in History.md, and `npm run release -- patch\|minor`, which dates that section, bumps the version, commits and tags (and refuses an empty Unreleased section) | master | a dry run | [#25](https://github.com/abedmurrar/express/pull/25) |
+| [x] | `release.yml` on `v*` tags: runs the tests, checks the tag matches `package.json`, publishes with `npm publish --provenance` (trusted publishing rather than a stored token), and creates the GitHub release from the changelog | master | a dry run on a test tag | [#25](https://github.com/abedmurrar/express/pull/25) |
 | [ ] | A patch or minor release for every merge that changes `lib/`, once publishing is approved; anything breaking only on the `6.x` line | both | | |
 
 ## Later, with your go-ahead

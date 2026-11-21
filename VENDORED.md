@@ -27,6 +27,7 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 ### router tests
 
 - `require('..')` changed to `require('../../lib/router')`.
+- Removed the first-line `const { it, describe } = require('mocha')` from the 7 router test files, so they use the test runner's globals (Vitest).
 - Added `require('node:buffer')` in `support/utils.js`, `router.js` and `route.js`, for the same lint rule.
 
 ### send

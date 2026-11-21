@@ -43,11 +43,9 @@
     "fresh": "^2.0.0",
     "http-errors": "^2.0.0",
     "is-promise": "^4.0.0",
-    "merge-descriptors": "^2.0.0",
     "mime-types": "^3.0.0",
     "ms": "^2.1.3",
     "on-finished": "^2.4.1",
-    "once": "^1.4.0",
     "parseurl": "^1.3.3",
     "path-to-regexp": "^8.0.0",
     "proxy-addr": "^2.0.8",
@@ -71,11 +69,11 @@
     "express-baseline": "npm:express@5.3.0",
     "express-rate-limit": "^8.7.4",
     "express-session": "^1.18.1",
+    "fast-check": "^4.10.2",
     "hbs": "4.4.0",
     "helmet": "^8.3.0",
     "marked": "^15.0.3",
     "method-override": "3.0.0",
-    "mocha": "^12.0.3",
     "morgan": "1.12.1",
     "multer": "^2.5.0",
     "passport": "^0.7.0",
@@ -83,7 +81,8 @@
     "pbkdf2-password": "1.2.1",
     "run-series": "^1.1.9",
     "supertest": "^7.3.2",
-    "vhost": "~3.0.2"
+    "vhost": "~3.0.2",
+    "vitest": "^5.1.0"
   },
   "engines": {
     "node": ">= 22"
@@ -97,13 +96,14 @@
   "scripts": {
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",
-    "test": "mocha --reporter spec",
-    "test-ci": "c8 --reporter=lcovonly --reporter=text npm test",
-    "test-cov": "c8 --reporter=html --reporter=text npm test",
-    "test-tap": "mocha --reporter tap",
+    "test": "vitest run",
+    "test-ci": "c8 --reporter=lcovonly --reporter=text vitest run",
+    "test-cov": "c8 --reporter=html --reporter=text vitest run",
+    "test-tap": "vitest run --reporter=tap",
     "bench:install": "npm --prefix benchmarks/compare install",
     "bench": "node benchmarks/compare/run.ts",
-    "test:ecosystem-suites": "node scripts/ecosystem-suites.js"
+    "test:ecosystem-suites": "node scripts/ecosystem-suites.js",
+    "release": "node scripts/release.js"
   },
   "bugs": {
     "url": "https://github.com/abedmurrar/express/issues"

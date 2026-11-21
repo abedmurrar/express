@@ -4,8 +4,8 @@ This fork keeps its own copies of the packages it needs to change. Each one keep
 
 | Package | Upstream | Version | Upstream commit | Our copy | Tests |
 |---|---|---|---|---|---|
-| `router` | https://github.com/pillarjs/router | 2.2.0 | `e6d6b60` | `lib/router/` | `test/router/` |
-| `send` | https://github.com/pillarjs/send | 1.2.1 | `096a6148` | `lib/send/` | `test/send/` (plus `test/send/fixtures/`) |
+| `router` | https://github.com/pillarjs/router | 2.2.0 | `e6d6b60` | `src/router/` | `test/router/` |
+| `send` | https://github.com/pillarjs/send | 1.2.1 | `096a6148` | `src/send/` | `test/send/` (plus `test/send/fixtures/`) |
 
 Why these two: most of the routing bugs and routing performance work are in `router`. The empty-body bug for `/proc` files (#4944) is in `send`.
 
@@ -19,10 +19,10 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 
 ### router
 
-- `lib/router/index.js`: added `const { Buffer } = require('node:buffer')` to match Express's lint rule against the global `Buffer`. No behaviour change.
-- `lib/router/index.js`: renamed two function names so no file has two functions with the same name, which the coverage merge (`lcov` 2) rejects. `Router.prototype.handle` is now `function handleRequest`, and the inner `param` helper in `processParams` is now `nextParam`. Property names are unchanged; only stack-trace frame names differ. The route layer's handler keeps the name `handle`, because tools read it through `layer.name`.
+- `src/router/index.js`: added `const { Buffer } = require('node:buffer')` to match Express's lint rule against the global `Buffer`. No behaviour change.
+- `src/router/index.js`: renamed two function names so no file has two functions with the same name, which the coverage merge (`lcov` 2) rejects. `Router.prototype.handle` is now `function handleRequest`, and the inner `param` helper in `processParams` is now `nextParam`. Property names are unchanged; only stack-trace frame names differ. The route layer's handler keeps the name `handle`, because tools read it through `layer.name`.
 
-- `lib/router/index.js`: the function used as `Router.prototype` is now named `RouterPrototype`, so c8's lcov report doesn't list two functions called `Router`, which breaks the CI coverage merge. It also carries a `/* c8 ignore next */`, because it exists only so routers inherit from `Function` and is never called. Upstream marked it with `istanbul ignore` for the same reason.
+- `src/router/index.js`: the function used as `Router.prototype` is now named `RouterPrototype`, so c8's lcov report doesn't list two functions called `Router`, which breaks the CI coverage merge. It also carries a `/* c8 ignore next */`, because it exists only so routers inherit from `Function` and is never called. Upstream marked it with `istanbul ignore` for the same reason.
 
 ### router tests
 
@@ -32,11 +32,11 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 
 ### send
 
-- `lib/send/index.js`: added `var Buffer = require('node:buffer').Buffer`, for the same lint rule. No behaviour change.
-- `lib/send/index.js`: renamed function names for the same coverage reason. `SendStream.prototype.send` is now `function sendPath`, and the two inner `next` helpers in `sendFile` and `sendIndex` are now `nextExtension` and `nextIndex`. The exported `send` function keeps its name.
+- `src/send/index.js`: added `var Buffer = require('node:buffer').Buffer`, for the same lint rule. No behaviour change.
+- `src/send/index.js`: renamed function names for the same coverage reason. `SendStream.prototype.send` is now `function sendPath`, and the two inner `next` helpers in `sendFile` and `sendIndex` are now `nextExtension` and `nextIndex`. The exported `send` function keeps its name.
 
-- `lib/send/index.js`: `hasListeners` calls `emitter.listenerCount(type)` directly. The fallback for emitters without `listenerCount` can't run on any Node version we support (it has existed since Node 3.2).
-- `lib/send/index.js`: `SendStream.prototype.error` no longer falls back to `String(status)` when a status has no standard message. Every caller passes 400, 403, 404, 412, 416 or 500, so the fallback could never run.
+- `src/send/index.js`: `hasListeners` calls `emitter.listenerCount(type)` directly. The fallback for emitters without `listenerCount` can't run on any Node version we support (it has existed since Node 3.2).
+- `src/send/index.js`: `SendStream.prototype.error` no longer falls back to `String(status)` when a status has no standard message. Every caller passes 400, 403, 404, 412, 416 or 500, so the fallback could never run.
 
 ### send tests
 
@@ -45,7 +45,7 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 
 ## Formatting
 
-Our copies of `router` and `send`, and their tests, are formatted with Biome like the rest of the repo (the commit listed in `.git-blame-ignore-revs`), and their unused catch bindings are written as `catch {}`. When re-syncing, diff upstream's changes between versions and apply them by hand; don't copy upstream files over ours. The `eslint-disable` comments in the copied tests are left as they are. They do nothing now.
+Our copies of `router` and `send` live in `src/` and are compiled into `lib/` with the rest of the code. They, and their tests, are formatted with Biome like the rest of the repo (the commit listed in `.git-blame-ignore-revs`), and their unused catch bindings are written as `catch {}`. When re-syncing, diff upstream's changes between versions and apply them by hand; don't copy upstream files over ours. The `eslint-disable` comments in the copied tests are left as they are. They do nothing now.
 
 ## Dependencies
 

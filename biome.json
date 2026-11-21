@@ -9,7 +9,8 @@
       "!benchmarks/compare/.refs",
       "!docs/node_modules",
       "!docs/.vitepress/cache",
-      "!docs/.vitepress/dist"
+      "!docs/.vitepress/dist",
+      "!lib"
     ]
   },
   "formatter": {
@@ -28,22 +29,36 @@
       "bracketSpacing": true
     }
   },
-  "assist": { "enabled": false },
+  "assist": {
+    "enabled": false
+  },
   "linter": {
     "enabled": true,
     "rules": {
       "preset": "none",
       "correctness": {
-        "noUnusedVariables": { "level": "error", "options": { "ignoreRestSiblings": true } }
+        "noUnusedVariables": {
+          "level": "error",
+          "options": {
+            "ignoreRestSiblings": true
+          }
+        }
       },
       "suspicious": {
-        "noDoubleEquals": { "level": "error", "options": { "ignoreNull": true } }
+        "noDoubleEquals": {
+          "level": "error",
+          "options": {
+            "ignoreNull": true
+          }
+        }
       },
       "style": {
         "noRestrictedGlobals": {
           "level": "error",
           "options": {
-            "deniedGlobals": { "Buffer": "Use `import { Buffer } from \"node:buffer\"` instead of the global Buffer." }
+            "deniedGlobals": {
+              "Buffer": "Use `import { Buffer } from \"node:buffer\"` instead of the global Buffer."
+            }
           }
         }
       }

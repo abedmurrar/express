@@ -27,7 +27,7 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 
 **Middleware compatibility comes first, on both lines:** community middleware written for Express keeps working unchanged. `req` and `res` stay Node's `IncomingMessage` and `ServerResponse` with the Express helpers on them, the `(req, res, next)` and `(err, req, res, next)` signatures stay, `app.use`, `Router` and sub-app mounting behave the same, and the published package still loads with `require('express')` and exposes the same properties. The ecosystem suite (Tests section) runs on every PR. Any change that fails it is dropped or made opt-in, including the breaking changes in our 6.0.
 
-**TypeScript:** the fork is written in strict TypeScript (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, no `any`), using only syntax that Node 24 can run directly. Development and tests run on the `.ts` sources with no build step. The published package is compiled JavaScript plus `.d.ts` types, because Node won't run `.ts` files from `node_modules`. Users no longer need `@types/express`.
+**TypeScript:** the fork is written in strict TypeScript (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, no `any`), using only syntax that Node 24 can run directly. The sources live in `src/` and `tsc` compiles them into `lib/`. The tests, the differential and middleware checks and the benchmarks all run against `lib/`, which is exactly what's published, as in the objection fork. Node won't run `.ts` files from `node_modules`, so testing the build is testing the real artifact. Types ship as `.d.ts`. Users no longer need `@types/express`.
 
 **Definition of done for every PR:**
 1. New tests for the change, plus a regression test that fails before and passes after for any bug.
@@ -160,7 +160,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | Strict TypeScript 7 setup: tests run on `.ts` with Node 24, build to JavaScript and `.d.ts` for publishing | | master | Medium | `tsc` clean; tests pass on sources and on the built output | |
+| [~] | Strict TypeScript 7 setup: tests run on `.ts` with Node 24, build to JavaScript and `.d.ts` for publishing | | master | Medium | done: `src/` built by TypeScript 7.0.2 (strict options, `allowJs` while files are converted) into `lib/`, with tests on the built output at 100% coverage mapped back to `src/`, a type check in CI, and the same published file list. Still to do: `.d.ts` output (public types row) | [#30](https://github.com/abedmurrar/express/pull/30) |
 | [ ] | The built package keeps the CommonJS entry and export shape of Express 5.3.0 (`require('express')`, `express.Router`, `express.json` and the rest), plus an ESM entry | | master | Small | an export-shape test against 5.3.0; middleware that requires `express` still works | |
 | [ ] | Convert `lib/` to TypeScript, one file per PR (`utils`, `view`, `request`, `response`, `application`, `express`) | | master | Large | harness 0 diffs, benchmark no slower | |
 | [ ] | Convert the vendored router and send to TypeScript | | master | Large | their suites and the harness pass | |

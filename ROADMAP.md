@@ -54,7 +54,7 @@ Docs ride along with each item.
 | [~] | Commit the research and this roadmap; ignore `research/raw` and `node_modules` | | master | Small | `git status` clean; appendix covers all 114 issues and 149 PRs | [#3](https://github.com/abedmurrar/express/pull/3) |
 | [~] | Differential harness against Express 5.3.0, from the ultimate-express test runner idea | | master | Medium | 143 scenarios, 0 diffs on `master`; a one-character `res.json` change fails 47 | [#2](https://github.com/abedmurrar/express/pull/2) |
 | [~] | Benchmark harness in `benchmarks/compare`, with an `--against <ref>` option and more scenarios | | master | Small | compares Express 5.3.0, the base ref, the head, Fastify, Koa, Hono, polka and `node:http` across 7 scenarios, after checking each server returns the same answer; strict TypeScript | |
-| [ ] | Turn the 26 repros into skipped regression tests | | master | Small | each fails when not skipped | |
+| [~] | Turn the 26 repros into skipped regression tests | | master | Small | 19 bug tests fail with `REGRESSIONS_ALL=1`; 6 tests pin kept behaviour | [#6](https://github.com/abedmurrar/express/pull/6) |
 | [~] | Vendor `router` 2.2.0 into `lib/router` | | master | Medium | router's own tests pass in our suite; every repro unchanged | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [~] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [~] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |

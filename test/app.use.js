@@ -222,7 +222,7 @@ describe('app', function () {
       var app = express()
       assert.throws(function () {
         app.use('/')
-      }, 'TypeError: app.use() requires a middleware function')
+      }, /^TypeError: app\.use\(\) requires a middleware function$/)
     })
 
     it('should reject string as middleware', function () {

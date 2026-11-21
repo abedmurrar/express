@@ -18,6 +18,31 @@ describe('req', function () {
       request(app).get('/').set('If-None-Match', etag).expect(304, done)
     })
 
+    it('should return false for a POST request when the resource is not modified', function (done) {
+      var app = express()
+      var etag = '"12345"'
+
+      app.use(function (req, res) {
+        res.set('ETag', etag)
+        res.json(req.fresh)
+      })
+
+      request(app).post('/').set('If-None-Match', etag).expect(200, 'false', done)
+    })
+
+    it('should return true for a HEAD request when the resource is not modified', function (done) {
+      var app = express()
+      var etag = '"12345"'
+
+      app.use(function (req, res) {
+        res.set('ETag', etag)
+        res.set('X-Fresh', String(req.fresh))
+        res.end()
+      })
+
+      request(app).head('/').set('If-None-Match', etag).expect('X-Fresh', 'true').expect(200, done)
+    })
+
     it('should return false when the resource is modified', function (done) {
       var app = express()
 

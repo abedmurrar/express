@@ -139,7 +139,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
 | [x] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | 100% statements, branches, functions and lines; `test-ci` exits 1 when the new tests are removed. Two commented `c8 ignore` lines: the never-called `Router.prototype` function and a race guard in `sendFile` | [#10](https://github.com/abedmurrar/express/pull/10) |
-| [ ] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | mutation report committed | |
+| [~] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | baseline 92.08% (2,688 mutants, first CI run), the build fails below 92; summary and equivalent mutants in [`reports/mutation-baseline.md`](reports/mutation-baseline.md). About 120 survivors are still open there | |
 | [ ] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 0 unexplained diffs | |
 | [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
 | [ ] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | fuzz runs in CI with a fixed seed, plus a longer nightly run | |

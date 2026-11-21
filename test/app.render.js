@@ -277,6 +277,45 @@ describe('app', function () {
             done()
           })
         })
+
+        it('should name every directory in the lookup error', function (done) {
+          var app = createApp()
+          var views = [
+            path.join(__dirname, 'fixtures', 'local_layout'),
+            path.join(__dirname, 'fixtures', 'default_layout'),
+            path.join(__dirname, 'fixtures', 'blog')
+          ]
+
+          app.set('views', views)
+
+          app.render('pet.tmpl', function (err) {
+            assert.ok(err)
+            assert.equal(
+              err.message,
+              'Failed to lookup view "pet.tmpl" in views directories "' +
+                views[0] +
+                '", "' +
+                views[1] +
+                '" or "' +
+                views[2] +
+                '"'
+            )
+            done()
+          })
+        })
+
+        it('should name a single directory given as an array as a directory', function (done) {
+          var app = createApp()
+          var views = [path.join(__dirname, 'fixtures', 'local_layout')]
+
+          app.set('views', views)
+
+          app.render('pet.tmpl', function (err) {
+            assert.ok(err)
+            assert.equal(err.message, 'Failed to lookup view "pet.tmpl" in views directory "' + views[0] + '"')
+            done()
+          })
+        })
       })
     })
 

@@ -107,7 +107,11 @@ describe('res', function () {
 
         request(app)
           .get('/')
-          .expect(500, /Invalid status code/, done)
+          .expect(
+            500,
+            /RangeError: Invalid status code: 99\. Status code must be greater than 99 and less than 1000\./,
+            done
+          )
       })
 
       it('should raise error for status code above 999', function (done) {
@@ -119,7 +123,22 @@ describe('res', function () {
 
         request(app)
           .get('/')
-          .expect(500, /Invalid status code/, done)
+          .expect(
+            500,
+            /RangeError: Invalid status code: 1000\. Status code must be greater than 99 and less than 1000\./,
+            done
+          )
+      })
+
+      it('should accept 100, the lowest valid code', function (done) {
+        var app = express()
+
+        app.use(function (req, res) {
+          var code = res.status(100).statusCode
+          res.status(200).end(String(code))
+        })
+
+        request(app).get('/').expect(200, '100', done)
       })
 
       it('should raise error for non-integer status codes', function (done) {

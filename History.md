@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Add a security test suite (`test/security/`). It checks that an auth guard always runs before the route it protects, however the path is spelled (case, slashes, percent-encoding, path arrays, RegExp paths, HEAD and OPTIONS, `next('route')`); that CR and LF never inject a header or split a response; exactly where redirects point; that no query string or body pollutes `Object.prototype`; and that `res.sendFile`, `res.download` and `express.static` never serve files outside their root or dotfiles. Each group was checked to fail when its guard is broken on purpose. Cases that fail today are skipped bug tests linked to the roadmap, including a new one: a RegExp path with the `g` or `y` flag.
 * A README and security policy for the fork: what it is (a drop-in replacement for Express 5.3.0 on Node 22, 24 and 26, not the official project), how to install it from GitHub, the development commands and credit to Express. `package.json` now points to this repository, and upstream's `funding` entry is removed.
 * Run the own test suites of cors, express-session, multer and express-rate-limit (625 tests) against Express 5.3.0 and against this fork (`npm run test:ecosystem-suites`, and the `ecosystem` CI workflow on PRs and weekly). Every test that passes on 5.3.0 must also pass here, and today all 625 do.
 * Grow the differential harness with 3,306 generated scenarios (`test/differential/generated.js`). Every `res` method and every `req` property is called with many kinds of arguments, and combined with app settings, HTTP methods, paths and request headers so that every pair of values meets at least once. They run on Express 5.3.0 and on this fork in about 6 seconds and must give byte-identical responses and error logs. There are no differences.
@@ -2238,7 +2239,6 @@ This is the first Express 5.0 alpha release, based off 4.10.1.
     - Accept valid `Vary` header string as `field`
 
 3.16.10
-=======
 
   * deps: connect@2.25.10
     - deps: serve-static@~1.5.4
@@ -3429,7 +3429,6 @@ Shaw]
   * Fixed `{req,res}.app` reference when mounting [Ben Weaver]
 
 2.0.0rc
-=======
 
   * Fixed; expose `HTTPSServer` constructor
   * Fixed express(1) default test charset. Closes #579 [reported by secoif]
@@ -3624,7 +3623,6 @@ Shaw]
   * Fixed issue preventing error handlers from being defined anywhere. Closes #387
 
 1.0.0rc
-=======
 
   * Added mounted hook. Closes #369
   * Added connect dependency to _package.json_

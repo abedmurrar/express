@@ -245,9 +245,14 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 
 Baseline on this machine (Node 24.17.0, requests per second): Hello World 33,776, JSON 30,503, 10 middleware 30,395, 100 routes 24,654. Fastify 5.12.8 does about 1.8x these numbers.
 
+**Built-ins first.** We support Node 22.13 and later only, so code written for old Node versions can go, as it did in the objection fork, which dropped lodash and bluebird for what Node has built in. Node's own versions are usually faster than the old workarounds. Each change keeps the same results (the differential harness checks this) and is measured by the benchmark in its PR. This applies to our code and to every fork of a dependency below.
+
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
 | [ ] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | measured +11–14% | |
+| [ ] | Use Node's built-ins instead of old workarounds in our own code: rest parameters and spread instead of copying `arguments` by hand (32 places in application, request, response, view and the router), `Object.hasOwn`, and similar. Functions keep their `name` and `length` | | master | Medium | bench and harness | |
+| [ ] | ETags through the one-shot `crypto.hash()` instead of the `createHash().update().digest()` chain, with the same output. A quick local measurement: about 2x faster on an 11-byte body, 1.1–1.4x at 16 KB (machine under load; CI numbers decide) | | master | Small | bench and harness | |
+| [ ] | The same built-ins pass in every fork of a dependency, measured in each fork's own benchmark | | master | Large | each fork's bench and harness | |
 | [ ] | Cache the trust-proxy getters (`req.ip`, `protocol`, `host`, `hostname`), keyed on their inputs | PR #7519 | master | Small | bench and harness | |
 | [ ] | Cache the `accepts` instance per request | PR #7008 | master | Small | bench and harness | |
 | [ ] | Memoise content-type lookups | PR #7481 | master | Small | bench and harness | |

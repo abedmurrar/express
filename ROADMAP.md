@@ -143,10 +143,10 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 |---|---|---|---|---|---|---|
 | [x] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | 100% statements, branches, functions and lines; `test-ci` exits 1 when the new tests are removed. Two commented `c8 ignore` lines: the never-called `Router.prototype` function and a race guard in `sendFile` | [#10](https://github.com/abedmurrar/express/pull/10) |
 | [ ] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | mutation report committed | |
-| [x] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 3,306 generated scenarios (all-pairs over 20 `res` methods and 47 `req` reads, with 9 app settings, 5 HTTP methods, 9 paths and 12 request headers), 0 diffs, about 6 seconds. On a broken build, a changed `res.send` charset fails 1,037 of them, a no-op `res.vary` fails 306, and keeping the whole `X-Forwarded-Proto` list fails 2 (the 143 hand-written scenarios: 56, 10 and 1). Two commented normalisations: no stack frames in error pages and logs, and `Expires` on `maxAge` cookies | |
+| [x] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 3,306 generated scenarios (all-pairs over 20 `res` methods and 47 `req` reads, with 9 app settings, 5 HTTP methods, 9 paths and 12 request headers), 0 diffs, about 6 seconds. On a broken build, a changed `res.send` charset fails 1,037 of them, a no-op `res.vary` fails 306, and keeping the whole `X-Forwarded-Proto` list fails 2 (the 143 hand-written scenarios: 56, 10 and 1). Two commented normalisations: no stack frames in error pages and logs, and `Expires` on `maxAge` cookies | [#20](https://github.com/abedmurrar/express/pull/20) |
 | [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
 | [ ] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | fuzz runs in CI with a fixed seed, plus a longer nightly run | |
-| [x] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | 1,125 tests in `test/security/` (18 of them skipped bug tests for 3 bug-fix rows). Each group fails on a deliberately broken build, one guard at a time: a router fast path that skips middleware (49 failures), case-sensitive middleware (31), routes matching decoded paths (82), header writes that skip Node's checks (15), unencoded `res.location` (4 and 27), no backslash handling in redirects (12), a naive query parser (9) or JSON merge (5), and no `..` check in either `send` (46 and 45) | |
+| [x] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | 1,125 tests in `test/security/` (18 of them skipped bug tests for 3 bug-fix rows). Each group fails on a deliberately broken build, one guard at a time: a router fast path that skips middleware (49 failures), case-sensitive middleware (31), routes matching decoded paths (82), header writes that skip Node's checks (15), unencoded `res.location` (4 and 27), no backslash handling in redirects (12), a naive query parser (9) or JSON merge (5), and no `..` check in either `send` (46 and 45) | [#23](https://github.com/abedmurrar/express/pull/23) |
 | [ ] | Robustness: client aborts, slow clients, pipelining, keep-alive reuse, large bodies, many concurrent requests | | master | Medium | new tests | |
 | [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
 | [~] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | first 10 packages (11 scenarios incl. session, upload, auth, rate limiting) give byte-identical responses and morgan log lines on Express 5.3.0 and the fork (#14). The own suites of cors, express-session, multer and express-rate-limit (625 tests) pass on the fork exactly as on 5.3.0, in a CI workflow (#18). Still to do: growing to 25 packages | [#14](https://github.com/abedmurrar/express/pull/14), [#18](https://github.com/abedmurrar/express/pull/18) |
@@ -172,26 +172,28 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 
 Each dependency is moved to its latest release once it is outside the 7-day npm release-age window, or replaced, or vendored. Any change in behaviour found by the harness sends that upgrade to 6.x.
 
+**ES-module-only releases stay off the compatible line.** Jest (and other CommonJS module loaders) can't `require()` an ES module, so an ESM-only dependency makes Express fail to load under Jest. The middleware suites check found this when content-type 3, encodeurl 3 and content-disposition 3 were tried (closed PR #21): 206 of express-rate-limit's 245 tests stopped passing. These packages stay on their last CommonJS release until our forks of them ship CommonJS builds (Forks section), or until 6.x.
+
 | Status | Package | Now | Latest (published) | Plan | Line |
 |---|---|---|---|---|---|
 | [ ] | `accepts` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `body-parser` | ^2.4.0 | 2.4.0 (2026-10-22) | Keep; vendor on 6.x for the JSON `__proto__` check | 6.x |
-| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Update after the window, harness-checked | master |
-| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Update, harness-checked | master |
+| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
+| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
 | [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
 | [ ] | `cookie-signature` | ^1.2.1 | 1.2.2 | Update | master |
 | [ ] | `debug` | ^4.4.0 | 4.4.3 | Replace with `util.debuglog` (the `DEBUG=express:*` switch changes, so 6.x) | 6.x |
 | [ ] | `depd` | ^2.0.0 | 2.0.0 | Replace with `util.deprecate` | 6.x |
-| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Update, harness-checked | master |
+| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
 | [ ] | `escape-html` | ^1.0.3 | 1.0.3 | Keep (Node has no built-in) | master |
 | [ ] | `etag` | ^1.8.1 | 2.0.0 (2026-11-21, inside the window until 2026-11-28) | Update after the window, harness-checked | master |
 | [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
 | [ ] | `fresh` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `http-errors` | ^2.0.0 | 2.0.1 | Update | master |
-| [ ] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Drop: `Object.defineProperties` with `Object.getOwnPropertyDescriptors` | master |
+| [x] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Dropped (#24): a three-line `mixin` with `Object.getOwnPropertyNames` and `Object.defineProperty`, same semantics (skips names the app already has) | master |
 | [ ] | `mime-types` | ^3.0.0 | 3.0.2 | Update | master |
 | [ ] | `on-finished` | ^2.4.1 | 2.4.2 | Update | master |
-| [ ] | `once` | ^1.4.0 | 1.4.0 | Drop: a three-line local helper | master |
+| [x] | `once` | ^1.4.0 | 1.4.0 | Dropped (#24): a small local `once` in `app.listen`; this also removes `wrappy` | master |
 | [ ] | `parseurl` | ^1.3.3 | 1.3.3 | Keep (WHATWG `URL` parses differently) | master |
 | [ ] | `proxy-addr` | ^2.0.8 | 2.0.8 | Keep | master |
 | [ ] | `qs` | ^6.16.0 | 6.17.1 | Update | master |
@@ -200,7 +202,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `send` | vendored 1.2.1 | 1.2.1 | Vendored | master |
 | [ ] | `serve-static` | ^2.2.0 | 2.2.1 | Update; vendor if `express.static` needs the `send` fixes | master |
 | [ ] | `statuses` | ^2.0.1 | 2.0.2 | Update; check whether `http.STATUS_CODES` can replace it on 6.x | both |
-| [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
+| [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Stays on 2.x: 3.x is ESM-only (breaks Jest users, #21) and changes what `req.is()` returns. Our fork, or 6.x | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
 | [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; replaced by Biome, #13), `c8` instead of `nyc` (done, #10), TypeScript 7, and mocha 12 on master (done, #12) | | | Update | both |
@@ -357,8 +359,8 @@ Modelled on the objection fork's release flow. Publishing itself waits for your 
 
 | Status | Item | Line | Proof | PR |
 |---|---|---|---|---|
-| [ ] | A `## Unreleased` section in the changelog, and `npm run release -- patch\|minor`, which dates that section, bumps the version, commits and tags (and refuses an empty Unreleased section) | master | a dry run | |
-| [ ] | `release.yml` on `v*` tags: runs the tests, checks the tag matches `package.json`, publishes with `npm publish --provenance` (trusted publishing rather than a stored token), and creates the GitHub release from the changelog | master | a dry run on a test tag | |
+| [x] | An `Unreleased (fork)` section in History.md, and `npm run release -- patch\|minor`, which dates that section, bumps the version, commits and tags (and refuses an empty Unreleased section) | master | a dry run | [#25](https://github.com/abedmurrar/express/pull/25) |
+| [x] | `release.yml` on `v*` tags: runs the tests, checks the tag matches `package.json`, publishes with `npm publish --provenance` (trusted publishing rather than a stored token), and creates the GitHub release from the changelog | master | a dry run on a test tag | [#25](https://github.com/abedmurrar/express/pull/25) |
 | [ ] | A patch or minor release for every merge that changes `lib/`, once publishing is approved; anything breaking only on the `6.x` line | both | | |
 
 ## Later, with your go-ahead

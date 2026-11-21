@@ -12,6 +12,8 @@ on:
       - '*.md'
   pull_request:
   workflow_dispatch:
+  # lets release.yml run this matrix on a version tag
+  workflow_call:
 
 permissions:
   contents: read

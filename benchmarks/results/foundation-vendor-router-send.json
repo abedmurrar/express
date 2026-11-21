@@ -1,0 +1,704 @@
+{
+  "meta": {
+    "date": "2026-11-21T15:25:52.026Z",
+    "node": "v24.17.0",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+    "cpus": 8,
+    "loadAverageAtStart": 0.42,
+    "pinned": {
+      "server": "0,4",
+      "load": "1-3,5-7"
+    },
+    "base": "master 6cca1c48",
+    "head": "foundation/vendor-router-send cbd1e78f",
+    "rounds": 3,
+    "durationSeconds": 5,
+    "warmupSeconds": 2,
+    "connections": 50,
+    "frameworkVersions": {
+      "express-original": "5.3.0",
+      "fastify": "5.12.8",
+      "koa": "3.3.0",
+      "@koa/router": "15.7.1",
+      "@koa/bodyparser": "6.1.0",
+      "hono": "4.13.19",
+      "@hono/node-server": "2.1.11",
+      "polka": "0.5.2",
+      "autocannon": "9.0.0"
+    }
+  },
+  "rows": [
+    {
+      "scenario": "hello",
+      "target": "express 5.3.0 (npm)",
+      "rps": 34555,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38262,
+        34555,
+        31626
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "base master (6cca1c48)",
+      "rps": 35006,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38365,
+        35006,
+        33445
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "head foundation/vendor-router-send (cbd1e78f)",
+      "rps": 35602,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        39005,
+        35602,
+        33829
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "fastify",
+      "rps": 59306,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        68509,
+        59306,
+        56374
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "koa",
+      "rps": 39818,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        39818,
+        40522,
+        38826
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "hono",
+      "rps": 58928,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        58928,
+        59344,
+        54902
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "polka",
+      "rps": 54582,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        54582,
+        55101,
+        53686
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "node:http",
+      "rps": 64218,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        64218,
+        65123,
+        61206
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "express 5.3.0 (npm)",
+      "rps": 31253,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        31622,
+        31253,
+        30040
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "base master (6cca1c48)",
+      "rps": 31227,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        31227,
+        31416,
+        29208
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "head foundation/vendor-router-send (cbd1e78f)",
+      "rps": 30926,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        31269,
+        30926,
+        29816
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "fastify",
+      "rps": 54320,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        54691,
+        54320,
+        52970
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "koa",
+      "rps": 36632,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36632,
+        36726,
+        35166
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "hono",
+      "rps": 53680,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        53782,
+        53680,
+        50723
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "polka",
+      "rps": 49053,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        49053,
+        50314,
+        42262
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "node:http",
+      "rps": 58525,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        58525,
+        58525,
+        55146
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "express 5.3.0 (npm)",
+      "rps": 34222,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        34222,
+        34546,
+        31685
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "base master (6cca1c48)",
+      "rps": 33960,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        33960,
+        34078,
+        32437
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "head foundation/vendor-router-send (cbd1e78f)",
+      "rps": 34306,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        34363,
+        34306,
+        32853
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "fastify",
+      "rps": 58333,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        58352,
+        58333,
+        56138
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "koa",
+      "rps": 39331,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        39709,
+        39331,
+        37866
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "hono",
+      "rps": 56291,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        56637,
+        56291,
+        52778
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "polka",
+      "rps": 50608,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        50608,
+        52547,
+        48458
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "node:http",
+      "rps": 62854,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        62854,
+        64368,
+        60720
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "express 5.3.0 (npm)",
+      "rps": 32053,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32053,
+        32664,
+        27333
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "base master (6cca1c48)",
+      "rps": 32360,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32453,
+        32360,
+        30010
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "head foundation/vendor-router-send (cbd1e78f)",
+      "rps": 32166,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32166,
+        32533,
+        30162
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "fastify",
+      "rps": 57334,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        57072,
+        58083,
+        57334
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "koa",
+      "rps": 37840,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38141,
+        37520,
+        37840
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "hono",
+      "rps": 45027,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        45443,
+        45027,
+        43920
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "polka",
+      "rps": 48310,
+      "p50": 0,
+      "p99": 2,
+      "runs": [
+        48310,
+        48618,
+        44598
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "node:http",
+      "rps": 62973,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        65155,
+        62973,
+        58288
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "express 5.3.0 (npm)",
+      "rps": 25400,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25400,
+        25442,
+        24917
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "base master (6cca1c48)",
+      "rps": 25358,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25358,
+        24984,
+        25432
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "head foundation/vendor-router-send (cbd1e78f)",
+      "rps": 25480,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25480,
+        25358,
+        25570
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "fastify",
+      "rps": 58032,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        58032,
+        57213,
+        58422
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "koa",
+      "rps": 27870,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        27870,
+        27691,
+        27960
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "hono",
+      "rps": 51645,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        51645,
+        52144,
+        50134
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "polka",
+      "rps": 47862,
+      "p50": 1,
+      "p99": 1,
+      "runs": [
+        47862,
+        48765,
+        47747
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "node:http",
+      "rps": 45162,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        45533,
+        43613,
+        45162
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "express 5.3.0 (npm)",
+      "rps": 22219,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22485,
+        21630,
+        22219
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "base master (6cca1c48)",
+      "rps": 22616,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22616,
+        23061,
+        22478
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "head foundation/vendor-router-send (cbd1e78f)",
+      "rps": 22862,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22862,
+        21694,
+        23010
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "fastify",
+      "rps": 38314,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38314,
+        37104,
+        38755
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "koa",
+      "rps": 24146,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        24146,
+        21749,
+        24600
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "hono",
+      "rps": 36280,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36341,
+        31888,
+        36280
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "polka",
+      "rps": 31685,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        31755,
+        29400,
+        31685
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "node:http",
+      "rps": 44118,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        44458,
+        41750,
+        44118
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "express 5.3.0 (npm)",
+      "rps": 42269,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        42422,
+        40419,
+        42269
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "base master (6cca1c48)",
+      "rps": 42237,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        42915,
+        38211,
+        42237
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "head foundation/vendor-router-send (cbd1e78f)",
+      "rps": 41808,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        41808,
+        38742,
+        42493
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "fastify",
+      "rps": 55094,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        55875,
+        52950,
+        55094
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "koa",
+      "rps": 41635,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        42448,
+        36050,
+        41635
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "hono",
+      "rps": 51414,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        51907,
+        47062,
+        51414
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "polka",
+      "rps": 62154,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        62154,
+        61309,
+        62797
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "node:http",
+      "rps": 60080,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        60080,
+        56067,
+        61859
+      ]
+    }
+  ]
+}

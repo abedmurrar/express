@@ -1,7 +1,7 @@
 'use strict'
 
-// Shared helpers for the differential checks (test/differential and
-// test/ecosystem): start the same app on two Express copies, send the same
+// Shared helpers for the differential checks (test/differential,
+// test/ecosystem and test/property/differential-fuzz.js): start the same app on two Express copies, send the same
 // requests to both, and collect comparable responses.
 
 var http = require('node:http')
@@ -51,7 +51,13 @@ function request(server, req, normalise) {
           }
           var raw = Buffer.concat(chunks).toString('latin1')
           var text = normaliseBody(raw)
-          if (text !== raw) {
+          // A HEAD error page has no body to normalise, but its length still
+          // counts the stack trace.
+          var headErrorPage =
+            req.method === 'HEAD' &&
+            res.statusCode >= 400 &&
+            res.headers['content-security-policy'] === "default-src 'none'"
+          if (text !== raw || headErrorPage) {
             // the length header counts the stripped stack trace
             pairs = pairs.map(function (h) {
               return h.startsWith('content-length: ') ? 'content-length: <normalised>' : h

@@ -143,7 +143,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | [ ] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 0 unexplained diffs | |
 | [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
 | [ ] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | fuzz runs in CI with a fixed seed, plus a longer nightly run | |
-| [ ] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | each case fails on a deliberately broken build | |
+| [x] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | 1,125 tests in `test/security/` (18 of them skipped bug tests for 3 bug-fix rows). Each group fails on a deliberately broken build, one guard at a time: a router fast path that skips middleware (49 failures), case-sensitive middleware (31), routes matching decoded paths (82), header writes that skip Node's checks (15), unencoded `res.location` (4 and 27), no backslash handling in redirects (12), a naive query parser (9) or JSON merge (5), and no `..` check in either `send` (46 and 45) | |
 | [ ] | Robustness: client aborts, slow clients, pipelining, keep-alive reuse, large bodies, many concurrent requests | | master | Medium | new tests | |
 | [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
 | [ ] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | their suites pass; runs on every PR | |
@@ -230,6 +230,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `req.subdomains` ignores a trailing root dot | PR #7331 | master | Small | repro needed first | |
 | [ ] | `res.append` keeps an existing empty header value | PR #7332 | master | Small | repro needed first | |
 | [ ] | `res.redirect` body says `undefined` for non-standard status codes | PRs #7407, #7045 | master | Small | repro needed first | |
+| [ ] | A RegExp path with the `g` or `y` flag matches only every other request | | master | Small | security suite tests | |
 
 ## Performance on the compatible line
 

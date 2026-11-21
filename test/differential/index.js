@@ -11,23 +11,17 @@
 var assert = require('node:assert')
 var baseline = require('express-baseline')
 var ours = require('../..')
-var { listen, request, close } = require('./support')
 var { scenarios, allowed } = require('./scenarios')
-
-function serve(express, scenario) {
-  var app = express()
-  scenario.setup(app, express)
-  return listen(app)
-}
+var { serve, sequence, close } = require('./support')
 
 describe('differential: responses match Express 5.3.0', function () {
   scenarios.forEach(function (scenario) {
     it(scenario.name, async function () {
-      var a = await serve(baseline, scenario)
-      var b = await serve(ours, scenario)
+      var a = await serve(baseline, scenario.setup)
+      var b = await serve(ours, scenario.setup)
       try {
-        var expected = await request(a, scenario.req)
-        var actual = await request(b, scenario.req)
+        var expected = (await sequence(a, [scenario.req]))[0]
+        var actual = (await sequence(b, [scenario.req]))[0]
       } finally {
         await close(a)
         await close(b)

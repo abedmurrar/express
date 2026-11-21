@@ -12,7 +12,7 @@ var assert = require('node:assert')
 var fc = require('fast-check')
 var baseline = require('express-baseline')
 var ours = require('../..')
-var { listen, request, close } = require('../differential/support')
+var { serve, request, close } = require('../differential/support')
 var { FUZZ, URL_CHARS, queryString, timeout } = require('./support')
 
 // Route tables
@@ -299,8 +299,7 @@ function addRoute(errors, target, r, tag) {
   })
 }
 
-function build(express, c) {
-  var app = express()
+function build(app, express, c) {
   var errors = []
   var s = c.settings
   if (s.trustProxy !== undefined) attempt(errors, () => app.set('trust proxy', s.trustProxy))
@@ -321,16 +320,22 @@ function build(express, c) {
     })
     attempt(errors, () => app.use(e.path, router))
   })
-  return { app: app, errors: errors }
+  return errors
 }
 
 async function run(express, c) {
-  var built = build(express, c)
-  var server = await listen(built.app)
+  var errors
+  var server = await serve(express, function (app) {
+    errors = build(app, express, c)
+  })
   try {
     var responses = []
-    for (var r of c.requests) responses.push(await request(server, r))
-    return { errors: built.errors, responses: responses }
+    for (var r of c.requests) {
+      var res = await request(server, r)
+      delete res.rawHeaders
+      responses.push(res)
+    }
+    return { errors: errors, responses: responses }
   } finally {
     await close(server)
   }

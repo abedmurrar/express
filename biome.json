@@ -8,6 +8,9 @@
       "!research",
       "!benchmarks/compare/node_modules",
       "!benchmarks/compare/.refs",
+      "!docs/node_modules",
+      "!docs/.vitepress/cache",
+      "!docs/.vitepress/dist",
       "!lib"
     ]
   },

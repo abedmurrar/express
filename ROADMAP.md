@@ -40,7 +40,7 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 
 1. **Foundation:** vendoring, the differential harness, the benchmark harness.
 2. **Tests:** the safety net comes before the riskiest change.
-3. **TypeScript and dependencies:** converting every file, proven by the tests and the harness.
+3. **TypeScript and dependencies:** converting every file, proven by the tests and the harness. The dependency forks (below) are converted in the same way, starting with the ones Express calls most.
 4. **Bug fixes**, then **performance**, then **additions**, on the compatible line.
 5. **Our 6.0**, then **HTTP/2**.
 
@@ -51,17 +51,79 @@ Docs ride along with each item.
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
 | [x] | Git identity and the commit-msg hook | | both | Small | hook rejects a test trailer | |
-| [~] | Commit the research and this roadmap; ignore `research/raw` and `node_modules` | | master | Small | `git status` clean; appendix covers all 114 issues and 149 PRs | [#3](https://github.com/abedmurrar/express/pull/3) |
-| [~] | Differential harness against Express 5.3.0, from the ultimate-express test runner idea | | master | Medium | 143 scenarios, 0 diffs on `master`; a one-character `res.json` change fails 47 | [#2](https://github.com/abedmurrar/express/pull/2) |
-| [~] | Benchmark harness in `benchmarks/compare`, with an `--against <ref>` option and more scenarios | | master | Small | compares Express 5.3.0, the base ref, the head, Fastify, Koa, Hono, polka and `node:http` across 7 scenarios, after checking each server returns the same answer; strict TypeScript | |
-| [ ] | Turn the 26 repros into skipped regression tests | | master | Small | each fails when not skipped | |
-| [~] | Vendor `router` 2.2.0 into `lib/router` | | master | Medium | router's own tests pass in our suite; every repro unchanged | [#1](https://github.com/abedmurrar/express/pull/1) |
-| [~] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
-| [~] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |
+| [x] | Commit the research and this roadmap; ignore `research/raw` and `node_modules` | | master | Small | `git status` clean; appendix covers all 114 issues and 149 PRs | [#3](https://github.com/abedmurrar/express/pull/3) |
+| [x] | Differential harness against Express 5.3.0, from the ultimate-express test runner idea | | master | Medium | 143 scenarios, 0 diffs on `master`; a one-character `res.json` change fails 47 | [#2](https://github.com/abedmurrar/express/pull/2) |
+| [x] | Benchmark harness in `benchmarks/compare`, with an `--against <ref>` option and more scenarios | | master | Small | compares Express 5.3.0, the base ref, the head, Fastify, Koa, Hono, polka and `node:http` across 7 scenarios, after checking each server returns the same answer; strict TypeScript | [#4](https://github.com/abedmurrar/express/pull/4) |
+| [x] | Turn the 26 repros into skipped regression tests | | master | Small | 19 bug tests fail with `REGRESSIONS_ALL=1`; 6 tests pin kept behaviour | [#6](https://github.com/abedmurrar/express/pull/6) |
+| [x] | Vendor `router` 2.2.0 into `lib/router` | | master | Medium | router's own tests pass in our suite; every repro unchanged | [#1](https://github.com/abedmurrar/express/pull/1) |
+| [x] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
+| [x] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [ ] | Re-sync the vendored router to 2.3.0 once it is 7 days old (from 2026-11-24) | #4059, router#206, router#174, router#196 | master | Small | router tests, harness, repro 4059 | |
 | [~] | Update mocha and supertest | #7547, PR #7600 | master | Small | same 2,123 tests pass; mocha 11.8.0 here, mocha 12 (Node 20.19+) on 6.x | [#7](https://github.com/abedmurrar/express/pull/7) |
 | [ ] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | tests pass | |
 | [ ] | ESLint 9 and a pre-commit lint hook | PRs #6118, #6480, #6912 | master | Small | lint passes | |
+
+## Forks of the dependencies
+
+Every package Express depends on that does real work gets its own fork under `abedmurrar/<repo>`, held to the same rules as this repo: middleware compatibility, strict TypeScript, tests, the differential harness against its upstream release, and a benchmark run per PR. Each fork keeps its upstream history and licence, and syncs from upstream the same way this repo does.
+
+Express uses the forks as vendored copies (as with `router` and `send` today), synced from each fork, until publishing is approved. After that it uses them as `@abedmurrar/*` packages.
+
+Of the 64 packages Express installs today, 33 are forked (below), 30 are shims and one-liners that Node 24 provides itself, which are removed inside the forks instead, and 1 (`ms`) stays as an ordinary dependency, because Node has no built-in for parsing time strings like `'1d'`.
+
+| Status | Fork | Upstream | Plan |
+|---|---|---|---|
+| [ ] | `router` | pillarjs/router | Fork; becomes the source of `lib/router` |
+| [ ] | `send` | pillarjs/send | Fork; becomes the source of `lib/send` |
+| [ ] | `path-to-regexp` | pillarjs/path-to-regexp | Fork |
+| [ ] | `finalhandler` | pillarjs/finalhandler | Fork |
+| [ ] | `encodeurl` | pillarjs/encodeurl | Fork |
+| [ ] | `parseurl` | pillarjs/parseurl | Fork |
+| [ ] | `iconv-lite` | pillarjs/iconv-lite | Fork; drop `safer-buffer` (Node's `Buffer` is safe) |
+| [ ] | `body-parser` | expressjs/body-parser | Fork |
+| [ ] | `serve-static` | expressjs/serve-static | Fork; uses our `send` |
+| [ ] | `express-generator` | expressjs/generator | Fork; generates TypeScript apps and points at our package and docs |
+| [ ] | `accepts` | jshttp/accepts | Fork |
+| [ ] | `content-disposition` | jshttp/content-disposition | Fork |
+| [ ] | `content-type` | jshttp/content-type | Fork |
+| [ ] | `cookie` | jshttp/cookie | Fork |
+| [ ] | `etag` | jshttp/etag | Fork |
+| [ ] | `forwarded` | jshttp/forwarded | Fork |
+| [ ] | `fresh` | jshttp/fresh | Fork |
+| [ ] | `http-errors` | jshttp/http-errors | Fork; drop `inherits`, `setprototypeof`, `toidentifier`, `depd` (built-in classes and `util.deprecate`) |
+| [ ] | `media-typer` | jshttp/media-typer | Fork |
+| [ ] | `mime-db` | jshttp/mime-db | Fork |
+| [ ] | `mime-types` | jshttp/mime-types | Fork |
+| [ ] | `negotiator` | jshttp/negotiator | Fork |
+| [ ] | `on-finished` | jshttp/on-finished | Fork; drop `ee-first` |
+| [ ] | `proxy-addr` | jshttp/proxy-addr | Fork |
+| [ ] | `range-parser` | jshttp/range-parser | Fork |
+| [ ] | `statuses` | jshttp/statuses | Fork |
+| [ ] | `type-is` | jshttp/type-is | Fork |
+| [ ] | `vary` | jshttp/vary | Fork |
+| [ ] | `raw-body` | stream-utils/raw-body | Fork; drop `unpipe` |
+| [ ] | `bytes` | visionmedia/bytes.js | Fork |
+| [ ] | `cookie-signature` | visionmedia/node-cookie-signature | Fork |
+| [ ] | `escape-html` | component/escape-html | Fork |
+| [ ] | `ipaddr.js` | whitequark/ipaddr.js | Fork |
+| [ ] | `qs` | ljharb/qs | Fork; replace the `side-channel` chain with a `WeakMap`, which removes 17 packages |
+| [ ] | Docs site | expressjs/expressjs.com | Fork; see Docs and identity |
+
+Removed rather than forked, using what Node 24 has: `debug` (`util.debuglog`), `depd` (`util.deprecate`), `once`, `wrappy`, `inherits`, `setprototypeof`, `toidentifier`, `merge-descriptors`, `ee-first`, `unpipe`, `safer-buffer`, `is-promise`, `function-bind`, and the `qs` chain (`side-channel`, `side-channel-list`, `side-channel-map`, `side-channel-weakmap`, `get-intrinsic`, `call-bind-apply-helpers`, `call-bound`, `es-define-property`, `es-errors`, `es-object-atoms`, `get-proto`, `dunder-proto`, `gopd`, `has-symbols`, `hasown`, `math-intrinsics`, `object-inspect`). Each removal that could change behaviour on the compatible line is checked by the differential harness. `debug` and `depd` change warning and debug output, so their removal stays on 6.x (Dependencies section).
+
+Later, decided package by package: forks of the Express-family middleware (`cors`, `morgan`, `cookie-parser`, `express-session`, `multer`, `compression`, `method-override`, `serve-favicon`, `response-time`, `vhost`), held to the same rules.
+
+## Docs and identity
+
+The fork must never look like the official Express project. It keeps credit to Express and its authors everywhere.
+
+| Status | Item | Line | Proof | PR |
+|---|---|---|---|---|
+| [ ] | README for the fork: what it is, how it differs from Express 5.3.0 (link to this roadmap), install, credit to Express and its contributors, no Express logo | master | | |
+| [ ] | Docs website: fork expressjs/expressjs.com, mark it clearly as the fork's docs with credit and the original licence, and publish it on GitHub Pages | master | the site builds and is live on Pages | |
+| [ ] | Docs content: our changes, new APIs, TypeScript usage, the middleware-compatibility promise, and a "differences from Express 5.3.0" page | master | | |
+| [ ] | Update every project URL to the fork: `package.json` (`homepage`, `repository`, `bugs`; remove upstream's `funding`), README links and badges (CI, scorecard), the clone instructions, the security policy, links in code comments and error messages, and the generator templates. Links that cite upstream issues, PRs and history stay pointing upstream | master | a URL check in CI that fails on project links to upstream outside the allowed list | |
+| [ ] | Our own security policy (`SECURITY.md`) for reports about the fork | master | | |
 
 ## Tests
 

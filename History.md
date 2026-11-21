@@ -5,6 +5,8 @@ Unreleased (fork)
 
 * Add regression tests (`test/regressions/`) for the 19 confirmed bugs that the compatible line will fix. Each asserts the correct behaviour and stays skipped until its fix lands; `REGRESSIONS_ALL=1` runs them all, and all 19 fail today. Six more tests pin behaviour this line keeps on purpose.
 * Add a benchmark comparison (`benchmarks/compare`, `npm run bench`). It measures this repository at the branch head and at a base ref against the original Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`, across 7 scenarios, after checking that each server returns the same response. Results go to `benchmarks/results/`. Written in strict TypeScript that Node 24 runs directly.
+* Vendor `router` 2.2.0 into `lib/router` and `send` 1.2.1 into `lib/send`, with their licences and test suites, so this fork can fix routing and file-sending bugs directly. They're the same versions Express 5.3.0 installs, so nothing changes. See `VENDORED.md`.
+* Add a differential test harness (`test/differential/`). It runs 143 scenarios on Express 5.3.0 and on this repository and requires byte-identical responses, except for differences listed on purpose. The method comes from [ultimate-express](https://github.com/dimdenGD/ultimate-express)'s test runner.
 
 5.3.0
 =====

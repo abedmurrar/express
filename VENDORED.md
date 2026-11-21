@@ -38,6 +38,8 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 - `src/send/index.js`: `hasListeners` calls `emitter.listenerCount(type)` directly. The fallback for emitters without `listenerCount` can't run on any Node version we support (it has existed since Node 3.2).
 - `src/send/index.js`: `SendStream.prototype.error` no longer falls back to `String(status)` when a status has no standard message. Every caller passes 400, 403, 404, 412, 416 or 500, so the fallback could never run.
 
+- `src/send/index.js`: `SendStream.prototype.send` wraps `this.setHeader(path, stat)` in a try/catch and passes a throw to `this.error(500, err)`. A throwing `headers` listener (for example Express's `res.sendFile` `headers` option with a CR or LF in a value) used to be an uncaught exception, because it runs in an `fs.stat` callback. Not in upstream.
+
 ### send tests
 
 - `require('..')` changed to `require('../../lib/send')`.

@@ -212,6 +212,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
+| [x] | A bad value in `res.sendFile`'s or `res.download`'s `headers` option (a CR or LF, or an invalid name) crashes the process: it throws inside `send`'s file-stat callback. Any throw from a `headers` listener now becomes an error for the callback or `next(err)`. `express.static` still uses serve-static's own `send`, so a throwing `setHeaders` there still crashes until serve-static uses our `send` | | master | Small | 4 security tests that fail with an uncaught error before the fix | |
 | [ ] | `res.send` corrupts ArrayBuffer, DataView and typed-array bodies | #7362, #7510, #7538, PRs #7574, #7363, #7511, #7542, #7410 | master | Small | repros 7362, 7510, 7538 | |
 | [ ] | `res.redirect` sends Content-Length with Transfer-Encoding | #7506, PR #7508 | master | Small | repro 7506 | |
 | [ ] | `res.set` sends `Content-Type: false` for unknown types | #7034, PR #7035 | master | Small | repro 7034 | |

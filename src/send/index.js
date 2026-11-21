@@ -489,8 +489,17 @@ SendStream.prototype.send = function sendPath(path, stat) {
 
   debug('pipe "%s"', path)
 
-  // set header fields
-  this.setHeader(path, stat)
+  // set header fields. A 'headers' listener can throw (res.sendFile's
+  // `headers` option with a CR or LF in a value, or serve-static's
+  // `setHeaders`). This runs inside an fs.stat callback, where a throw would
+  // be an uncaught exception that ends the process, so it becomes an error
+  // for the 'error' listeners (or a 500 response) instead.
+  try {
+    this.setHeader(path, stat)
+  } catch (err) {
+    this.error(500, err)
+    return
+  }
 
   // set content-type
   this.type(path)

@@ -33,6 +33,7 @@ Unreleased (fork)
 
 ## 🐞 Bug fixes
 
+* A bad value in the `headers` option of `res.sendFile` or `res.download` (a CR or LF in a value, or an invalid header name) no longer crashes the process. It used to throw inside the file-stat callback of our `send`, where nothing could catch it; now the error goes to the callback, or to `next(err)` without one. The same applies to any other `headers` listener that throws.
 - Fixed HTTP header conflict between Content-Length and Transfer-Encoding in res.send - by [@YuryShkoda](https://github.com/YuryShkoda) in [#4893](https://github.com/expressjs/express/pull/4893)
 
 

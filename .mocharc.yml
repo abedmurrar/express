@@ -9,3 +9,4 @@ ignore:
   - test/**/fixtures/**
   - test/**/support.js
   - test/differential/scenarios.js
+  - test/differential/generated.js

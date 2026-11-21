@@ -19,10 +19,29 @@ import type { Framework, Scenario } from './servers.ts'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, '..', '..')
 const PORT = 39181
-// The server under test gets one physical core (both hyper-threads); the
-// load generator gets the rest. Siblings come from the CPU topology.
-const SERVER_CPUS = '0,4'
-const LOAD_CPUS = '1-3,5-7'
+// The server under test gets one physical core (CPU 0 and its hyper-thread
+// siblings, read from the kernel's topology); the load generator gets every
+// other CPU. Works on this laptop (8 threads) and on CI runners (4 vCPUs).
+function parseCpuList (list: string): number[] {
+  return list.trim().split(',').flatMap((part) => {
+    const [a, b] = part.split('-').map(Number)
+    if (a === undefined || Number.isNaN(a)) return []
+    return b === undefined ? [a] : Array.from({ length: b - a + 1 }, (_, i) => a + i)
+  })
+}
+
+function cpuLayout (): { server: string, load: string } | undefined {
+  const all = os.cpus().map((_, i) => i)
+  let siblings = [0]
+  try {
+    siblings = parseCpuList(readFileSync('/sys/devices/system/cpu/cpu0/topology/thread_siblings_list', 'utf8'))
+  } catch {
+    // no topology information: give the server CPU 0 only
+  }
+  const load = all.filter((c) => !siblings.includes(c))
+  if (load.length === 0) return undefined
+  return { server: siblings.join(','), load: load.join(',') }
+}
 
 interface Target {
   name: string
@@ -67,7 +86,8 @@ function git (...argv: string[]): string {
   return execFileSync('git', argv, { cwd: repo, encoding: 'utf8' }).trim()
 }
 
-const hasTaskset = (() => {
+const layout = cpuLayout()
+const hasTaskset = layout !== undefined && (() => {
   try { execFileSync('taskset', ['--version'], { stdio: 'ignore' }); return true } catch { return false }
 })()
 
@@ -111,7 +131,7 @@ function startServer (target: Target, scenario: Scenario): Promise<ChildProcess>
   const argv = [child, target.framework, scenario, String(PORT), ...(target.dir === undefined ? [] : [target.dir])]
   const node = [process.execPath, '--max-old-space-size=256', ...argv]
   const proc = hasTaskset
-    ? spawn('taskset', ['-c', SERVER_CPUS, ...node], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] })
+    ? spawn('taskset', ['-c', layout?.server ?? '0', ...node], { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] })
     : spawn(node[0] ?? process.execPath, node.slice(1), { stdio: ['ignore', 'ignore', 'inherit', 'ipc'] })
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => { proc.kill(); reject(new Error('server did not start')) }, 15000)
@@ -174,7 +194,7 @@ function pct (a: number, b: number): string {
 }
 
 async function main (): Promise<void> {
-  if (hasTaskset) execFileSync('taskset', ['-cp', LOAD_CPUS, String(process.pid)], { stdio: 'ignore' })
+  if (hasTaskset) execFileSync('taskset', ['-cp', layout?.load ?? '0', String(process.pid)], { stdio: 'ignore' })
   const perRun = warmup + duration + 1
   const total = targets.length * scenarios.length * rounds * perRun
   console.error(`${targets.length} targets x ${scenarios.length} scenarios x ${rounds} rounds, about ${Math.ceil(total / 60)} min. Keep the machine idle.`)
@@ -234,7 +254,7 @@ async function main (): Promise<void> {
     cpu,
     cpus: os.cpus().length,
     loadAverageAtStart: Number(load1.toFixed(2)),
-    pinned: hasTaskset ? { server: SERVER_CPUS, load: LOAD_CPUS } : null,
+    pinned: hasTaskset ? layout : null,
     base: `${args.against} ${baseSha}`,
     head: `${branch} ${headSha}${dirty ? ' (uncommitted changes)' : ''}`,
     rounds,

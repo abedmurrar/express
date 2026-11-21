@@ -8,21 +8,127 @@
 
 'use strict'
 
+import type { EventEmitter } from 'node:events'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
+import type { ListenOptions } from 'node:net'
+import type { Request } from './request'
+import type { ExpressResponse, RenderCallback, RenderOptions } from './response'
+import type {
+  HandlerList,
+  HttpMethod,
+  HttpMethods,
+  LayerHandler,
+  NextFunction,
+  ParamCallback,
+  PathParams,
+  Router as RouterInstance,
+  RouterConstructor,
+  RouterRequest,
+  RouterResponse
+} from './router'
+import type { Route } from './router/lib/route'
+import type { QueryParser, TrustFunction } from './utils'
+import type { Engine, View as ViewInstance, ViewConstructor } from './view'
+
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-var finalhandler = require('finalhandler')
-var debug = require('debug')('express:application')
-var View = require('./view')
-var http = require('node:http')
-var methods = require('./utils').methods
-var compileETag = require('./utils').compileETag
-var compileQueryParser = require('./utils').compileQueryParser
-var compileTrust = require('./utils').compileTrust
-var resolve = require('node:path').resolve
-var Router = require('./router')
+const finalhandler = require('finalhandler') as typeof import('finalhandler')
+const debug = (require('debug') as typeof import('debug'))('express:application')
+const View = require('./view') as ViewConstructor
+const http = require('node:http') as typeof import('node:http')
+const methods = (require('./utils') as typeof import('./utils')).methods as HttpMethod[]
+const compileETag = (require('./utils') as typeof import('./utils')).compileETag
+const compileQueryParser = (require('./utils') as typeof import('./utils')).compileQueryParser
+const compileTrust = (require('./utils') as typeof import('./utils')).compileTrust
+const resolve = (require('node:path') as typeof import('node:path')).resolve
+const Router = require('./router') as RouterConstructor
+
+/**
+ * The settings read with a known type: the defaults `defaultConfiguration()`
+ * sets, which `src/request` and `app.render()` rely on. Any other setting
+ * reads as `unknown`.
+ */
+export interface ApplicationSettings {
+  env: string
+  'query parser fn': QueryParser | undefined
+  'subdomain offset': number
+  'trust proxy fn': TrustFunction
+  view: ViewConstructor
+  'view engine': string | undefined
+  views: string | string[]
+}
+
+/** `app.post(path, handlers...)` and the other methods: adds a route, returns the app. */
+export type ApplicationMethod = (path: PathParams, ...handlers: HandlerList[]) => Application
+
+/** The `app.listen()` callback: called once listening, or with the server's first error. */
+export type ListenCallback = (err?: Error) => void
+
+/**
+ * An Express application: a request handler function, with the
+ * EventEmitter methods and the methods below mixed in by `src/express`.
+ * Parameters are as loose as the JavaScript accepts, and each method narrows
+ * them the way the JavaScript does.
+ */
+export interface Application extends EventEmitter, Omit<HttpMethods<ApplicationMethod>, 'get'> {
+  (req: IncomingMessage, res: ServerResponse, next?: NextFunction): void
+  /** Views found by `app.render()`, by name, when the view cache is on. */
+  cache: Record<string, ViewInstance>
+  /** Template engines, by file extension (with the dot). */
+  engines: Record<string, Engine>
+  /** The settings; a mounted app's inherit from its parent's. */
+  settings: Record<string, unknown>
+  locals: Record<string, unknown>
+  /** The path (or paths, or pattern) the app was mounted at. */
+  mountpath: PathParams
+  /** The app this one is mounted on, set by the parent's `app.use()`. */
+  parent?: Application
+  /** The base router, created on first use. */
+  readonly router: RouterInstance
+  /** The prototype set on each request. */
+  request: Request
+  /** The prototype set on each response. */
+  response: ExpressResponse
+  init(): void
+  defaultConfiguration(): void
+  handle(req: Request, res: ExpressResponse, callback?: NextFunction): void
+  use(...handlers: HandlerList[]): this
+  use(path: PathParams, ...handlers: HandlerList[]): this
+  route(path: PathParams): Route
+  engine(ext: string, fn: Engine): this
+  param(name: string | string[], fn: ParamCallback): this
+  set<K extends keyof ApplicationSettings>(setting: K): ApplicationSettings[K]
+  set(setting: string): unknown
+  set(setting: string, val: unknown): this
+  path(): string
+  enabled(setting: string): boolean
+  disabled(setting: string): boolean
+  enable(setting: string): this
+  disable(setting: string): this
+  /** With one argument, a setting (like `app.set(setting)`); otherwise a GET route. */
+  get<K extends keyof ApplicationSettings>(setting: K): ApplicationSettings[K]
+  get(setting: string): unknown
+  get(path: PathParams, ...handlers: HandlerList[]): this
+  all: ApplicationMethod
+  render(name: string, callback: RenderCallback): void
+  render(name: string, options: RenderOptions | undefined, callback: RenderCallback): void
+  /** The arguments of `server.listen()`; a trailing callback also gets the server's first error. */
+  listen(port?: number, hostname?: string, backlog?: number, callback?: ListenCallback): Server
+  listen(port?: number, hostname?: string, callback?: ListenCallback): Server
+  listen(port?: number, backlog?: number, callback?: ListenCallback): Server
+  listen(port?: number, callback?: ListenCallback): Server
+  listen(path: string, backlog?: number, callback?: ListenCallback): Server
+  listen(path: string, callback?: ListenCallback): Server
+  listen(options: ListenOptions, callback?: ListenCallback): Server
+  listen(handle: unknown, backlog?: number, callback?: ListenCallback): Server
+  listen(handle: unknown, callback?: ListenCallback): Server
+}
 
 /**
  * Module variables.
@@ -36,7 +142,7 @@ var flatten = Array.prototype.flat
  * Application prototype.
  */
 
-var app = (exports = module.exports = {})
+var app = (exports = module.exports = {}) as Application
 
 /**
  * Variable for trust proxy inheritance back-compat
@@ -55,8 +161,8 @@ var trustProxyDefaultSymbol = '@@symbol:trust_proxy_default'
  * @private
  */
 
-app.init = function init() {
-  var router = null
+app.init = function init(this: Application) {
+  var router: RouterInstance | null = null
 
   this.cache = Object.create(null)
   this.engines = Object.create(null)
@@ -68,7 +174,7 @@ app.init = function init() {
   Object.defineProperty(this, 'router', {
     configurable: true,
     enumerable: true,
-    get: function getrouter() {
+    get: function getrouter(this: Application) {
       if (router === null) {
         router = new Router({
           caseSensitive: this.enabled('case sensitive routing'),
@@ -86,7 +192,7 @@ app.init = function init() {
  * @private
  */
 
-app.defaultConfiguration = function defaultConfiguration() {
+app.defaultConfiguration = function defaultConfiguration(this: Application) {
   var env = process.env.NODE_ENV || 'development'
 
   // default settings
@@ -105,7 +211,7 @@ app.defaultConfiguration = function defaultConfiguration() {
 
   debug('booting in %s mode', env)
 
-  this.on('mount', function onmount(parent) {
+  this.on('mount', function onmount(this: Application, parent: Application) {
     // inherit trust proxy
     if (this.settings[trustProxyDefaultSymbol] === true && typeof parent.settings['trust proxy fn'] === 'function') {
       delete this.settings['trust proxy']
@@ -147,7 +253,7 @@ app.defaultConfiguration = function defaultConfiguration() {
  * @private
  */
 
-app.handle = function handle(req, res, callback) {
+app.handle = function handle(this: Application, req: Request, res: ExpressResponse, callback?: NextFunction) {
   // final handler
   var done =
     callback ||
@@ -163,7 +269,7 @@ app.handle = function handle(req, res, callback) {
 
   // set circular references
   req.res = res
-  res.req = req
+  ;(res as { req: unknown }).req = req
 
   // alter the prototypes, unless app.listen() already made req and res with them
   if (Object.getPrototypeOf(req) !== this.request) Object.setPrototypeOf(req, this.request)
@@ -174,7 +280,7 @@ app.handle = function handle(req, res, callback) {
     res.locals = Object.create(null)
   }
 
-  this.router.handle(req, res, done)
+  this.router.handle(req as RouterRequest, res, done)
 }
 
 /**
@@ -187,14 +293,14 @@ app.handle = function handle(req, res, callback) {
  * @public
  */
 
-app.use = function use(fn) {
+app.use = function use(this: Application, fn: unknown) {
   var offset = 0
-  var path = '/'
+  var path: PathParams = '/'
 
   // default path to '/'
   // disambiguate app.use([fn])
   if (typeof fn !== 'function') {
-    var arg = fn
+    var arg: unknown = fn
 
     while (Array.isArray(arg) && arg.length !== 0) {
       arg = arg[0]
@@ -203,11 +309,12 @@ app.use = function use(fn) {
     // first arg is the path
     if (typeof arg !== 'function') {
       offset = 1
-      path = fn
+      path = fn as PathParams
     }
   }
 
-  var fns = flatten.call(slice.call(arguments, offset), Infinity)
+  // middleware functions, and express apps (told apart below by having handle and set)
+  var fns = flatten.call(slice.call(arguments, offset), Infinity) as Array<LayerHandler & Partial<Application>>
 
   if (fns.length === 0) {
     throw new TypeError('app.use() requires a middleware function')
@@ -216,7 +323,7 @@ app.use = function use(fn) {
   // get router
   var router = this.router
 
-  fns.forEach(function (fn) {
+  fns.forEach(function (this: Application, fn): RouterInstance | void {
     // non-express app
     if (!fn || !fn.handle || !fn.set) {
       return router.use(path, fn)
@@ -227,9 +334,9 @@ app.use = function use(fn) {
     fn.parent = this
 
     // restore .app property on req and res
-    router.use(path, function mounted_app(req, res, next) {
-      var orig = req.app
-      fn.handle(req, res, function (err) {
+    router.use(path, function mounted_app(req: RouterRequest, res: RouterResponse, next: NextFunction) {
+      var orig = (req as RouterRequest & { app: Application }).app
+      fn.handle!(req as unknown as Request, res as ExpressResponse, function (err) {
         Object.setPrototypeOf(req, orig.request)
         Object.setPrototypeOf(res, orig.response)
         next(err)
@@ -237,7 +344,7 @@ app.use = function use(fn) {
     })
 
     // mounted an app
-    fn.emit('mount', this)
+    fn.emit!('mount', this)
   }, this)
 
   return this
@@ -253,7 +360,7 @@ app.use = function use(fn) {
  * @public
  */
 
-app.route = function route(path) {
+app.route = function route(this: Application, path: PathParams) {
   return this.router.route(path)
 }
 
@@ -291,7 +398,7 @@ app.route = function route(path) {
  * @public
  */
 
-app.engine = function engine(ext, fn) {
+app.engine = function engine(this: Application, ext: string, fn: Engine) {
   if (typeof fn !== 'function') {
     throw new Error('callback function required')
   }
@@ -317,10 +424,10 @@ app.engine = function engine(ext, fn) {
  * @public
  */
 
-app.param = function param(name, fn) {
+app.param = function param(this: Application, name: string | string[], fn: ParamCallback) {
   if (Array.isArray(name)) {
     for (var i = 0; i < name.length; i++) {
-      this.param(name[i], fn)
+      this.param(name[i] as string, fn)
     }
 
     return this
@@ -346,7 +453,7 @@ app.param = function param(name, fn) {
  * @public
  */
 
-app.set = function set(setting, val) {
+app.set = function set(this: Application, setting: string, val?: unknown) {
   if (arguments.length === 1) {
     // app.get(setting)
     return this.settings[setting]
@@ -378,7 +485,7 @@ app.set = function set(setting, val) {
   }
 
   return this
-}
+} as Application['set']
 
 /**
  * Return the app's absolute pathname
@@ -394,7 +501,7 @@ app.set = function set(setting, val) {
  * @private
  */
 
-app.path = function path() {
+app.path = function path(this: Application): string {
   return this.parent ? this.parent.path() + this.mountpath : ''
 }
 
@@ -413,7 +520,7 @@ app.path = function path() {
  * @public
  */
 
-app.enabled = function enabled(setting) {
+app.enabled = function enabled(this: Application, setting: string) {
   return Boolean(this.set(setting))
 }
 
@@ -432,7 +539,7 @@ app.enabled = function enabled(setting) {
  * @public
  */
 
-app.disabled = function disabled(setting) {
+app.disabled = function disabled(this: Application, setting: string) {
   return !this.set(setting)
 }
 
@@ -444,7 +551,7 @@ app.disabled = function disabled(setting) {
  * @public
  */
 
-app.enable = function enable(setting) {
+app.enable = function enable(this: Application, setting: string) {
   return this.set(setting, true)
 }
 
@@ -456,7 +563,7 @@ app.enable = function enable(setting) {
  * @public
  */
 
-app.disable = function disable(setting) {
+app.disable = function disable(this: Application, setting: string) {
   return this.set(setting, false)
 }
 
@@ -465,10 +572,11 @@ app.disable = function disable(setting) {
  */
 
 methods.forEach(function (method) {
-  app[method] = function (path) {
+  // assigned through a plain map of methods: `get` is also the setting reader
+  ;(app as HttpMethods<unknown>)[method] = function (this: Application, path: PathParams) {
     if (method === 'get' && arguments.length === 1) {
       // app.get(setting)
-      return this.set(path)
+      return this.set(path as string)
     }
 
     var route = this.route(path)
@@ -487,12 +595,12 @@ methods.forEach(function (method) {
  * @public
  */
 
-app.all = function all(path) {
+app.all = function all(this: Application, path: PathParams) {
   var route = this.route(path)
   var args = slice.call(arguments, 1)
 
   for (var i = 0; i < methods.length; i++) {
-    route[methods[i]].apply(route, args)
+    route[methods[i] as HttpMethod].apply(route, args)
   }
 
   return this
@@ -515,12 +623,19 @@ app.all = function all(path) {
  * @public
  */
 
-app.render = function render(name, options, callback) {
+app.render = function render(
+  this: Application,
+  name: string,
+  options?: RenderOptions | RenderCallback,
+  callback?: RenderCallback
+) {
   var cache = this.cache
-  var done = callback
+  // the third argument, or the second (below): a callback is required
+  var done = callback as RenderCallback
   var engines = this.engines
-  var opts = options || {}
-  var view
+  // a function here is replaced with {} below, before opts is read
+  var opts = (options || {}) as RenderOptions
+  var view: ViewInstance | undefined
 
   // support callback function as second arg
   if (typeof options === 'function') {
@@ -529,7 +644,7 @@ app.render = function render(name, options, callback) {
   }
 
   // merge options
-  var renderOptions = { ...this.locals, ...opts._locals, ...opts }
+  var renderOptions: RenderOptions = { ...this.locals, ...opts._locals, ...opts }
 
   // set .cache unless explicitly provided
   if (renderOptions.cache == null) {
@@ -556,7 +671,7 @@ app.render = function render(name, options, callback) {
         Array.isArray(view.root) && view.root.length > 1
           ? 'directories "' + view.root.slice(0, -1).join('", "') + '" or "' + view.root[view.root.length - 1] + '"'
           : 'directory "' + view.root + '"'
-      var err = new Error('Failed to lookup view "' + name + '" in views ' + dirs)
+      var err: Error & { view?: ViewInstance } = new Error('Failed to lookup view "' + name + '" in views ' + dirs)
       err.view = view
       return done(err)
     }
@@ -592,7 +707,7 @@ app.render = function render(name, options, callback) {
  * @public
  */
 
-app.listen = function listen() {
+app.listen = function listen(this: Application) {
   var server = http.createServer(
     {
       IncomingMessage: withPrototype(http.IncomingMessage, this.request),
@@ -605,7 +720,7 @@ app.listen = function listen() {
     var done = (args[args.length - 1] = once(args[args.length - 1]))
     server.once('error', done)
   }
-  return server.listen.apply(server, args)
+  return server.listen.apply(server, args as Parameters<Server['listen']>)
 }
 
 /**
@@ -624,7 +739,8 @@ app.listen = function listen() {
  * @private
  */
 
-function withPrototype(Base, proto) {
+function withPrototype<T extends Function>(Base: T, proto: object): T
+function withPrototype(Base: Function, proto: object): Function {
   function WithPrototype() {
     return Reflect.construct(Base, arguments, proto instanceof Base ? WithPrototype : Base)
   }
@@ -639,7 +755,7 @@ function withPrototype(Base, proto) {
  * @private
  */
 
-function logerror(err) {
+function logerror(this: Application, err: unknown) {
   /* istanbul ignore next */
   if (this.get('env') !== 'test') console.error(err)
 }
@@ -649,11 +765,11 @@ function logerror(err) {
  * @private
  */
 
-function tryRender(view, options, callback) {
+function tryRender(view: ViewInstance, options: RenderOptions, callback: RenderCallback) {
   try {
     view.render(options, callback)
   } catch (err) {
-    callback(err)
+    callback(err as Error)
   }
 }
 
@@ -664,10 +780,11 @@ function tryRender(view, options, callback) {
  * @private
  */
 
-function once(fn) {
+function once<T extends Function>(fn: T): T
+function once(fn: Function): Function {
   let called = false
-  let value
-  return function () {
+  let value: unknown
+  return function (this: unknown) {
     if (called) return value
     called = true
     value = fn.apply(this, arguments)

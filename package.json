@@ -67,6 +67,7 @@
     "@types/encodeurl": "^1.0.3",
     "@types/escape-html": "^1.0.4",
     "@types/etag": "^1.8.4",
+    "@types/finalhandler": "^1.2.4",
     "@types/fresh": "^0.5.3",
     "@types/http-errors": "^2.0.5",
     "@types/mime-types": "^3.0.1",

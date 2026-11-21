@@ -2,13 +2,15 @@
 
 // Not from upstream. The router skips path matching that cannot succeed:
 // a route without a handler for the request method is skipped before its
-// path regex runs (src/router/index.ts, skippableMethod). Each case here
-// runs on this router and on upstream's (router 2.2.0) and expects the same
-// handlers to run in the same order with the same request state, and the
-// same ending.
+// path regex runs (src/router/index.ts, skippableMethod), and a string path
+// with a literal start is checked with that start before its regex
+// (src/router/lib/layer.ts, literalPrefix). Each case here runs on this
+// router and on upstream's (router 2.2.0) and expects the same handlers to
+// run in the same order with the same request state, and the same ending.
 
 const assert = require('node:assert')
-const { both, forkRouter } = require('./support/trace')
+const { pathToRegexp } = require('path-to-regexp')
+const { both, run, forkRouter, ForkLayer, UpstreamLayer } = require('./support/trace')
 
 // Checks one request against upstream and returns the fork's log.
 async function same(setup, method, url) {
@@ -224,6 +226,192 @@ describe('fork: routing fast paths', function () {
       const log = await same(setup, 'DELETE', '/org/acme/team/blue')
       assert.deepStrictEqual(ran(log), ['delete-team'])
       assert.deepStrictEqual(log[0][2].params, { org: 'acme', team: 'blue' })
+    })
+  })
+
+  describe('the literal-prefix check before the path regex', function () {
+    function prefixOf(path, options) {
+      return ForkLayer(path, options || { sensitive: false, strict: false, end: true }, function () {}).prefix
+    }
+
+    it('takes the literal start of a string path', function () {
+      assert.strictEqual(prefixOf('/users/:id'), '/users/')
+      assert.strictEqual(prefixOf('/Users/:id'), '/users/')
+      assert.strictEqual(prefixOf('/Users/:id', { sensitive: true }), '/Users/')
+      assert.strictEqual(prefixOf('/a\\:b/:c'), '/a:b/')
+      assert.strictEqual(prefixOf('/files{/:name}'), '/files')
+      assert.strictEqual(prefixOf('/assets/*path'), '/assets/')
+      assert.strictEqual(prefixOf('/a%2Fb'), '/a%2fb')
+      // trailing slashes are dropped unless strict, as the regex drops them
+      assert.strictEqual(prefixOf('/dir/'), '/dir')
+      assert.strictEqual(prefixOf('/dir/', { strict: true }), '/dir/')
+      // cut before the first non-ASCII character
+      assert.strictEqual(prefixOf('/café/:x'), '/caf')
+    })
+
+    it('has no prefix for paths without a literal start', function () {
+      for (const p of [':id', '{/:x}', '*splat', '', '///', /^\/a/, ['/a', '/b'], 'é/x']) {
+        assert.strictEqual(prefixOf(p), undefined, String(p))
+      }
+    })
+
+    // The regex is built with the `i` flag and no `u`, so it pairs an ASCII
+    // character only with its other ASCII case. Every UTF-16 code unit is
+    // tried against every printable ASCII character a route can start with:
+    // wherever the regex matches, the layer must match too. (Where the regex
+    // doesn't, the layer can't: it runs the same regex after the prefix.)
+    it('agrees with the regex on case for every character', function () {
+      this.timeout(60000)
+      for (let p = 0x20; p < 0x7f; p++) {
+        const literal = String.fromCharCode(p)
+        if ('{}()[]+?!:*'.includes(literal)) continue
+        for (const sensitive of [false, true]) {
+          const options = { sensitive: sensitive, strict: false, end: false }
+          const route = '/' + (literal === '\\' ? '\\\\' : literal) + 'z'
+          const fork = ForkLayer(route, options, function () {})
+          const upstream = UpstreamLayer(route, options, function () {})
+          const regexp = pathToRegexp(route, { sensitive: sensitive, end: false }).regexp
+          assert.strictEqual(fork.prefix, '/' + (sensitive ? literal : literal.toLowerCase()) + 'z')
+          let matched = 0
+          for (let c = 0; c <= 0xffff; c++) {
+            const path = '/' + String.fromCharCode(c) + 'z'
+            const expected = regexp.test(path)
+            if ((expected || c < 0x80) && (fork.match(path) !== expected || upstream.match(path) !== expected)) {
+              assert.fail('route ' + route + ', path char U+' + c.toString(16) + ', sensitive ' + sensitive)
+            }
+            if (expected) matched++
+          }
+          // a letter matches its two cases unless sensitive, anything else itself
+          const cases = !sensitive && literal.toLowerCase() !== literal.toUpperCase() ? 2 : 1
+          assert.strictEqual(matched, cases, route)
+        }
+      }
+    })
+
+    it('treats the Kelvin sign, long s and dotted or dotless i as the regex does', async function () {
+      const setup = {
+        stack: [
+          { route: '/k/:x', methods: ['get'], id: 'k' },
+          { route: '/s/:x', methods: ['get'], id: 's' },
+          { route: '/i/:x', methods: ['get'], id: 'i' },
+          { route: '/café/:x', methods: ['get'], id: 'cafe' }
+        ]
+      }
+      for (const url of ['/K/1', '/ſ/1', '/İ/1', '/ı/1', '/K/1', '/S/1', '/I/1']) {
+        await same(setup, 'GET', url)
+      }
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/CAFÉ/1')), ['cafe'])
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/CAFE/1')), [])
+    })
+
+    it('ignores case unless the router is case sensitive', async function () {
+      const routes = [{ route: '/Users/:id', methods: ['get'], id: 'users' }]
+      assert.deepStrictEqual(ran(await same({ stack: routes }, 'GET', '/USERS/1')), ['users'])
+      assert.deepStrictEqual(ran(await same({ stack: routes }, 'GET', '/users/1')), ['users'])
+      const sensitive = { options: { caseSensitive: true }, stack: routes }
+      assert.deepStrictEqual(ran(await same(sensitive, 'GET', '/USERS/1')), [])
+      assert.deepStrictEqual(ran(await same(sensitive, 'GET', '/Users/1')), ['users'])
+    })
+
+    it('matches percent-escapes in a literal raw, with the hex digits in any case', async function () {
+      const setup = {
+        stack: [
+          { route: '/a%2Fb', methods: ['get'], id: 'escaped' },
+          { route: '/x y', methods: ['get'], id: 'space' }
+        ]
+      }
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/a%2Fb')), ['escaped'])
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/a%2fb')), ['escaped'])
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/a/b')), [])
+      // the URL parser escapes a raw space, so a literal space never matches
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/x%20y')), [])
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/x y')), [])
+    })
+
+    it('keeps strict routing and the optional trailing slash', async function () {
+      const routes = [
+        { route: '/dir/', methods: ['get'], id: 'slash' },
+        { route: '/dir', methods: ['get'], id: 'bare' }
+      ]
+      const loose = { stack: routes }
+      const strict = { options: { strict: true }, stack: routes }
+      assert.deepStrictEqual(ran(await same(loose, 'GET', '/dir')), ['slash', 'bare'])
+      assert.deepStrictEqual(ran(await same(loose, 'GET', '/dir/')), ['slash', 'bare'])
+      assert.deepStrictEqual(ran(await same(strict, 'GET', '/dir')), ['bare'])
+      assert.deepStrictEqual(ran(await same(strict, 'GET', '/dir/')), ['slash'])
+      assert.deepStrictEqual(ran(await same(strict, 'GET', '/dir//')), [])
+    })
+
+    it('matches middleware on whole segments only', async function () {
+      const setup = { stack: [{ use: '/api', id: 'api' }] }
+      for (const url of ['/api', '/api/', '/API/x', '/api/x/y', '/api?x=1']) {
+        assert.deepStrictEqual(ran(await same(setup, 'GET', url)), ['api'], url)
+      }
+      for (const url of ['/apix', '/ap', '/', '/x/api', '/%61pi']) {
+        assert.deepStrictEqual(ran(await same(setup, 'GET', url)), [], url)
+      }
+    })
+
+    it('keeps the order of layers, the first match first', async function () {
+      const setup = {
+        stack: [
+          { route: '/a/:x', methods: ['get'], id: 'param' },
+          { route: '/a/b', methods: ['get'], id: 'literal' },
+          { route: '/:y/b', methods: ['get'], id: 'leading-param' },
+          { route: /^\/a/, methods: ['get'], id: 'regexp' },
+          { route: ['/z', '/a/b'], methods: ['get'], id: 'array' },
+          { route: '*rest', methods: ['get'], id: 'splat' }
+        ]
+      }
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/a/b')), [
+        'param',
+        'literal',
+        'leading-param',
+        'regexp',
+        'array',
+        'splat'
+      ])
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/b/b')), ['leading-param', 'splat'])
+    })
+
+    it('mounts routers at a literal path with mergeParams', async function () {
+      const setup = {
+        stack: [
+          {
+            use: '/Org/:org',
+            router: {
+              options: { mergeParams: true },
+              stack: [{ route: '/Team/:team', methods: ['get'], id: 'team' }]
+            }
+          }
+        ]
+      }
+      const log = await same(setup, 'GET', '/ORG/a/TEAM/b')
+      assert.deepStrictEqual(ran(log), ['team'])
+      assert.deepStrictEqual(log[0][2], {
+        method: 'GET',
+        url: '/TEAM/b',
+        baseUrl: '/ORG/a',
+        params: { org: 'a', team: 'b' },
+        route: '/Team/:team'
+      })
+      assert.deepStrictEqual(ran(await same(setup, 'GET', '/Orgx/a/Team/b')), [])
+    })
+
+    it('leaves an absolute-form URL to the pathname', async function () {
+      const setup = { stack: [{ route: '/p', methods: ['get'], id: 'p' }] }
+      assert.deepStrictEqual(ran(await same(setup, 'GET', 'http://example.com/p?x=1')), ['p'])
+      assert.deepStrictEqual(ran(await same(setup, 'GET', 'http://example.com/q')), [])
+    })
+
+    it('runs the regex as before for a path that has the prefix', async function () {
+      const log = await run(
+        forkRouter,
+        { stack: [{ route: '/users/:id', methods: ['get'], id: 'u' }] },
+        'GET',
+        '/users/'
+      )
+      assert.deepStrictEqual(ran(log), [])
     })
   })
 })

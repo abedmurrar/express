@@ -2,9 +2,9 @@
 
 // Properties of route matching: parameters decode back to what the client
 // encoded, a table of literal routes behaves like a simple model, and the
-// router's fast paths (the method check before a path regex) change
-// nothing: random routers run the same handlers, in the same order, as
-// upstream's router, which doesn't have them.
+// router's fast paths (the method check and the literal-prefix check before
+// a path regex) change nothing: random routers run the same handlers, in the
+// same order, as upstream's router, which has neither.
 
 var assert = require('node:assert')
 var fc = require('fast-check')
@@ -362,6 +362,38 @@ describe('property: route matching', function () {
             for (var r of requests) {
               var logs = await trace.both(setup, r.method, r.url)
               assert.deepStrictEqual(logs.fork, logs.upstream, String(r.method) + ' ' + r.url)
+            }
+          }
+        )
+      )
+    })
+
+    it("a layer matches exactly when upstream's does, with the same params", function () {
+      var anyPath = fc.oneof(
+        requestPath,
+        fc.string({ unit: 'binary', maxLength: 12 }).map((s) => '/' + s)
+      )
+      var options = fc.record({ sensitive: fc.boolean(), strict: fc.boolean(), end: fc.boolean() })
+      function result(Layer, path, opts, request) {
+        var layer = Layer(path, opts, function () {})
+        try {
+          return { match: layer.match(request), params: layer.params, path: layer.path }
+        } catch (err) {
+          return { error: err.message }
+        }
+      }
+      check(
+        fc.property(
+          stringPath,
+          options,
+          fc.array(anyPath, { minLength: 1, maxLength: 8 }),
+          function (path, opts, paths) {
+            for (var p of paths) {
+              assert.deepStrictEqual(
+                result(trace.ForkLayer, path, opts, p),
+                result(trace.UpstreamLayer, path, opts, p),
+                p
+              )
             }
           }
         )

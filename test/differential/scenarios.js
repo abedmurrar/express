@@ -1216,8 +1216,9 @@ var scenarios = [
 ]
 
 // Routing fast paths: the router skips a route that has no handler for the
-// method before matching its path. One app with routes that test where that
-// could go wrong (methods, HEAD and OPTIONS, all(), route chains, case, escapes,
+// method before matching its path, and checks a string path's literal start
+// before its regex. One app with routes that test where either could go
+// wrong (methods, HEAD and OPTIONS, all(), route chains, case, escapes,
 // which match raw with their hex digits in any case, trailing slashes,
 // segment-bounded middleware, a mounted router with mergeParams, a bad
 // escape in a route the method skips), and the requests that hit them, with

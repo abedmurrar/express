@@ -32,7 +32,7 @@
     },
     "2249": {
       "decision": "roadmap",
-      "item": "`res.send(object)` throws; use `res.json`",
+      "item": "Deprecation warning for `res.send(object)` (it keeps working)",
       "note": "Deprecate res.send(obj) as a JSON shortcut."
     },
     "2263": {
@@ -1320,8 +1320,8 @@
       "note": "6.x: requires Node.js 24 or higher."
     },
     "7553": {
-      "decision": "cherry-pick",
-      "item": "`res.send(object)` throws; use `res.json`",
+      "decision": "roadmap",
+      "item": "Deprecation warning for `res.send(object)` (it keeps working)",
       "note": "6.x: res.send stops serialising objects as JSON."
     },
     "7554": {

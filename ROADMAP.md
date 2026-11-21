@@ -19,9 +19,32 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 - a compatible-line change needs a clean run of the differential harness against Express 5.3.0;
 - a performance change needs before and after numbers from `benchmarks/compare`.
 
+**Middleware compatibility comes first, on both lines:** community middleware written for Express keeps working unchanged. `req` and `res` stay Node's `IncomingMessage` and `ServerResponse` with the Express helpers on them, the `(req, res, next)` and `(err, req, res, next)` signatures stay, `app.use`, `Router` and sub-app mounting behave the same, and the published package still loads with `require('express')` and exposes the same properties. The ecosystem suite (Tests section) runs on every PR. Any change that fails it is dropped or made opt-in, including the breaking changes in our 6.0.
+
+**TypeScript:** the fork is written in strict TypeScript (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, no `any`), using only syntax that Node 24 can run directly. Development and tests run on the `.ts` sources with no build step. The published package is compiled JavaScript plus `.d.ts` types, because Node won't run `.ts` files from `node_modules`. Users no longer need `@types/express`.
+
+**Definition of done for every PR:**
+1. New tests for the change, plus a regression test that fails before and passes after for any bug.
+2. `npm test`, the strict type check and lint all pass.
+3. The differential harness shows no difference from Express 5.3.0, except the ones listed on purpose.
+4. Coverage doesn't drop, and the mutation score doesn't drop (once those exist).
+5. The ecosystem suite passes: the community middleware listed in the Tests section runs its own tests against the fork.
+6. One full benchmark run (`benchmarks/compare`, on an idle machine), comparing the original Express 5.3.0 from npm, the base ref before the change, the branch head, Fastify, Koa, Hono, polka and plain `node:http`. The results file is committed under `benchmarks/results/`. This is one run per PR, not per edit.
+7. `History.md` and this roadmap are updated in the same PR.
+
 **Credit:** a cherry-picked upstream PR keeps its original author. Ported ideas name their source in the commit message and in `History.md`.
 
-**Commits:** only the GitHub noreply email, and no `Co-Authored-By` lines. The `commit-msg` hook enforces this.
+**Commits:** only the GitHub noreply email, and no `Co-Authored-By` lines. The `commit-msg` hook enforces this. When an upstream PR is ported by hand instead of cherry-picked, its author is credited by name in the commit message.
+
+## Order of work
+
+1. **Foundation:** vendoring, the differential harness, the benchmark harness.
+2. **Tests:** the safety net comes before the riskiest change.
+3. **TypeScript and dependencies:** converting every file, proven by the tests and the harness.
+4. **Bug fixes**, then **performance**, then **additions**, on the compatible line.
+5. **Our 6.0**, then **HTTP/2**.
+
+Docs ride along with each item.
 
 ## Foundation
 
@@ -30,7 +53,7 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 | [x] | Git identity and the commit-msg hook | | both | Small | hook rejects a test trailer | |
 | [~] | Commit the research and this roadmap; ignore `research/raw` and `node_modules` | | master | Small | `git status` clean; appendix covers all 114 issues and 149 PRs | [#3](https://github.com/abedmurrar/express/pull/3) |
 | [~] | Differential harness against Express 5.3.0, from the ultimate-express test runner idea | | master | Medium | 143 scenarios, 0 diffs on `master`; a one-character `res.json` change fails 47 | [#2](https://github.com/abedmurrar/express/pull/2) |
-| [ ] | Benchmark harness in `benchmarks/compare`, with an `--against <ref>` option and more scenarios | | master | Small | runs two refs on its own | |
+| [~] | Benchmark harness in `benchmarks/compare`, with an `--against <ref>` option and more scenarios | | master | Small | compares Express 5.3.0, the base ref, the head, Fastify, Koa, Hono, polka and `node:http` across 7 scenarios, after checking each server returns the same answer; strict TypeScript | |
 | [ ] | Turn the 26 repros into skipped regression tests | | master | Small | each fails when not skipped | |
 | [~] | Vendor `router` 2.2.0 into `lib/router` | | master | Medium | router's own tests pass in our suite; every repro unchanged | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [~] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
@@ -39,6 +62,74 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 | [ ] | Update mocha and supertest | #7547, PR #7600 | master | Small | suite passes | |
 | [ ] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | tests pass | |
 | [ ] | ESLint 9 and a pre-commit lint hook | PRs #6118, #6480, #6912 | master | Small | lint passes | |
+
+## Tests
+
+The goal is that nothing slips: every behaviour Express has is pinned by a test, and the tests themselves are proven to catch changes.
+
+| Status | Item | Upstream | Line | Size | Proof | PR |
+|---|---|---|---|---|---|---|
+| [ ] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | the CI gate fails on any uncovered line | |
+| [ ] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | mutation report committed | |
+| [ ] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 0 unexplained diffs | |
+| [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
+| [ ] | Differential fuzzing against Express 5.3.0: random route tables and paths, random query strings, random Host and X-Forwarded headers | | master | Medium | fuzz runs in CI with a fixed seed, plus a longer nightly run | |
+| [ ] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | each case fails on a deliberately broken build | |
+| [ ] | Robustness: client aborts, slow clients, pipelining, keep-alive reuse, large bodies, many concurrent requests | | master | Medium | new tests | |
+| [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
+| [ ] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | their suites pass; runs on every PR | |
+| [ ] | Type tests for the whole public API, including route-parameter types from path strings | | master | Medium | type tests in CI | |
+| [ ] | Node version matrix for the published JavaScript (18, 20, 22, 24, 26) | | master | Small | CI matrix | |
+| [ ] | Decide on Node's built-in `node:test` versus mocha, measured on suite time and features | | master | Small | numbers in the PR | |
+
+## TypeScript
+
+| Status | Item | Upstream | Line | Size | Proof | PR |
+|---|---|---|---|---|---|---|
+| [ ] | Strict TypeScript 7 setup: tests run on `.ts` with Node 24, build to JavaScript and `.d.ts` for publishing | | master | Medium | `tsc` clean; tests pass on sources and on the built output | |
+| [ ] | The built package keeps the CommonJS entry and export shape of Express 5.3.0 (`require('express')`, `express.Router`, `express.json` and the rest), plus an ESM entry | | master | Small | an export-shape test against 5.3.0; middleware that requires `express` still works | |
+| [ ] | Convert `lib/` to TypeScript, one file per PR (`utils`, `view`, `request`, `response`, `application`, `express`) | | master | Large | harness 0 diffs, benchmark no slower | |
+| [ ] | Convert the vendored router and send to TypeScript | | master | Large | their suites and the harness pass | |
+| [ ] | Public types in our source, ported from `@types/express` and `@types/express-serve-static-core` (MIT, credited), so `@types/express` users can switch without changes | #2818, #6370, #6385, #7231 | master | Large | type tests, plus typing real apps written against `@types/express` | |
+| [ ] | Typed route parameters from path strings, typed `req.body`/`req.query` through generics, and typed `res.locals` | | master | Medium | type tests | |
+| [ ] | Convert the test suite to TypeScript | | master | Large | same test count, all passing | |
+
+## Dependencies
+
+Each dependency is moved to its latest release once it is outside the 7-day npm release-age window, or replaced, or vendored. Any change in behaviour found by the harness sends that upgrade to 6.x.
+
+| Status | Package | Now | Latest (published) | Plan | Line |
+|---|---|---|---|---|---|
+| [ ] | `accepts` | ^2.0.0 | 2.0.0 | Keep | master |
+| [ ] | `body-parser` | ^2.4.0 | 2.4.0 (2026-10-22) | Keep; vendor on 6.x for the JSON `__proto__` check | 6.x |
+| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Update after the window, harness-checked | master |
+| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Update, harness-checked | master |
+| [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
+| [ ] | `cookie-signature` | ^1.2.1 | 1.2.2 | Update | master |
+| [ ] | `debug` | ^4.4.0 | 4.4.3 | Replace with `util.debuglog` (the `DEBUG=express:*` switch changes, so 6.x) | 6.x |
+| [ ] | `depd` | ^2.0.0 | 2.0.0 | Replace with `util.deprecate` | 6.x |
+| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Update, harness-checked | master |
+| [ ] | `escape-html` | ^1.0.3 | 1.0.3 | Keep (Node has no built-in) | master |
+| [ ] | `etag` | ^1.8.1 | 2.0.0 (2026-11-21, inside the window until 2026-11-28) | Update after the window, harness-checked | master |
+| [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
+| [ ] | `fresh` | ^2.0.0 | 2.0.0 | Keep | master |
+| [ ] | `http-errors` | ^2.0.0 | 2.0.1 | Update | master |
+| [ ] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Drop: `Object.defineProperties` with `Object.getOwnPropertyDescriptors` | master |
+| [ ] | `mime-types` | ^3.0.0 | 3.0.2 | Update | master |
+| [ ] | `on-finished` | ^2.4.1 | 2.4.2 | Update | master |
+| [ ] | `once` | ^1.4.0 | 1.4.0 | Drop: a three-line local helper | master |
+| [ ] | `parseurl` | ^1.3.3 | 1.3.3 | Keep (WHATWG `URL` parses differently) | master |
+| [ ] | `proxy-addr` | ^2.0.8 | 2.0.8 | Keep | master |
+| [ ] | `qs` | ^6.16.0 | 6.17.1 | Update | master |
+| [ ] | `range-parser` | ^1.2.1 | 2.0.0 (2026-11-18, inside the window until 2026-11-25) | Update after the window, harness-checked | master |
+| [ ] | `router` | vendored 2.2.0 | 2.3.0 (2026-11-17) | Re-sync after the window (Foundation row) | master |
+| [ ] | `send` | vendored 1.2.1 | 1.2.1 | Vendored | master |
+| [ ] | `serve-static` | ^2.2.0 | 2.2.1 | Update; vendor if `express.static` needs the `send` fixes | master |
+| [ ] | `statuses` | ^2.0.1 | 2.0.2 | Update; check whether `http.STATUS_CODES` can replace it on 6.x | both |
+| [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
+| [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
+| [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
+| [ ] | Dev dependencies: mocha 12, supertest 7.3, ESLint 9 flat config, `c8` instead of `nyc`, TypeScript 7 | | | Update | master |
 
 ## Bug fixes on the compatible line
 
@@ -102,6 +193,7 @@ These are opt-in, and nothing existing changes.
 | [ ] | `debug` warning for duplicate routes at startup | | master | Small | new tests | |
 | [ ] | Opt-in strict routing on mount paths | #2281 | master | Medium | repro 2281 | |
 | [ ] | Deprecation warnings for every 6.x removal below | | master | Small | warning tests | |
+| [ ] | Deprecation warning for `res.send(object)` (it keeps working) | #2249, PR #7553 | master | Small | warning test | |
 | [ ] | Stable `code` on every error Express throws | #6951, PR #6982 | master | Medium | new tests | |
 | [ ] | Full matched route path on the request (`req.originalRoute`) | #2501 | master | Small | new tests | |
 | [ ] | Warn about route paths that can never match | #2511 | master | Small | new tests | |
@@ -114,12 +206,11 @@ These are opt-in, and nothing existing changes.
 | [ ] | Create the `6.x` branch | | 6.x | Small | | |
 | [ ] | `env` defaults to production when `NODE_ENV` is unset, and we keep reading `NODE_ENV` | #3346, PR #7549 | 6.x | Small | tests | |
 | [ ] | Node.js 24 minimum | PR #7552, discussions#236 | 6.x | Small | CI matrix | |
-| [ ] | `res.send(object)` throws; use `res.json` | #2249, PR #7553 | 6.x | Small | tests | |
 | [ ] | Drop `X-Powered-By` | PR #7554 | 6.x | Small | test that the header is gone | |
 | [ ] | `res.redirect` throws on a bad url or status | #6391, #6941, PR #6404 | 6.x | Small | tests | |
 | [ ] | `req.get('referer')` prefers `Referer` | #3951, PR #6993 | 6.x | Small | tests | |
 | [ ] | `cookie@1` | PR #6875 | 6.x | Small | tests | |
-| [ ] | Remove the `res.set` Content-Type magic | #7145, PRs #7146, #7283 | 6.x | Small | tests | |
+| [ ] | Remove the `res.set` Content-Type magic | #7145, PRs #7146, #7283 | 6.x | Small | tests and the ecosystem suite; dropped if any middleware breaks | |
 | [ ] | `isAbsolute` default value | PR #5652 | 6.x | Small | tests | |
 | [ ] | `res.links()` accepts arrays | PR #2738 | 6.x | Small | tests | |
 | [ ] | Too many query parameters gives a 400 instead of dropping them | #5878, PRs #7117, #5901 | 6.x | Small | repro 5878 | |
@@ -129,12 +220,12 @@ These are opt-in, and nothing existing changes.
 | [ ] | JSON bodies with `__proto__` or `constructor` keys get a 400 (vendor body-parser, use `secure-json-parse`) | | 6.x | Medium | tests | |
 | [ ] | No ETag when `Cache-Control: no-store` | PR #6994 | 6.x | Small | tests | |
 | [ ] | `req.query` is cached per request, so changes to it stick | PR #7517 | 6.x | Small | tests and bench | |
-| [ ] | Null-prototype objects for `res.locals`, query and params | | 6.x | Small | tests and bench | |
+| [ ] | Null-prototype objects for `res.locals`, query and params | | 6.x | Small | tests, bench, and the ecosystem suite; dropped if any middleware breaks | |
 | [ ] | `json serializer` setting, so plugins can use fast-json-stringify | #2422 | 6.x | Small | tests | |
 | [ ] | Replace `depd` and `debug` with Node's `util.deprecate` and `util.debuglog` | discussions#459 | 6.x | Small | tests | |
 | [ ] | Separate render `locals` from settings | PR #2648 | 6.x | Medium | tests | |
 | [ ] | Decide and build sub-app settings inheritance | #2564, PR #7561 | 6.x | Medium | PR #7561's tests | |
-| [ ] | Ship TypeScript types in the repo, from `@types/express` | #2818, #6370, PR #6382 | 6.x | Large | type tests | |
+| [ ] | Ship TypeScript types in the repo, from `@types/express` | #2818, #6370, PR #6382 | master | Large | done by the TypeScript section (public types row) | |
 | [ ] | Router: static method helpers plus `router.method()` | router#129, router#43 | 6.x | Medium | tests | |
 | [ ] | Router: drop `is-promise` | router#137, router#136 | 6.x | Small | tests | |
 | [ ] | Router: path-to-regexp 9, plus a migration note for the greedy-parameter change | | 6.x | Medium | tests | |
@@ -170,10 +261,11 @@ These are opt-in, and nothing existing changes.
 | Remove `express.json`, `express.static` and the other re-exports | PRs #7550, #7551 | They're the most-used Express APIs, and removing them gains users nothing |
 | BigInt status codes and BigInt in `res.send` | #6756, PR #7408 | Invalid input; it should fail, not be supported |
 | Fastify-style hooks, plugin encapsulation, ajv validation, pino in core | | They break middleware that relies on the real `req`/`res`; they belong in plugins |
+| Make `res.send(object)` throw | #2249, PR #7553 | Community middleware and error handlers send objects with `res.send`; it keeps working, with a deprecation warning that points to `res.json` |
 | Auto-send a handler's return value | | `return res.json(x)` is common, so the behaviour would be ambiguous |
 | Compile handlers into static responses | | Breaks `Connection: close` and `If-None-Match: *`, and depends on `Function.prototype.toString` |
 | Leave `node:http` (for uWebSockets.js or similar) | | We'd lose Node's header and request-smuggling protection |
-| Cosmetic `var` → `const` and syntax rewrites | | No behaviour or speed gain |
+| Cosmetic `var` → `const` and syntax rewrites as separate PRs | | No behaviour or speed gain; the TypeScript conversion rewrites every file anyway |
 | ESM-only packaging | #6739 | On Node 24, `import` already works with the CommonJS build |
 | Rename or reshape the settings API (`app.set`/`app.get`) | #2216, PRs #3714, #4044 | Breaks every app for no user gain |
 | More settings knobs and per-request setting overrides | #3536, #5006, PRs #2935, #3613, #5007, #5856 | Hidden state and more config; pass options to the call instead |
@@ -212,7 +304,7 @@ Already fixed 2, Duplicate 1, Roadmap 56, Support question 7, Upstream process 3
 | [#2217](https://github.com/expressjs/express/issues/2217) | refactor view engine | Won't do | A view-engine rewrite belongs in a separate package; we only fix lookup and render bugs. |
 | [#2246](https://github.com/expressjs/express/issues/2246) | Make automatic OPTIONS responses configurable | Won't do | Defining your own OPTIONS handler already replaces the automatic one; CORS belongs in the cors package. |
 | [#2247](https://github.com/expressjs/express/issues/2247) | Make automatic HEAD -> GET configurable | Won't do | Registering app.head() before app.get() already overrides it; a setting adds config for no gain. |
-| [#2249](https://github.com/expressjs/express/issues/2249) | Deprecate res.send(obj) json overload | Roadmap | `res.send(object)` throws; use `res.json` |
+| [#2249](https://github.com/expressjs/express/issues/2249) | Deprecate res.send(obj) json overload | Roadmap | Deprecation warning for `res.send(object)` (it keeps working) |
 | [#2263](https://github.com/expressjs/express/issues/2263) | Default responder should not console.error 4xx errors | Roadmap | Default error logger skips 4xx errors |
 | [#2281](https://github.com/expressjs/express/issues/2281) | '/' route breaks strict routing | Roadmap | Opt-in strict routing on mount paths |
 | [#2414](https://github.com/expressjs/express/issues/2414) | route() should handle 405 Method not allowed | Won't do | Express can't know every allowed method across middleware; 405 handling belongs in middleware. |
@@ -323,7 +415,7 @@ Already fixed 2, Duplicate 1, Roadmap 56, Support question 7, Upstream process 3
 
 ### Pull requests (149)
 
-Already fixed 1, Cherry-pick 44, Duplicate 9, Roadmap 44, Upstream process 10, Won't do 41.
+Already fixed 1, Cherry-pick 43, Duplicate 9, Roadmap 45, Upstream process 10, Won't do 41.
 
 | PR | Title | Decision | Item or reason |
 |---|---|---|---|
@@ -463,7 +555,7 @@ Already fixed 1, Cherry-pick 44, Duplicate 9, Roadmap 44, Upstream process 10, W
 | [#7550](https://github.com/expressjs/express/pull/7550) | [6.x] Remove body-parser re-exports | Won't do | They're the most-used Express APIs, and removing them gains users nothing (Won't do table). |
 | [#7551](https://github.com/expressjs/express/pull/7551) | [6.x] Remove serve-static re-export | Won't do | They're the most-used Express APIs, and removing them gains users nothing (Won't do table). |
 | [#7552](https://github.com/expressjs/express/pull/7552) | [6.x] Require Node.js 24 or higher | Cherry-pick | Node.js 24 minimum |
-| [#7553](https://github.com/expressjs/express/pull/7553) | [6.x] res.send() no longer serializes non-string bodies as JSON | Cherry-pick | `res.send(object)` throws; use `res.json` |
+| [#7553](https://github.com/expressjs/express/pull/7553) | [6.x] res.send() no longer serializes non-string bodies as JSON | Roadmap | Deprecation warning for `res.send(object)` (it keeps working) |
 | [#7554](https://github.com/expressjs/express/pull/7554) | [6.x] Remove the X-Powered-By header | Cherry-pick | Drop `X-Powered-By` |
 | [#7555](https://github.com/expressjs/express/pull/7555) | perf: skip the req/res prototype switch for app.listen() | Cherry-pick | Skip the per-request prototype swap when `app.listen()` made the server |
 | [#7557](https://github.com/expressjs/express/pull/7557) | deps: bump mocha to ^12 | Cherry-pick | Update mocha and supertest |

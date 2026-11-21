@@ -53,6 +53,22 @@ jobs:
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # The repo's .npmrc sets ignore-scripts, so npm runs no prepack or
+      # prepublish hook: build explicitly, then make sure the package holds it.
+      - name: Build
+        run: npm run build
+
+      - name: Check the package contents
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e "
+            const files = require('./pack.json')[0].files.map((f) => f.path)
+            for (const need of ['index.js', 'index.mjs', 'lib/express.js', 'lib/router/index.js', 'lib/send/index.js', 'typings/index.d.ts', 'typings/index.d.mts', 'typings/core.d.ts']) {
+              if (!files.includes(need)) { console.error('missing from the package: ' + need); process.exit(1) }
+            }
+            console.log(files.length + ' files packed')
+          "
+
       # Trusted publishing: npm exchanges the OIDC token for a short-lived
       # credential, so no NPM_TOKEN secret is stored.
       - name: Publish to npm

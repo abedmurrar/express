@@ -1,16 +1,23 @@
 name: ecosystem
 
 # Runs the own test suites of community middleware that test against Express
-# (cors, express-session, multer, express-rate-limit) on Express 5.3.0 and on
+# (cors, express-session, multer, express-rate-limit, http-proxy-middleware,
+# express-openapi-validator, express-fileupload, express-basic-auth, hpp,
+# express-mongo-sanitize) on Express 5.3.0 and on
 # this repository, and fails if any test that passes on 5.3.0 fails here.
 
 on:
   pull_request:
     paths:
-      - 'lib/**'
+      - 'src/**'
       - 'index.js'
+      - 'index.mjs'
+      - 'typings/**'
       - 'package.json'
+      - 'tsconfig.build.json'
+      - 'scripts/build.js'
       - 'scripts/ecosystem-suites.js'
+      - '.github/workflows/ecosystem.yml'
   schedule:
     - cron: '0 4 * * 1'
   workflow_dispatch:
@@ -35,6 +42,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund --no-package-lock
+
+      - name: Build
+        run: npm run build
 
       - name: Run the middleware suites
         env:

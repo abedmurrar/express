@@ -19,7 +19,9 @@ import { serve } from '@hono/node-server'
 import polkaFactory from 'polka'
 
 declare module 'fastify' {
-  interface FastifyRequest { hits: number }
+  interface FastifyRequest {
+    hits: number
+  }
 }
 
 export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found'
@@ -56,43 +58,64 @@ const MIDDLEWARE = 10
 const ROUTES = 100
 const require = createRequire(import.meta.url)
 
-function listen (server: http.Server, port: number): Promise<void> {
+function listen(server: http.Server, port: number): Promise<void> {
   return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve()))
 }
 
-function wantsHello (scenario: Scenario): boolean {
+function wantsHello(scenario: Scenario): boolean {
   return scenario === 'hello' || scenario === 'mw10'
 }
 
 // Express and Express-compatible trees: the original from npm, or this
 // repository (at the base ref or the branch head) loaded from `dir`.
 const express: Start = async (scenario, port, dir) => {
-  const createApp: ExpressModule = dir === undefined ? expressOriginal : require(dir) as ExpressModule
+  const createApp: ExpressModule = dir === undefined ? expressOriginal : (require(dir) as ExpressModule)
   const app: Express = createApp()
   if (scenario === 'mw10') {
     for (let i = 0; i < MIDDLEWARE; i++) {
       app.use((req: Request, res: Response, next: NextFunction) => {
-        res.locals.hits = (res.locals.hits as number | undefined ?? 0) + 1
+        res.locals.hits = ((res.locals.hits as number | undefined) ?? 0) + 1
         next()
       })
     }
   }
   if (scenario === 'routes100') {
-    for (let i = 0; i < ROUTES; i++) app.get(`/r${i}/:id`, (req: Request<{ id: string }>, res: Response) => { res.send(req.params.id) })
+    for (let i = 0; i < ROUTES; i++)
+      app.get(`/r${i}/:id`, (req: Request<{ id: string }>, res: Response) => {
+        res.send(req.params.id)
+      })
   }
-  if (scenario === 'params') app.get('/user/:id', (req: Request<{ id: string }>, res: Response) => { res.send(req.params.id) })
-  if (scenario === 'json') app.get('/', (req: Request, res: Response) => { res.json(PAYLOAD) })
-  if (scenario === 'post-json') app.post('/echo', createApp.json(), (req: Request, res: Response) => { res.json(req.body) })
-  if (wantsHello(scenario)) app.get('/', (req: Request, res: Response) => { res.send('Hello World!') })
+  if (scenario === 'params')
+    app.get('/user/:id', (req: Request<{ id: string }>, res: Response) => {
+      res.send(req.params.id)
+    })
+  if (scenario === 'json')
+    app.get('/', (req: Request, res: Response) => {
+      res.json(PAYLOAD)
+    })
+  if (scenario === 'post-json')
+    app.post('/echo', createApp.json(), (req: Request, res: Response) => {
+      res.json(req.body)
+    })
+  if (wantsHello(scenario))
+    app.get('/', (req: Request, res: Response) => {
+      res.send('Hello World!')
+    })
   // app.listen() is what most apps call, and what upstream PR #7555 optimises
-  await new Promise<void>((resolve) => { app.listen(port, '127.0.0.1', () => resolve()) })
+  await new Promise<void>((resolve) => {
+    app.listen(port, '127.0.0.1', () => resolve())
+  })
 }
 
 const fastify: Start = async (scenario, port) => {
   const app = Fastify()
   if (scenario === 'mw10') {
     app.decorateRequest('hits', 0)
-    for (let i = 0; i < MIDDLEWARE; i++) app.addHook('onRequest', (req, reply, done) => { req.hits++; done() })
+    for (let i = 0; i < MIDDLEWARE; i++)
+      app.addHook('onRequest', (req, reply, done) => {
+        req.hits++
+        done()
+      })
   }
   if (scenario === 'routes100') {
     for (let i = 0; i < ROUTES; i++) app.get<{ Params: { id: string } }>(`/r${i}/:id`, async (req) => req.params.id)
@@ -110,18 +133,33 @@ const koa: Start = async (scenario, port) => {
   if (scenario === 'mw10') {
     for (let i = 0; i < MIDDLEWARE; i++) {
       app.use(async (ctx, next) => {
-        ctx.state.hits = (ctx.state.hits as number | undefined ?? 0) + 1
+        ctx.state.hits = ((ctx.state.hits as number | undefined) ?? 0) + 1
         await next()
       })
     }
   }
   if (scenario === 'routes100') {
-    for (let i = 0; i < ROUTES; i++) router.get(`/r${i}/:id`, (ctx) => { ctx.body = ctx.params.id })
+    for (let i = 0; i < ROUTES; i++)
+      router.get(`/r${i}/:id`, (ctx) => {
+        ctx.body = ctx.params.id
+      })
   }
-  if (scenario === 'params') router.get('/user/:id', (ctx) => { ctx.body = ctx.params.id })
-  if (scenario === 'json') router.get('/', (ctx) => { ctx.body = PAYLOAD })
-  if (scenario === 'post-json') router.post('/echo', bodyParser(), (ctx) => { ctx.body = ctx.request.body })
-  if (wantsHello(scenario)) router.get('/', (ctx) => { ctx.body = 'Hello World!' })
+  if (scenario === 'params')
+    router.get('/user/:id', (ctx) => {
+      ctx.body = ctx.params.id
+    })
+  if (scenario === 'json')
+    router.get('/', (ctx) => {
+      ctx.body = PAYLOAD
+    })
+  if (scenario === 'post-json')
+    router.post('/echo', bodyParser(), (ctx) => {
+      ctx.body = ctx.request.body
+    })
+  if (wantsHello(scenario))
+    router.get('/', (ctx) => {
+      ctx.body = 'Hello World!'
+    })
   app.use(router.routes())
   await listen(http.createServer(app.callback()), port)
 }
@@ -143,10 +181,14 @@ const hono: Start = async (scenario, port) => {
   if (scenario === 'json') app.get('/', (c) => c.json(PAYLOAD))
   if (scenario === 'post-json') app.post('/echo', async (c) => c.json(await c.req.json<unknown>()))
   if (wantsHello(scenario)) app.get('/', (c) => c.text('Hello World!'))
-  await new Promise<void>((resolve) => { serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, () => resolve()) })
+  await new Promise<void>((resolve) => {
+    serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, () => resolve())
+  })
 }
 
-interface PolkaState { hits?: number }
+interface PolkaState {
+  hits?: number
+}
 
 const polka: Start = async (scenario, port) => {
   const app = polkaFactory()
@@ -177,12 +219,15 @@ const polka: Start = async (scenario, port) => {
     })
   }
   if (wantsHello(scenario)) app.get('/', (req, res) => send(res, 'Hello World!'))
-  await new Promise<void>((resolve) => { app.listen(port, '127.0.0.1', () => resolve()) })
+  await new Promise<void>((resolve) => {
+    app.listen(port, '127.0.0.1', () => resolve())
+  })
 }
 
 // A reference point: plain node:http doing the same work by hand.
 const nodeHttp: Start = async (scenario, port) => {
-  const routes = scenario === 'routes100' ? Array.from({ length: ROUTES }, (_, i) => new RegExp(`^/r${i}/([^/]+)$`)) : []
+  const routes =
+    scenario === 'routes100' ? Array.from({ length: ROUTES }, (_, i) => new RegExp(`^/r${i}/([^/]+)$`)) : []
   const middleware = scenario === 'mw10' ? MIDDLEWARE : 0
   const text = (res: http.ServerResponse, body: string, type = 'text/plain'): void => {
     res.writeHead(200, { 'Content-Type': type, 'Content-Length': Buffer.byteLength(body) })
@@ -195,7 +240,9 @@ const nodeHttp: Start = async (scenario, port) => {
     if (scenario === 'post-json' && req.method === 'POST' && url === '/echo') {
       const chunks: Buffer[] = []
       req.on('data', (c: Buffer) => chunks.push(c))
-      req.on('end', () => text(res, JSON.stringify(JSON.parse(Buffer.concat(chunks).toString('utf8'))), 'application/json'))
+      req.on('end', () =>
+        text(res, JSON.stringify(JSON.parse(Buffer.concat(chunks).toString('utf8'))), 'application/json')
+      )
       return
     }
     for (const re of routes) {

@@ -9,38 +9,127 @@
 
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-var contentDisposition = require('content-disposition')
-var createError = require('http-errors')
-var deprecate = require('depd')('express')
-var encodeUrl = require('encodeurl')
-var escapeHtml = require('escape-html')
-var http = require('node:http')
-var onFinished = require('on-finished')
-var mime = require('mime-types')
-var path = require('node:path')
-var pathIsAbsolute = require('node:path').isAbsolute
-var statuses = require('statuses')
-var sign = require('cookie-signature').sign
-var normalizeType = require('./utils').normalizeType
-var normalizeTypes = require('./utils').normalizeTypes
-var setCharset = require('./utils').setCharset
-var cookie = require('cookie')
-var send = require('./send')
-var extname = path.extname
-var resolve = path.resolve
-var basename = path.basename
-var vary = require('vary')
-const { Buffer } = require('node:buffer')
+import { Buffer } from 'node:buffer'
+import type { ServerResponse } from 'node:http'
+import type { CookieSerializeOptions } from 'cookie'
+import type { Application } from './application'
+import type { Request } from './request'
+import type { SendFunction, SendStream } from './send'
+import type { ETagFunction } from './utils'
+
+const contentDisposition = require('content-disposition') as typeof import('content-disposition')
+const createError = require('http-errors') as typeof import('http-errors')
+const deprecate = (require('depd') as typeof import('depd'))('express')
+const encodeUrl = require('encodeurl') as typeof import('encodeurl')
+const escapeHtml = require('escape-html') as typeof import('escape-html')
+const http = require('node:http') as typeof import('node:http')
+const onFinished = require('on-finished') as typeof import('on-finished')
+const path = require('node:path') as typeof import('node:path')
+const pathIsAbsolute = (require('node:path') as typeof import('node:path')).isAbsolute
+const statuses = require('statuses') as typeof import('statuses')
+const sign = (require('cookie-signature') as typeof import('cookie-signature')).sign
+const normalizeType = (require('./utils') as typeof import('./utils')).normalizeType
+const normalizeTypes = (require('./utils') as typeof import('./utils')).normalizeTypes
+const setCharset = (require('./utils') as typeof import('./utils')).setCharset
+const mimeContentType = (require('./utils') as typeof import('./utils')).mimeContentType
+const cookie = require('cookie') as typeof import('cookie')
+const send = require('./send') as SendFunction
+const extname = path.extname
+const resolve = path.resolve
+const basename = path.basename
+const vary = require('vary') as typeof import('vary')
+
+/** A header value, as `setHeader` takes it. */
+export type HeaderValue = number | string | readonly string[]
+
+/** The `next` function the router puts on `req`. */
+export type NextFunction = (err?: unknown) => void
+
+/** A `res.format` handler. */
+export type FormatHandler = (req: Request, res: ExpressResponse, next: NextFunction) => void
+
+/** The `res.sendFile` and `res.download` callback. */
+export type SendFileCallback = (err?: NodeJS.ErrnoException) => void
+
+/** The `res.render` and `app.render` callback. */
+export type RenderCallback = (err: Error | null | undefined, html?: string) => void
+
+/**
+ * `res.sendFile` options. The ones response.ts reads are listed; the others
+ * pass through to `send`.
+ */
+export interface SendFileOptions {
+  root?: string
+  headers?: Record<string, HeaderValue>
+  etag?: boolean
+  [option: string]: unknown
+}
+
+/** `res.cookie` options: the `cookie` package's, plus `signed`. */
+export interface CookieOptions extends CookieSerializeOptions {
+  signed?: boolean | undefined
+}
+
+/** `res.render` options, which become the view's locals. */
+export interface RenderOptions {
+  _locals?: Record<string, unknown>
+  [local: string]: unknown
+}
+
+/**
+ * The Express response: Node's `ServerResponse` with the helpers below.
+ * Parameters are as loose as the JavaScript accepts, and each method narrows
+ * them the way the JavaScript does.
+ */
+export interface ExpressResponse extends ServerResponse<Request> {
+  app: Application
+  /** The request, set by the application. */
+  req: Request
+  locals: Record<string, unknown>
+  status(code: unknown): this
+  links(links: Record<string, string | string[]>): this
+  send(body?: unknown): this
+  json(obj?: unknown): this
+  jsonp(obj?: unknown): this
+  sendStatus(statusCode: number): this
+  sendFile(path: unknown, options?: SendFileOptions | SendFileCallback, callback?: SendFileCallback): void
+  download(
+    path: string,
+    filename?: string | SendFileOptions | SendFileCallback | null,
+    options?: SendFileOptions | SendFileCallback | null,
+    callback?: SendFileCallback
+  ): void
+  type(type: string): this
+  contentType(type: string): this
+  format(obj: Record<string, FormatHandler>): this
+  attachment(filename?: string): this
+  append(field: string, val: string | string[]): this
+  header(field: string, val: unknown): this
+  header(fields: Record<string, unknown>): this
+  set(field: string, val: unknown): this
+  set(fields: Record<string, unknown>): this
+  get(field: string): number | string | string[] | undefined
+  clearCookie(name: string, options?: CookieOptions): this
+  cookie(name: string, value: unknown, options?: CookieOptions): this
+  location(url: string): this
+  redirect(url: unknown): void
+  redirect(status: unknown, url: unknown): void
+  vary(field: string | string[]): this
+  render(view: string, options?: RenderOptions | RenderCallback, callback?: RenderCallback): void
+}
 
 /**
  * Response prototype.
  * @public
  */
 
-var res = Object.create(http.ServerResponse.prototype)
+var res: ExpressResponse = Object.create(http.ServerResponse.prototype)
 
 /**
  * Module exports.
@@ -62,9 +151,9 @@ module.exports = res
  * @public
  */
 
-res.status = function status(code) {
+res.status = function status(this: ExpressResponse, code: unknown) {
   // Check if the status code is not an integer
-  if (!Number.isInteger(code)) {
+  if (!isInteger(code)) {
     throw new TypeError(`Invalid status code: ${JSON.stringify(code)}. Status code must be an integer.`)
   }
   // Check if the status code is outside of Node's valid range
@@ -97,7 +186,7 @@ res.status = function status(code) {
  * @public
  */
 
-res.links = function (links) {
+res.links = function (this: ExpressResponse, links: Record<string, string | string[]>) {
   var link = this.get('Link') || ''
   if (link) link += ', '
   return this.set(
@@ -108,7 +197,7 @@ res.links = function (links) {
           // Allow multiple links if links[rel] is an array
           if (Array.isArray(links[rel])) {
             return links[rel]
-              .map(function (singleLink) {
+              .map(function (singleLink: string) {
                 return `<${singleLink}>; rel="${rel}"`
               })
               .join(', ')
@@ -133,9 +222,9 @@ res.links = function (links) {
  * @public
  */
 
-res.send = function send(body) {
-  var chunk = body
-  var encoding
+res.send = function send(this: ExpressResponse, body?: unknown) {
+  var chunk: unknown = body
+  var encoding: BufferEncoding | undefined
   var req = this.req
 
   // settings
@@ -168,23 +257,29 @@ res.send = function send(body) {
       break
   }
 
-  // determine if ETag should be generated
-  var etagFn = app.get('etag fn')
-  var generateETag = !this.get('ETag') && typeof etagFn === 'function'
+  // determine if ETag should be generated (const, so that TypeScript narrows
+  // etagFn through generateETag below)
+  const etagFn = app.get('etag fn') as ETagFunction | undefined
+  const generateETag = !this.get('ETag') && typeof etagFn === 'function'
 
-  var len
+  // chunk is a string or an ArrayBufferView here, or any other value that
+  // passed the switch untouched (a function, symbol or bigint), which Buffer
+  // rejects below exactly as in Express. The casts keep those reads and calls
+  // as they were.
+  var len: number | undefined
   if (chunk !== undefined) {
     if (Buffer.isBuffer(chunk)) {
       // get length of Buffer
       len = chunk.length
-    } else if (!generateETag && chunk.length < 1000) {
+    } else if (!generateETag && (chunk as { length: number }).length < 1000) {
       // just calculate length when no ETag + small chunk
-      len = Buffer.byteLength(chunk, encoding)
+      len = Buffer.byteLength(chunk as string, encoding)
     } else {
       // convert chunk to Buffer and calculate
-      chunk = Buffer.from(chunk, encoding)
+      chunk = Buffer.from(chunk as string, encoding)
       encoding = undefined
-      len = chunk.length
+      // TypeScript doesn't narrow an unknown variable on assignment
+      len = (chunk as Buffer).length
     }
 
     // Because Content-Length and Transfer-Encoding can't be present in the response headers together,
@@ -195,9 +290,10 @@ res.send = function send(body) {
   }
 
   // populate ETag
-  var etag
+  // when generateETag is set, chunk went through Buffer.from above
+  var etag: string
   if (generateETag && len !== undefined) {
-    if ((etag = etagFn(chunk, encoding))) {
+    if ((etag = etagFn(chunk as Buffer, encoding))) {
       this.set('ETag', etag)
     }
   }
@@ -224,8 +320,8 @@ res.send = function send(body) {
     // skip body for HEAD
     this.end()
   } else {
-    // respond
-    this.end(chunk, encoding)
+    // respond (Node takes an undefined encoding; its typings only list a set one)
+    this.end(chunk, encoding as BufferEncoding)
   }
 
   return this
@@ -243,7 +339,7 @@ res.send = function send(body) {
  * @public
  */
 
-res.json = function json(obj) {
+res.json = function json(this: ExpressResponse, obj?: unknown) {
   // settings
   var app = this.app
   var escape = app.get('json escape')
@@ -271,14 +367,15 @@ res.json = function json(obj) {
  * @public
  */
 
-res.jsonp = function jsonp(obj) {
+res.jsonp = function jsonp(this: ExpressResponse, obj?: unknown) {
   // settings
   var app = this.app
   var escape = app.get('json escape')
   var replacer = app.get('json replacer')
   var spaces = app.get('json spaces')
   var body = stringify(obj, replacer, spaces, escape)
-  var callback = this.req.query[app.get('jsonp callback name')]
+  // the setting is used as a property key as it is
+  var callback: unknown = (this.req.query as Record<string, unknown>)[app.get('jsonp callback name') as string]
 
   // content-type
   if (!this.get('Content-Type')) {
@@ -330,7 +427,7 @@ res.jsonp = function jsonp(obj) {
  * @public
  */
 
-res.sendStatus = function sendStatus(statusCode) {
+res.sendStatus = function sendStatus(this: ExpressResponse, statusCode: number) {
   var body = statuses.message[statusCode] || String(statusCode)
 
   this.status(statusCode)
@@ -380,12 +477,18 @@ res.sendStatus = function sendStatus(statusCode) {
  * @public
  */
 
-res.sendFile = function sendFile(path, options, callback) {
+res.sendFile = function sendFile(
+  this: ExpressResponse,
+  path: unknown,
+  options?: SendFileOptions | SendFileCallback,
+  callback?: SendFileCallback
+) {
   var done = callback
   var req = this.req
   var res = this
   var next = req.next
-  var opts = options || {}
+  // a function here is replaced with {} below, before opts is read
+  var opts = (options || {}) as SendFileOptions
 
   if (!path) {
     throw new TypeError('path argument is required to res.sendFile')
@@ -413,7 +516,7 @@ res.sendFile = function sendFile(path, options, callback) {
   var file = send(req, pathname, opts)
 
   // transfer
-  sendfile(res, file, opts, function (err) {
+  sendfile(res, file, opts, function (err?: NodeJS.ErrnoException) {
     if (done) return done(err)
     if (err && err.code === 'EISDIR') return next()
 
@@ -442,10 +545,17 @@ res.sendFile = function sendFile(path, options, callback) {
  * @public
  */
 
-res.download = function download(path, filename, options, callback) {
+res.download = function download(
+  this: ExpressResponse,
+  path: string,
+  filename?: string | SendFileOptions | SendFileCallback | null,
+  options?: SendFileOptions | SendFileCallback | null,
+  callback?: SendFileCallback
+) {
   var done = callback
   var name = filename
-  var opts = options || null
+  // a function here is replaced with null below, before opts is read
+  var opts = (options || null) as SendFileOptions | null
 
   // support function as second or third arg
   if (typeof filename === 'function') {
@@ -463,24 +573,27 @@ res.download = function download(path, filename, options, callback) {
     opts = filename
   }
 
-  // set Content-Disposition when file is sent
-  var headers = {
-    'Content-Disposition': contentDisposition.create(basename(name || path))
+  // set Content-Disposition when file is sent. name is a string here, or an
+  // object or function when the arguments match no supported form, which
+  // basename rejects exactly as in Express.
+  var headers: Record<string, HeaderValue> = {
+    'Content-Disposition': contentDisposition.create(basename((name || path) as string))
   }
 
   // merge user-provided headers
   if (opts && opts.headers) {
     var keys = Object.keys(opts.headers)
+    // the `!`s: i is in bounds, and key is one of the object's own keys
     for (var i = 0; i < keys.length; i++) {
-      var key = keys[i]
+      var key = keys[i]!
       if (key.toLowerCase() !== 'content-disposition') {
-        headers[key] = opts.headers[key]
+        headers[key] = opts.headers[key]!
       }
     }
   }
 
   // merge user-provided options
-  opts = Object.create(opts)
+  opts = Object.create(opts) as SendFileOptions
   opts.headers = headers
 
   // Resolve the full path for sendFile
@@ -509,8 +622,8 @@ res.download = function download(path, filename, options, callback) {
  * @public
  */
 
-res.contentType = res.type = function contentType(type) {
-  var ct = type.indexOf('/') === -1 ? mime.contentType(type) || 'application/octet-stream' : type
+res.contentType = res.type = function contentType(this: ExpressResponse, type: string) {
+  var ct = type.indexOf('/') === -1 ? mimeContentType(type) || 'application/octet-stream' : type
 
   return this.set('Content-Type', ct)
 }
@@ -573,7 +686,7 @@ res.contentType = res.type = function contentType(type) {
  * @public
  */
 
-res.format = function (obj) {
+res.format = function (this: ExpressResponse, obj: Record<string, FormatHandler>) {
   var req = this.req
   var next = req.next
 
@@ -581,13 +694,15 @@ res.format = function (obj) {
     return v !== 'default'
   })
 
-  var key = keys.length > 0 ? req.accepts(keys) : false
+  // a non-empty list gives one type, or false
+  var key = keys.length > 0 ? (req.accepts(keys) as string | false) : false
 
   this.vary('Accept')
 
   if (key) {
     this.set('Content-Type', normalizeType(key).value)
-    obj[key](req, this, next)
+    // key is one of obj's own keys, picked by req.accepts
+    obj[key]!(req, this, next)
   } else if (obj.default) {
     obj.default(req, this, next)
   } else {
@@ -611,7 +726,7 @@ res.format = function (obj) {
  * @public
  */
 
-res.attachment = function attachment(filename) {
+res.attachment = function attachment(this: ExpressResponse, filename?: string) {
   const name = filename !== undefined ? basename(filename) : undefined
   if (name) {
     this.type(extname(name))
@@ -637,9 +752,9 @@ res.attachment = function attachment(filename) {
  * @public
  */
 
-res.append = function append(field, val) {
+res.append = function append(this: ExpressResponse, field: string, val: string | string[]) {
   var prev = this.get(field)
-  var value = val
+  var value: string | string[] | (string | number)[] = val
 
   if (prev) {
     // concat the new and prev vals
@@ -670,22 +785,26 @@ res.append = function append(field, val) {
  * @public
  */
 
-res.set = res.header = function header(field, val) {
+res.set = res.header = function header(this: ExpressResponse, field: string | Record<string, unknown>, val?: unknown) {
+  // TypeScript can't tie arguments.length to the parameter types, so the
+  // casts below say which form each branch handles. A field of the other kind
+  // behaves exactly as in Express (toLowerCase throws, or for-in walks it).
   if (arguments.length === 2) {
-    var value = Array.isArray(val) ? val.map(String) : String(val)
+    var value: string | string[] | false = Array.isArray(val) ? val.map(String) : String(val)
 
     // add charset to content-type
-    if (field.toLowerCase() === 'content-type') {
+    if ((field as string).toLowerCase() === 'content-type') {
       if (Array.isArray(value)) {
         throw new TypeError('Content-Type cannot be set to an Array')
       }
-      value = mime.contentType(value)
+      value = mimeContentType(value)
     }
 
-    this.setHeader(field, value)
+    // mime.contentType gives false for an unknown type, and Node writes it as "false"
+    this.setHeader(field as string, value as string | string[])
   } else {
-    for (var key in field) {
-      this.set(key, field[key])
+    for (var key in field as Record<string, unknown>) {
+      this.set(key, (field as Record<string, unknown>)[key])
     }
   }
   return this
@@ -699,7 +818,7 @@ res.set = res.header = function header(field, val) {
  * @public
  */
 
-res.get = function (field) {
+res.get = function (this: ExpressResponse, field: string) {
   return this.getHeader(field)
 }
 
@@ -712,7 +831,7 @@ res.get = function (field) {
  * @public
  */
 
-res.clearCookie = function clearCookie(name, options) {
+res.clearCookie = function clearCookie(this: ExpressResponse, name: string, options?: CookieOptions) {
   // Force cookie expiration by setting expires to the past
   const opts = { path: '/', ...options, expires: new Date(1) }
   // ensure maxAge is not passed
@@ -745,7 +864,7 @@ res.clearCookie = function clearCookie(name, options) {
  * @public
  */
 
-res.cookie = function (name, value, options) {
+res.cookie = function (this: ExpressResponse, name: string, value: unknown, options?: CookieOptions) {
   var opts = { ...options }
   var secret = this.req.secret
   var signed = opts.signed
@@ -757,7 +876,8 @@ res.cookie = function (name, value, options) {
   var val = typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
 
   if (signed) {
-    val = 's:' + sign(val, secret)
+    // the check above threw when signed is set without a secret
+    val = 's:' + sign(val, secret!)
   }
 
   if (opts.maxAge != null) {
@@ -792,7 +912,7 @@ res.cookie = function (name, value, options) {
  * @public
  */
 
-res.location = function location(url) {
+res.location = function location(this: ExpressResponse, url: string) {
   return this.set('Location', encodeUrl(url))
 }
 
@@ -810,10 +930,11 @@ res.location = function location(url) {
  * @public
  */
 
-res.redirect = function redirect(url) {
-  var address = url
-  var body
-  var status = 302
+res.redirect = function redirect(this: ExpressResponse, url: unknown) {
+  var address: unknown = url
+  // set by whichever format handler below runs
+  var body!: string
+  var status: unknown = 302
 
   // allow status / url
   if (arguments.length === 2) {
@@ -833,23 +954,25 @@ res.redirect = function redirect(url) {
     deprecate('Status must be a number')
   }
 
-  // Set location header
-  address = this.location(address).get('Location')
+  // Set location header (a url that isn't a string only gets the warnings
+  // above, and encodeurl turns it into a string)
+  address = this.location(address as string).get('Location')
 
   // Support text/{plain,html} by default
   this.format({
     text: function () {
-      body = statuses.message[status] + '. Redirecting to ' + address
+      body = statuses.message[status as number] + '. Redirecting to ' + address
     },
 
     html: function () {
-      var u = escapeHtml(address)
+      // location() stored a string
+      var u = escapeHtml(address as string)
       body =
         '<!DOCTYPE html><head><title>' +
-        statuses.message[status] +
+        statuses.message[status as number] +
         '</title></head>' +
         '<body><p>' +
-        statuses.message[status] +
+        statuses.message[status as number] +
         '. Redirecting to ' +
         u +
         '</p></body>'
@@ -880,7 +1003,7 @@ res.redirect = function redirect(url) {
  * @public
  */
 
-res.vary = function (field) {
+res.vary = function (this: ExpressResponse, field: string | string[]) {
   vary(this, field)
 
   return this
@@ -899,10 +1022,16 @@ res.vary = function (field) {
  * @public
  */
 
-res.render = function render(view, options, callback) {
+res.render = function render(
+  this: ExpressResponse,
+  view: string,
+  options?: RenderOptions | RenderCallback,
+  callback?: RenderCallback
+) {
   var app = this.req.app
   var done = callback
-  var opts = options || {}
+  // a function here is replaced with {} below, before opts is read
+  var opts = (options || {}) as RenderOptions
   var req = this.req
   var self = this
 
@@ -918,7 +1047,7 @@ res.render = function render(view, options, callback) {
   // default callback to respond
   done =
     done ||
-    function (err, str) {
+    function (err: Error | null | undefined, str?: string) {
       if (err) return req.next(err)
       self.send(str)
     }
@@ -928,16 +1057,16 @@ res.render = function render(view, options, callback) {
 }
 
 // pipe the send file stream
-function sendfile(res, file, options, callback) {
+function sendfile(res: ExpressResponse, file: SendStream, options: SendFileOptions, callback: SendFileCallback) {
   var done = false
-  var streaming
+  var streaming: boolean | undefined
 
   // request aborted
   function onaborted() {
     if (done) return
     done = true
 
-    var err = new Error('Request aborted')
+    var err: NodeJS.ErrnoException = new Error('Request aborted')
     err.code = 'ECONNABORTED'
     callback(err)
   }
@@ -950,13 +1079,13 @@ function sendfile(res, file, options, callback) {
     if (done) return
     done = true
 
-    var err = new Error('EISDIR, read')
+    var err: NodeJS.ErrnoException = new Error('EISDIR, read')
     err.code = 'EISDIR'
     callback(err)
   }
 
   // errors
-  function onerror(err) {
+  function onerror(err: NodeJS.ErrnoException) {
     if (done) return
     done = true
     callback(err)
@@ -975,7 +1104,7 @@ function sendfile(res, file, options, callback) {
   }
 
   // finished
-  function onfinish(err) {
+  function onfinish(err: NodeJS.ErrnoException | null) {
     if (err && err.code === 'ECONNRESET') return onaborted()
     if (err) return onerror(err)
     if (done) return
@@ -1006,13 +1135,15 @@ function sendfile(res, file, options, callback) {
 
   if (options.headers) {
     // set headers on successful transfer
-    file.on('headers', function headers(res) {
-      var obj = options.headers
+    file.on('headers', function headers(res: ServerResponse) {
+      // the `!`s: headers was checked above, i is in bounds, and k is one of
+      // the object's own keys
+      var obj = options.headers!
       var keys = Object.keys(obj)
 
       for (var i = 0; i < keys.length; i++) {
-        var k = keys[i]
-        res.setHeader(k, obj[k])
+        var k = keys[i]!
+        res.setHeader(k, obj[k]!)
       }
     })
   }
@@ -1033,10 +1164,15 @@ function sendfile(res, file, options, callback) {
  * @private
  */
 
-function stringify(value, replacer, spaces, escape) {
+function stringify(value: unknown, replacer: unknown, spaces: unknown, escape: unknown): string | undefined {
   // v8 checks arguments.length for optimizing simple call
   // https://bugs.chromium.org/p/v8/issues/detail?id=4730
-  var json = replacer || spaces ? JSON.stringify(value, replacer, spaces) : JSON.stringify(value)
+  // JSON.stringify takes any replacer and space at run time, ignoring the ones
+  // it can't use; the casts only pick its overload.
+  var json: string | undefined =
+    replacer || spaces
+      ? JSON.stringify(value, replacer as (this: unknown, key: string, value: unknown) => unknown, spaces as string)
+      : JSON.stringify(value)
 
   if (escape && typeof json === 'string') {
     json = json.replace(/[<>&]/g, function (c) {
@@ -1053,4 +1189,16 @@ function stringify(value, replacer, spaces, escape) {
   }
 
   return json
+}
+
+/**
+ * `Number.isInteger` as a type guard.
+ *
+ * @param {*} value
+ * @returns {boolean}
+ * @private
+ */
+
+function isInteger(value: unknown): value is number {
+  return Number.isInteger(value)
 }

@@ -12,7 +12,7 @@ var http = require('node:http')
 var baseline = require('express-baseline')
 var ours = require('../..')
 var { scenarios, groups } = require('./generated')
-var { sequence, close } = require('./support')
+var { sequence, close, useFixedClock } = require('./support')
 
 // res.cookie({ maxAge }) sets Expires to "now + maxAge", so the two servers
 // stamp it a few milliseconds apart and it can fall on different seconds.
@@ -74,6 +74,8 @@ async function respond(side, express, scenario) {
 }
 
 describe('differential: generated scenarios match Express 5.3.0', function () {
+  useFixedClock()
+
   var a
   var b
 

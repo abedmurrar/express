@@ -10,11 +10,13 @@ var { Buffer } = require('node:buffer')
 // Headers whose value depends on the moment, not on Express.
 var VOLATILE = new Set(['date'])
 
-function serve(express, setup) {
+// `listen` true starts the app with app.listen() instead of
+// http.createServer(app); the fork skips the prototype swap there.
+function serve(express, setup, listen) {
   var app = express()
   setup(app, express)
   return new Promise(function (resolve) {
-    var server = http.createServer(app).listen(0, '127.0.0.1', function () {
+    var server = (listen ? app : http.createServer(app)).listen(0, '127.0.0.1', function () {
       resolve(server)
     })
   })
@@ -98,4 +100,29 @@ async function sequence(server, steps, normalise) {
   })
 }
 
-module.exports = { serve: serve, request: request, close: close, sequence: sequence, normaliseBody: normaliseBody }
+// Both implementations must see the same clock: res.cookie's `maxAge` sets
+// Expires from Date.now(), and two requests a few milliseconds apart can fall
+// on either side of a second. Call in a describe block; every test in it runs
+// with Date.now() fixed.
+var FIXED_NOW = Date.UTC(2026, 0, 1, 12, 0, 0)
+
+function useFixedClock() {
+  var realNow = Date.now
+  beforeEach(function () {
+    Date.now = function now() {
+      return FIXED_NOW
+    }
+  })
+  afterEach(function () {
+    Date.now = realNow
+  })
+}
+
+module.exports = {
+  serve: serve,
+  request: request,
+  close: close,
+  sequence: sequence,
+  normaliseBody: normaliseBody,
+  useFixedClock: useFixedClock
+}

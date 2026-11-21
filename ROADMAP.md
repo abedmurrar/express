@@ -131,7 +131,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | the CI gate fails on any uncovered line | |
+| [x] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | 100% statements, branches, functions and lines; `test-ci` exits 1 when the new tests are removed. Two commented `c8 ignore` lines: the never-called `Router.prototype` function and a race guard in `sendFile` | [#10](https://github.com/abedmurrar/express/pull/10) |
 | [ ] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | mutation report committed | |
 | [ ] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 0 unexplained diffs | |
 | [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
@@ -191,7 +191,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
-| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9), `c8` instead of `nyc`, TypeScript 7 on master; mocha 12 on 6.x (it needs Node 20.19+, and master still tests Node 16 to 19). ESLint's `indent`, `eol-last` and `no-trailing-spaces` are deprecated: move to `@stylistic/eslint-plugin` when ESLint removes them | | | Update | both |
+| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9), `c8` instead of `nyc` (done, #10), TypeScript 7 on master; mocha 12 on 6.x (it needs Node 20.19+, and master still tests Node 16 to 19). ESLint's `indent`, `eol-last` and `no-trailing-spaces` are deprecated: move to `@stylistic/eslint-plugin` when ESLint removes them | | | Update | both |
 
 ## Bug fixes on the compatible line
 

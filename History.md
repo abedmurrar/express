@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Coverage is now measured with c8 (V8's own coverage, replacing `nyc` and its 137 installed packages) and must stay at 100% of statements, branches, functions and lines, or CI fails. New tests cover the last untested paths, including the `res.redirect` deprecations, Promise-like handler results, RegExp mounts, absolute-form URLs and nested path arrays. Three branches that could never run were removed. Node 16 to 19 run the same tests without coverage, since c8 needs Node 20.19+.
 * Port 8 upstream test-coverage PRs, keeping their authors: #6892 and #6893 (Ayoub-Mabrouk), #7038 (tommyhgunz14), #7050 (RlxChap2), #7339 (Kaleru Pranav Kumar), #7423 (aoright), #7546 (Renan Pimentel) and #7572 (Saiyam Jain). This adds 35 tests. #6703's tests were already on master.
 * Move to ESLint 10 with a flat `eslint.config.js` that keeps the old rules exactly, including ESLint 8's `caughtErrors: 'none'`. It gives the same findings as the old setup. Git hooks now live in `.githooks/` (enable with `git config core.hooksPath .githooks`): `pre-commit` lints the staged files, and `commit-msg` enforces the fork's commit rules.
 * Add regression tests (`test/regressions/`) for the 19 confirmed bugs that the compatible line will fix. Each asserts the correct behaviour and stays skipped until its fix lands; `REGRESSIONS_ALL=1` runs them all, and all 19 fail today. Six more tests pin behaviour this line keeps on purpose.

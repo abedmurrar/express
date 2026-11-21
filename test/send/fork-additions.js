@@ -111,6 +111,7 @@ describe('send (fork additions)', function () {
       return http.createServer(function (req, res) {
         res.statusCode = status
         res.setHeader('Content-Encoding', 'identity')
+        res.setHeader('Content-Length', '4')
         res.setHeader('Content-Range', 'bytes 0-3/4')
         send(req, '/name.txt', { root: FIXTURES }).pipe(res)
       })

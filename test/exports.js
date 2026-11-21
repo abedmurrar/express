@@ -49,6 +49,14 @@ describe('exports', function () {
     assert.strictEqual(typeof express.response.send, 'function')
   })
 
+  it("should give each app's request and response prototypes a plain .app property", function () {
+    var app = express()
+    var expected = { configurable: true, enumerable: true, writable: true, value: app }
+
+    assert.deepStrictEqual(Object.getOwnPropertyDescriptor(app.request, 'app'), expected)
+    assert.deepStrictEqual(Object.getOwnPropertyDescriptor(app.response, 'app'), expected)
+  })
+
   it('should permit modifying the .application prototype', function () {
     express.application.foo = function () {
       return 'bar'

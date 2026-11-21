@@ -75,6 +75,7 @@ All three copies are the same versions Express 5.3.0 installs here, and match th
   - The `error` listener: `function error(err: HttpError)`. `send` only emits `http-errors` errors, whose `statusCode` is always a number.
   - The directory listeners: `function notFound(this: SendStream)` and `function redirect(this: SendStream, res: ServerResponse)`, because `send` calls them with the stream as `this`. `redirect` reads `parseUrl.original(this.req) as Url`.
   - Every other line gained parameter and return types only.
+  - Comments that are ours: the note under "Module dependencies" on how they are loaded (the same as in `send`), the one above the `Object.defineProperty` line, and the doc comments on the exported types. The compiled file otherwise matches upstream's `index.js` statement for statement (checked by diffing both after formatting them with Biome).
 
 ### serve-static tests
 

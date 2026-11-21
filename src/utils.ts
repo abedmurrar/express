@@ -254,14 +254,68 @@ export function setCharset(type: string | undefined, charset: string | undefined
     return type
   }
 
-  // parse type
-  var parsed = contentType.parse(type)
+  var byType = setCharsetCache.get(charset)
+  var formatted = byType && byType.get(type)
 
-  // set charset
-  parsed.parameters.charset = charset
+  if (formatted === undefined) {
+    // parse type (throws on an invalid type, before anything is cached)
+    var parsed = contentType.parse(type)
 
-  // format type
-  return contentType.format(parsed)
+    // set charset
+    parsed.parameters.charset = charset
+
+    // format type
+    formatted = contentType.format(parsed)
+
+    if (byType === undefined) {
+      byType = new Map()
+      remember(setCharsetCache, charset, byType)
+    }
+    remember(byType, type, formatted)
+  }
+
+  return formatted
+}
+
+/**
+ * `mime.contentType`, remembered by its input: a response sets one of a
+ * handful of types, and each lookup through the mime database costs a few
+ * hundred nanoseconds. `false` (an unknown type) is remembered too.
+ *
+ * @param {String} value
+ * @return {String|false}
+ * @api private
+ */
+
+export function mimeContentType(value: string): string | false {
+  var resolved = mimeContentTypeCache.get(value)
+
+  if (resolved === undefined) {
+    resolved = remember(mimeContentTypeCache, value, mime.contentType(value))
+  }
+
+  return resolved
+}
+
+/**
+ * The memo caches for setCharset and mimeContentType, ported from upstream
+ * PR #7481 (Nigro Simone). setCharset keeps one map of type to result per
+ * charset, since a key joining the two strings would be hashed again on
+ * every call. Each map holds at most CACHE_LIMIT entries and is emptied when
+ * full, so types taken from requests can't grow them without bound.
+ * @private
+ */
+
+const CACHE_LIMIT = 100
+const setCharsetCache = new Map<string, Map<string, string>>()
+const mimeContentTypeCache = new Map<string, string | false>()
+
+function remember<V>(cache: Map<string, V>, key: string, value: V): V {
+  if (cache.size >= CACHE_LIMIT) {
+    cache.clear()
+  }
+  cache.set(key, value)
+  return value
 }
 
 /**

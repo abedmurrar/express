@@ -160,3 +160,86 @@ describe('property: content negotiation', function () {
     )
   })
 })
+
+// utils.setCharset and utils.mimeContentType remember their results (capped
+// maps, emptied when full). For any input, in any order and after any number
+// of clears, they must return exactly what the uncached functions return,
+// and throw on every call for an invalid type.
+describe('property: remembered content types match the uncached functions', function () {
+  var contentType = require('content-type')
+  var mime = require('mime-types')
+  var utils = require('../../lib/utils')
+
+  function uncachedSetCharset(type, charset) {
+    if (!type || !charset) return type
+    var parsed = contentType.parse(type)
+    parsed.parameters.charset = charset
+    return contentType.format(parsed)
+  }
+
+  function outcome(fn) {
+    try {
+      return { value: fn() }
+    } catch (err) {
+      return { error: err.constructor.name + ': ' + err.message }
+    }
+  }
+
+  var token = fc.stringMatching(/^[a-z0-9!#$&^_.+-]{1,12}$/)
+  var mediaType = fc.oneof(
+    fc.tuple(token, token).map(([a, b]) => a + '/' + b),
+    fc.tuple(token, token, token, token).map(([a, b, k, v]) => a + '/' + b + '; ' + k + '=' + v),
+    fc.constantFrom('text/html', 'application/json', 'text/plain; charset=latin1', 'text/html; Charset="UTF-8"'),
+    fc.string({ maxLength: 20 })
+  )
+  var extension = fc.oneof(
+    fc.constantFrom('html', 'json', 'txt', 'bin', 'png', 'js', 'css', 'xml', '.html', 'unknown-ext', ''),
+    token,
+    fc.string({ maxLength: 12 })
+  )
+  var charset = fc.constantFrom('utf-8', 'UTF-8', 'latin1', 'iso-8859-1', '', undefined)
+
+  it('setCharset: the same result or the same error, over 300 calls in a row', function () {
+    check(
+      fc.property(fc.array(fc.tuple(mediaType, charset), { minLength: 1, maxLength: 300 }), function (calls) {
+        for (var [type, cs] of calls) {
+          assert.deepStrictEqual(
+            outcome(() => utils.setCharset(type, cs)),
+            outcome(() => uncachedSetCharset(type, cs))
+          )
+        }
+      }),
+      { numRuns: 100 }
+    )
+  })
+
+  it('mimeContentType: the same as mime.contentType, over 300 calls in a row', function () {
+    check(
+      fc.property(fc.array(fc.oneof(extension, mediaType), { minLength: 1, maxLength: 300 }), function (calls) {
+        for (var value of calls) {
+          assert.deepStrictEqual(
+            outcome(() => utils.mimeContentType(value)),
+            outcome(() => mime.contentType(value))
+          )
+        }
+      }),
+      { numRuns: 100 }
+    )
+  })
+
+  it('an invalid type throws on every call, and is never remembered', function () {
+    for (var i = 0; i < 3; i++) {
+      assert.throws(() => utils.setCharset('not a type', 'utf-8'), TypeError)
+    }
+    assert.strictEqual(utils.setCharset('text/html', 'utf-8'), 'text/html; charset=utf-8')
+  })
+
+  it('stays correct across many cache clears (1,000 distinct types)', function () {
+    for (var i = 0; i < 1000; i++) {
+      var t = 'application/x-t' + i
+      assert.strictEqual(utils.setCharset(t, 'utf-8'), t + '; charset=utf-8')
+      assert.strictEqual(utils.mimeContentType(t), mime.contentType(t))
+      assert.strictEqual(utils.setCharset('text/html', 'utf-8'), 'text/html; charset=utf-8')
+    }
+  })
+})

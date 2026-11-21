@@ -8,16 +8,24 @@
 
 'use strict'
 
+import type { Application } from './application'
+import type { Request } from './request'
+import type { ExpressResponse } from './response'
+import type { NextFunction, RouterConstructor } from './router'
+
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  */
 
-var bodyParser = require('body-parser')
-var EventEmitter = require('node:events').EventEmitter
-var proto = require('./application')
-var Router = require('./router')
-var req = require('./request')
-var res = require('./response')
+const bodyParser = require('body-parser') as typeof import('body-parser')
+const EventEmitter = (require('node:events') as typeof import('node:events')).EventEmitter
+const proto = require('./application') as Application
+const Router = require('./router') as RouterConstructor
+const req = require('./request') as Request
+const res = require('./response') as ExpressResponse
 
 /**
  * Expose `createApplication()`.
@@ -32,10 +40,11 @@ exports = module.exports = createApplication
  * @api public
  */
 
-function createApplication() {
-  var app = function (req, res, next) {
+function createApplication(): Application {
+  // the methods and state below are mixed in and set before it is returned
+  var app = function (req: Request, res: ExpressResponse, next?: NextFunction) {
     app.handle(req, res, next)
-  }
+  } as Application
 
   mixin(app, EventEmitter.prototype)
   mixin(app, proto)
@@ -75,7 +84,7 @@ exports.Router = Router
 
 exports.json = bodyParser.json
 exports.raw = bodyParser.raw
-exports.static = require('serve-static')
+exports.static = require('serve-static') as typeof import('serve-static')
 exports.text = bodyParser.text
 exports.urlencoded = bodyParser.urlencoded
 
@@ -87,10 +96,11 @@ exports.urlencoded = bodyParser.urlencoded
  * @private
  */
 
-function mixin(destination, source) {
+function mixin(destination: object, source: object) {
   for (const name of Object.getOwnPropertyNames(source)) {
     if (!Object.hasOwn(destination, name)) {
-      Object.defineProperty(destination, name, Object.getOwnPropertyDescriptor(source, name))
+      // an own property of source, so it has a descriptor
+      Object.defineProperty(destination, name, Object.getOwnPropertyDescriptor(source, name) as PropertyDescriptor)
     }
   }
 }

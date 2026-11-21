@@ -9,14 +9,17 @@
 'use strict'
 
 import type { Accepts } from 'accepts'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { IncomingMessage } from 'node:http'
 import type { Socket } from 'node:net'
 import type {
   Options as RangeParserOptions,
   Ranges as RangeParserRanges,
   Result as RangeParserResult
 } from 'range-parser'
-import type { QueryParser, TrustFunction } from './utils'
+import type { Application } from './application'
+import type { ExpressResponse } from './response'
+import type { Params } from './router'
+import type { Route } from './router/lib/route'
 
 /**
  * Module dependencies.
@@ -39,24 +42,6 @@ const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
 export type NextFunction = (err?: unknown) => void
 
 /**
- * The parts of the application that a request reads: the settings it is
- * configured by. The application's own type replaces this once it is converted.
- */
-export interface RequestApplication {
-  get(setting: 'query parser fn'): QueryParser | undefined
-  get(setting: 'subdomain offset'): number
-  get(setting: 'trust proxy fn'): TrustFunction
-}
-
-/**
- * The parts of the response that a request reads, for freshness. The
- * response's own type replaces this once it is converted.
- */
-export interface RequestResponse extends ServerResponse {
-  get(field: string): ReturnType<ServerResponse['getHeader']>
-}
-
-/**
  * An Express request: Node's `IncomingMessage`, plus what this prototype
  * adds and what the application and router set on it.
  *
@@ -65,9 +50,11 @@ export interface RequestResponse extends ServerResponse {
  */
 export interface Request extends IncomingMessage {
   /** The application, set on each application's request prototype. */
-  app: RequestApplication
+  app: Application
   /** The response, set by the application. */
-  res: RequestResponse
+  res: ExpressResponse
+  /** The request target, which a server request always has; the routers rewrite it while they route. */
+  url: string
   /** The router's `next` for the current layer. */
   next: NextFunction
   /** The path the current router is mounted at. */
@@ -75,9 +62,9 @@ export interface Request extends IncomingMessage {
   /** `req.url` as it arrived, before the routers rewrote it. */
   originalUrl: string
   /** The route parameters of the current layer. */
-  params: Record<string, string | string[]>
+  params: Params
   /** The route that matched, set by the router. */
-  route?: object
+  route?: Route
   /** The cookie secret, set by cookie-parser and read by `res.cookie()`. */
   secret?: string | undefined
   /** The socket, which is a TLS socket (with `encrypted` set) for HTTPS. */

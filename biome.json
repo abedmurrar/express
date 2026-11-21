@@ -3,6 +3,7 @@
   "files": {
     "includes": [
       "**/*.js",
+      "**/*.ts",
       "!coverage",
       "!research",
       "!benchmarks/compare/node_modules",

@@ -9,26 +9,47 @@
 
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @api private
  */
 
-var { METHODS } = require('node:http')
-var contentType = require('content-type')
-var etag = require('etag')
-var mime = require('mime-types')
-var proxyaddr = require('proxy-addr')
-var qs = require('qs')
-var querystring = require('node:querystring')
-const { Buffer } = require('node:buffer')
+import { Buffer } from 'node:buffer'
+import { METHODS } from 'node:http'
+import querystring from 'node:querystring'
+
+const contentType = require('content-type') as typeof import('content-type')
+const etag = require('etag') as typeof import('etag')
+const mime = require('mime-types') as typeof import('mime-types')
+const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
+const qs = require('qs') as typeof import('qs')
+
+/** A body ETag generator: the body and, for strings, its encoding. */
+export type ETagFunction = (body: string | Buffer, encoding?: BufferEncoding) => string
+
+/** A query string parser. */
+export type QueryParser = (str: string) => object
+
+/** A trust-proxy function: the address and its position in the chain. */
+export type TrustFunction = (addr: string, i: number) => boolean
+
+/** A media type with its quality and parameters, as parsed from an Accept-style value. */
+export interface NormalizedType {
+  value: string
+  quality?: number
+  params: Record<string, string>
+}
 
 /**
- * A list of lowercased HTTP methods that are supported by Node.js.
+ * The HTTP methods Node supports, in lower case.
  * @api private
  */
-exports.methods = METHODS.map((method) => method.toLowerCase())
+
+export const methods: string[] = METHODS.map((method) => method.toLowerCase())
 
 /**
- * Return strong ETag for `body`.
+ * Return a strong ETag for the given `body`.
  *
  * @param {String|Buffer} body
  * @param {String} [encoding]
@@ -36,10 +57,11 @@ exports.methods = METHODS.map((method) => method.toLowerCase())
  * @api private
  */
 
-exports.etag = createETagGenerator({ weak: false })
+const etagStrong: ETagFunction = createETagGenerator({ weak: false })
+export { etagStrong as etag }
 
 /**
- * Return weak ETag for `body`.
+ * Return a weak ETag for the given `body`.
  *
  * @param {String|Buffer} body
  * @param {String} [encoding]
@@ -47,7 +69,7 @@ exports.etag = createETagGenerator({ weak: false })
  * @api private
  */
 
-exports.wetag = createETagGenerator({ weak: true })
+export const wetag: ETagFunction = createETagGenerator({ weak: true })
 
 /**
  * Normalize the given `type`, for example "html" becomes "text/html".
@@ -57,7 +79,7 @@ exports.wetag = createETagGenerator({ weak: true })
  * @api private
  */
 
-exports.normalizeType = function (type) {
+export function normalizeType(type: string): NormalizedType {
   return ~type.indexOf('/')
     ? acceptParams(type)
     : { value: mime.lookup(type) || 'application/octet-stream', params: {} }
@@ -71,8 +93,8 @@ exports.normalizeType = function (type) {
  * @api private
  */
 
-exports.normalizeTypes = function (types) {
-  return types.map(exports.normalizeType)
+export function normalizeTypes(types: string[]): NormalizedType[] {
+  return types.map(normalizeType)
 }
 
 /**
@@ -84,11 +106,11 @@ exports.normalizeTypes = function (types) {
  * @api private
  */
 
-function acceptParams(str) {
+function acceptParams(str: string): NormalizedType {
   var length = str.length
   var colonIndex = str.indexOf(';')
   var index = colonIndex === -1 ? length : colonIndex
-  var ret = { value: str.slice(0, index).trim(), quality: 1, params: {} }
+  var ret: NormalizedType & { quality: number } = { value: str.slice(0, index).trim(), quality: 1, params: {} }
 
   while (index < length) {
     var splitIndex = str.indexOf('=', index)
@@ -125,25 +147,25 @@ function acceptParams(str) {
  * @api private
  */
 
-exports.compileETag = function (val) {
-  var fn
+export function compileETag(val: unknown): ETagFunction | undefined {
+  var fn: ETagFunction | undefined
 
   if (typeof val === 'function') {
-    return val
+    return val as ETagFunction
   }
 
   switch (val) {
     case true:
     case 'weak':
-      fn = exports.wetag
+      fn = wetag
       break
     case false:
       break
     case 'strong':
-      fn = exports.etag
+      fn = etagStrong
       break
     default:
-      throw new TypeError('unknown value for etag function: ' + val)
+      throw new TypeError('unknown value for etag function: ' + String(val))
   }
 
   return fn
@@ -157,11 +179,11 @@ exports.compileETag = function (val) {
  * @api private
  */
 
-exports.compileQueryParser = function compileQueryParser(val) {
-  var fn
+export function compileQueryParser(val: unknown): QueryParser | undefined {
+  var fn: QueryParser | undefined
 
   if (typeof val === 'function') {
-    return val
+    return val as QueryParser
   }
 
   switch (val) {
@@ -175,7 +197,7 @@ exports.compileQueryParser = function compileQueryParser(val) {
       fn = parseExtendedQueryString
       break
     default:
-      throw new TypeError('unknown value for query parser function: ' + val)
+      throw new TypeError('unknown value for query parser function: ' + String(val))
   }
 
   return fn
@@ -189,8 +211,8 @@ exports.compileQueryParser = function compileQueryParser(val) {
  * @api private
  */
 
-exports.compileTrust = function (val) {
-  if (typeof val === 'function') return val
+export function compileTrust(val: unknown): TrustFunction {
+  if (typeof val === 'function') return val as TrustFunction
 
   if (val === true) {
     // Support plain true/false
@@ -206,14 +228,14 @@ exports.compileTrust = function (val) {
     }
   }
 
-  if (typeof val === 'string') {
-    // Support comma-separated values
-    val = val.split(',').map(function (v) {
-      return v.trim()
-    })
-  }
-
-  return proxyaddr.compile(val || [])
+  // Support comma-separated values
+  return proxyaddr.compile(
+    (typeof val === 'string'
+      ? val.split(',').map(function (v) {
+          return v.trim()
+        })
+      : val || []) as string | string[]
+  )
 }
 
 /**
@@ -225,7 +247,9 @@ exports.compileTrust = function (val) {
  * @api private
  */
 
-exports.setCharset = function setCharset(type, charset) {
+export function setCharset(type: string, charset: string | undefined): string
+export function setCharset(type: string | undefined, charset: string | undefined): string | undefined
+export function setCharset(type: string | undefined, charset: string | undefined): string | undefined {
   if (!type || !charset) {
     return type
   }
@@ -249,7 +273,7 @@ exports.setCharset = function setCharset(type, charset) {
  * @private
  */
 
-function createETagGenerator(options) {
+function createETagGenerator(options: { weak: boolean }): ETagFunction {
   return function generateETag(body, encoding) {
     var buf = !Buffer.isBuffer(body) ? Buffer.from(body, encoding) : body
 
@@ -265,7 +289,7 @@ function createETagGenerator(options) {
  * @private
  */
 
-function parseExtendedQueryString(str) {
+function parseExtendedQueryString(str: string): object {
   return qs.parse(str, {
     allowPrototypes: true
   })

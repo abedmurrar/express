@@ -57,6 +57,7 @@ The Express 5 documentation at https://expressjs.com applies to this fork, apart
 ```bash
 git clone https://github.com/abedmurrar/express.git && cd express
 npm install
+npm run build                         # compile src/ into lib/ (npm test does this first)
 git config core.hooksPath .githooks   # lint staged files and check commit messages
 
 npm test                              # all tests
@@ -77,7 +78,7 @@ To report a security problem in this fork, see [SECURITY.md](SECURITY.md).
 
 Express was created by [TJ Holowaychuk](https://github.com/tj) and is maintained by the [Express team and its contributors](https://github.com/expressjs/express/graphs/contributors). Everything here builds on their work. Upstream pull requests taken into this fork keep their authors.
 
-The vendored copies of [`router`](https://github.com/pillarjs/router) and [`send`](https://github.com/pillarjs/send) keep their original licences, in `lib/router/LICENSE` and `lib/send/LICENSE`.
+The vendored copies of [`router`](https://github.com/pillarjs/router) and [`send`](https://github.com/pillarjs/send) keep their original licences, in `src/router/LICENSE` and `src/send/LICENSE` (copied into `lib/` when built).
 
 ## License
 

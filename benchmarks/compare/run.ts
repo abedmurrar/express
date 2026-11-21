@@ -118,7 +118,9 @@ function prepareBase (): void {
     mkdirSync(path.dirname(baseDir), { recursive: true })
     git('worktree', 'add', '--detach', baseDir, args.against)
   }
-  execFileSync('npm', ['install', '--omit=dev', '--no-package-lock', '--no-audit', '--no-fund'], { cwd: baseDir, stdio: 'ignore' })
+  // the base needs its dev dependencies to build src/ into lib/
+  execFileSync('npm', ['install', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund'], { cwd: baseDir, stdio: 'ignore' })
+  execFileSync('npm', ['run', 'build', '--if-present'], { cwd: baseDir, stdio: 'ignore' })
 }
 
 function cleanupBase (): void {
@@ -199,6 +201,8 @@ async function main (): Promise<void> {
   const total = targets.length * scenarios.length * rounds * perRun
   console.error(`${targets.length} targets x ${scenarios.length} scenarios x ${rounds} rounds, about ${Math.ceil(total / 60)} min. Keep the machine idle.`)
   const load1 = os.loadavg()[0] ?? 0
+  // the head runs from lib/, built from src/
+  execFileSync('npm', ['run', 'build', '--if-present'], { cwd: repo, stdio: 'ignore' })
   prepareBase()
   const samples = new Map<string, Sample[]>()
   const failed = new Map<string, string>()

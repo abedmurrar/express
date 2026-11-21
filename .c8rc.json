@@ -1,6 +1,8 @@
 {
   "all": true,
-  "include": ["index.js", "lib/**/*.js"],
+  "src": ["src"],
+  "include": ["index.js", "lib/**/*.js", "src/**/*.js"],
+  "exclude-after-remap": true,
   "reporter": ["text"],
   "check-coverage": true,
   "lines": 100,

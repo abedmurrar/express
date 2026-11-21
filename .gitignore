@@ -27,3 +27,6 @@ benchmarks/compare/.refs/
 research/raw/
 research/bench/node_modules/
 research/bench/express-*/
+
+# built from src/ by `npm run build`
+lib/

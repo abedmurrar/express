@@ -9,8 +9,12 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 ## How to read this
 
 **Two lines:**
-- **`master`, the compatible line.** It is a drop-in replacement for Express 5.3.0: same responses byte for byte, except bug fixes. Deprecation warnings are allowed. Upstream `master` gets merged in regularly.
+- **`master`, the compatible line.** It is a drop-in replacement for Express 5.3.0 on Node 22, 24 and 26: same responses byte for byte, except bug fixes. Deprecation warnings are allowed. Upstream `master` gets merged in regularly.
 - **`6.x`, our next major.** It holds the breaking changes, and `master` gets merged into it.
+
+**Node versions:** both lines support Node 22, 24 and 26 only. Older versions are dropped (decided 2026-11-21). New Node majors are added as they reach LTS.
+
+**Tooling:** Biome is the only linter and formatter (no ESLint, no Prettier).
 
 **Status:** `[ ]` to do, `[~]` in progress, `[x]` done (link the PR), `won't do` (with the reason).
 
@@ -58,6 +62,9 @@ Docs ride along with each item.
 | [x] | Vendor `router` 2.2.0 into `lib/router` | | master | Medium | router's own tests pass in our suite; every repro unchanged | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [x] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [x] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |
+| [ ] | Support Node 22, 24 and 26 only: `engines` `>= 22`, CI matrix 22, 24 and 26 on Linux and Windows, remove the legacy (Node 16 and 17) workflow, and README and docs updated | PR #7552, discussions#236 | both | Small | CI runs on 22, 24 and 26 only; npm warns when installing on older Node | |
+| [ ] | Biome replaces ESLint: lint rules mapped one to one (unused variables except rest siblings and caught errors, `==` only against `null`, no global `Buffer`), the pre-commit hook runs `biome check` on staged files, and `eslint`, `globals` and `eslint.config.js` are removed. No Prettier | PRs #6118, #6480, #6912 | master | Small | the same findings as the ESLint setup on the file with every rule's violation, and 0 on the repo | |
+| [ ] | Format the whole repo with Biome's formatter in one PR, right before the TypeScript conversion, so later diffs stay readable | | master | Medium | no behaviour change: all tests, the differential harness and the coverage gate pass unchanged | |
 | [ ] | Re-sync the vendored router to 2.3.0 once it is 7 days old (from 2026-11-24) | #4059, router#206, router#174, router#196 | master | Small | router tests, harness, repro 4059 | |
 | [x] | Update mocha and supertest | #7547, PR #7600 | master | Small | the same tests as master run and pass (2,273 passing, 19 skipped regression tests); mocha 11.8.0 here, mocha 12 (Node 20.19+) on 6.x | [#7](https://github.com/abedmurrar/express/pull/7) |
 | [x] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | 8 ported with their authors (35 more tests, all passing); #6703's tests were already on master | [#8](https://github.com/abedmurrar/express/pull/8) |
@@ -141,7 +148,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
 | [ ] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | their suites pass; runs on every PR | |
 | [ ] | Type tests for the whole public API, including route-parameter types from path strings | | master | Medium | type tests in CI | |
-| [ ] | Node version matrix for the published JavaScript (18, 20, 22, 24, 26) | | master | Small | CI matrix | |
+| [ ] | Node version matrix for the published JavaScript (22, 24, 26, Linux and Windows) | | master | Small | CI matrix | |
 | [ ] | Decide on Node's built-in `node:test` versus mocha, measured on suite time and features | | master | Small | numbers in the PR | |
 
 ## TypeScript
@@ -191,7 +198,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
-| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9), `c8` instead of `nyc`, TypeScript 7 on master; mocha 12 on 6.x (it needs Node 20.19+, and master still tests Node 16 to 19). ESLint's `indent`, `eol-last` and `no-trailing-spaces` are deprecated: move to `@stylistic/eslint-plugin` when ESLint removes them | | | Update | both |
+| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; Biome replaces it, Foundation row), `c8` instead of `nyc`, TypeScript 7, and mocha 12 on master once Node 22 is the minimum | | | Update | both |
 
 ## Bug fixes on the compatible line
 
@@ -267,7 +274,7 @@ These are opt-in, and nothing existing changes.
 |---|---|---|---|---|---|---|
 | [ ] | Create the `6.x` branch | | 6.x | Small | | |
 | [ ] | `env` defaults to production when `NODE_ENV` is unset, and we keep reading `NODE_ENV` | #3346, PR #7549 | 6.x | Small | tests | |
-| [ ] | Node.js 24 minimum | PR #7552, discussions#236 | 6.x | Small | CI matrix | |
+| [ ] | Node.js 24 minimum | PR #7552, discussions#236 | 6.x | Small | superseded for now: both lines require Node 22 (Foundation row); 6.x decides later whether to drop 22 | |
 | [ ] | Drop `X-Powered-By` | PR #7554 | 6.x | Small | test that the header is gone | |
 | [ ] | `res.redirect` throws on a bad url or status | #6391, #6941, PR #6404 | 6.x | Small | tests | |
 | [ ] | `req.get('referer')` prefers `Referer` | #3951, PR #6993 | 6.x | Small | tests | |
@@ -477,7 +484,7 @@ Already fixed 2, Duplicate 1, Roadmap 56, Support question 7, Upstream process 3
 
 ### Pull requests (149)
 
-Already fixed 2, Cherry-pick 43, Duplicate 9, Roadmap 44, Upstream process 10, Won't do 41.
+Already fixed 2, Cherry-pick 42, Duplicate 9, Roadmap 45, Upstream process 10, Won't do 41.
 
 | PR | Title | Decision | Item or reason |
 |---|---|---|---|
@@ -616,7 +623,7 @@ Already fixed 2, Cherry-pick 43, Duplicate 9, Roadmap 44, Upstream process 10, W
 | [#7549](https://github.com/expressjs/express/pull/7549) | [6.x] Default "env" to production and stop reading NODE_ENV | Cherry-pick | `env` defaults to production when `NODE_ENV` is unset, and we keep reading `NODE_ENV` |
 | [#7550](https://github.com/expressjs/express/pull/7550) | [6.x] Remove body-parser re-exports | Won't do | They're the most-used Express APIs, and removing them gains users nothing (Won't do table). |
 | [#7551](https://github.com/expressjs/express/pull/7551) | [6.x] Remove serve-static re-export | Won't do | They're the most-used Express APIs, and removing them gains users nothing (Won't do table). |
-| [#7552](https://github.com/expressjs/express/pull/7552) | [6.x] Require Node.js 24 or higher | Cherry-pick | Node.js 24 minimum |
+| [#7552](https://github.com/expressjs/express/pull/7552) | [6.x] Require Node.js 24 or higher | Roadmap | Support Node 22, 24 and 26 only: `engines` `>= 22`, CI matrix 22, 24 and 26 on Linux and Windows, remove the legacy (Node 16 and 17) workflow, and README and docs updated |
 | [#7553](https://github.com/expressjs/express/pull/7553) | [6.x] res.send() no longer serializes non-string bodies as JSON | Roadmap | Deprecation warning for `res.send(object)` (it keeps working) |
 | [#7554](https://github.com/expressjs/express/pull/7554) | [6.x] Remove the X-Powered-By header | Cherry-pick | Drop `X-Powered-By` |
 | [#7555](https://github.com/expressjs/express/pull/7555) | perf: skip the req/res prototype switch for app.listen() | Cherry-pick | Skip the per-request prototype swap when `app.listen()` made the server |

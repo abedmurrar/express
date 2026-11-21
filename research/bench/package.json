@@ -1,0 +1,1 @@
+{"name":"express-bench","private":true,"type":"commonjs","dependencies":{"autocannon":"^8.0.0","express-530":"npm:express@^5.3.0","fastify":"^5.12.8"}}

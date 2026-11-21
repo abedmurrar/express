@@ -1,7 +1,14 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**/*.js", "!coverage", "!research", "!benchmarks/compare/node_modules", "!benchmarks/compare/.refs"]
+    "includes": [
+      "**/*.js",
+      "!coverage",
+      "!research",
+      "!benchmarks/compare/node_modules",
+      "!benchmarks/compare/.refs",
+      "!benchmarks/count/node_modules"
+    ]
   },
   "formatter": {
     "enabled": true,

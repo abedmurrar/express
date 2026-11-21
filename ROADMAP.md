@@ -250,7 +250,7 @@ Baseline on this machine (Node 24.17.0, requests per second): Hello World 33,776
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | measured +11–14% | |
+| [x] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | CI benchmark against `master`: hello +11.7%, json +8.3%, params +7.7%, mw10 +9.3%, routes100 +5.2%, post-json +4.1%, not-found +11.4%; differential scenarios also run on `app.listen()` | [#38](https://github.com/abedmurrar/express/pull/38) |
 | [ ] | Use Node's built-ins instead of old workarounds in our own code: rest parameters and spread instead of copying `arguments` by hand (32 places in application, request, response, view and the router), `Object.hasOwn`, and similar. Functions keep their `name` and `length` | | master | Medium | bench and harness | |
 | [ ] | ETags through the one-shot `crypto.hash()` instead of the `createHash().update().digest()` chain, with the same output. A quick local measurement: about 2x faster on an 11-byte body, 1.1–1.4x at 16 KB (machine under load; CI numbers decide) | | master | Small | bench and harness | |
 | [ ] | The same built-ins pass in every fork of a dependency, measured in each fork's own benchmark | | master | Large | each fork's bench and harness | |

@@ -34,7 +34,7 @@ The full plan, with a decision for every open upstream issue and pull request, i
 * **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
 * **Our own copies of `router` and `send`** (see [VENDORED.md](VENDORED.md)), so routing and file-sending bugs can be fixed here.
 * **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.
-* **Built-in TypeScript types** (see [TypeScript](#typescript)).
+* **Built-in TypeScript types and an ES module entry** (see [TypeScript and ES modules](#typescript-and-es-modules)).
 
 Coming next: bug fixes, speed-ups and strict TypeScript, all on the drop-in line. See [ROADMAP.md](ROADMAP.md).
 
@@ -50,7 +50,7 @@ npm install github:abedmurrar/express
 
 It installs under the name `express`, so `require('express')` keeps working.
 
-## TypeScript
+## TypeScript and ES modules
 
 The package ships its own TypeScript types, so you don't need `@types/express`:
 
@@ -86,6 +86,8 @@ Imports from `express-serve-static-core` keep working while another `@types` pac
 ```
 
 The names apps import from there (`ParamsDictionary`, `Query`, `RouteParameters`, `PathParams` and the like) can also come from `express` itself.
+
+For ES modules, `import express, { Router, json, static as serveStatic } from 'express'` loads `index.mjs`, a thin wrapper over the CommonJS build: `import` and `require` give the same objects, so there is only one copy of Express. `require('express')` and its export shape are unchanged from Express 5.3.0.
 
 ## Documentation
 

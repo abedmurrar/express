@@ -5,6 +5,7 @@
   ],
   "include": [
     "index.js",
+    "index.mjs",
     "lib/**/*.js",
     "src/**/*.js",
     "src/**/*.ts"

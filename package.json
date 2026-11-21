@@ -27,7 +27,23 @@
     "app",
     "api"
   ],
+  "main": "index.js",
   "types": "typings/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./typings/index.d.mts",
+        "default": "./index.mjs"
+      },
+      "require": {
+        "types": "./typings/index.d.ts",
+        "default": "./index.js"
+      }
+    },
+    "./lib/*.js": "./lib/*.js",
+    "./lib/*": "./lib/*.js",
+    "./package.json": "./package.json"
+  },
   "dependencies": {
     "accepts": "^2.0.0",
     "body-parser": "^2.4.0",
@@ -125,9 +141,11 @@
     "LICENSE",
     "Readme.md",
     "index.js",
+    "index.mjs",
     "lib/**/*.js",
     "lib/**/LICENSE",
-    "typings/*.d.ts"
+    "typings/*.d.ts",
+    "typings/*.d.mts"
   ],
   "scripts": {
     "lint": "biome ci .",

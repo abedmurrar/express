@@ -91,3 +91,6 @@ If your code imports from `express-serve-static-core`, those imports keep workin
 
 The names usually imported from there, such as `ParamsDictionary`, `Query`, `RouteParameters` and `PathParams`, are also exported by `express`.
 
+## ES modules
+
+`import express from 'express'` and named imports such as `import { Router, json, static as serveStatic } from 'express'` load `index.mjs`, a thin ES module wrapper over the CommonJS build. Both entries give the same objects, so an app that mixes `import` and `require` still has one copy of Express. `require('express')` keeps the export shape of Express 5.3.0, and deep requires such as `require('express/lib/express')` still work.

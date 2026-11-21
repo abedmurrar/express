@@ -17,6 +17,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **Fewer dependencies.** The `merge-descriptors`, `once` and `wrappy` packages are gone, replaced by short built-in equivalents with the same behaviour.
 - **Project links** in `package.json` point to the fork, and upstream's `funding` entry is removed.
 - **Built-in TypeScript types.** The package ships types ported from `@types/express` 5.0.6 and `@types/express-serve-static-core` 5.1.3, so `@types/express` is no longer needed and code written for it compiles unchanged. See [Install the fork](./install#typescript).
+- **An ES module entry.** `import` loads `index.mjs`, a thin wrapper over the CommonJS build with the same named exports Node gives Express 5.3.0, so `import` and `require` share one copy of Express. `package.json` now has an `exports` map; it keeps `require('express')`, `require('express/lib/...')` and `require('express/package.json')` working, and other paths inside the package can no longer be required.
 
 ## Tests that guard the drop-in promise
 

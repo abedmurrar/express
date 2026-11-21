@@ -11,6 +11,7 @@ on:
     paths:
       - 'src/**'
       - 'index.js'
+      - 'index.mjs'
       - 'typings/**'
       - 'package.json'
       - 'tsconfig.build.json'

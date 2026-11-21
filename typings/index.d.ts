@@ -1,5 +1,6 @@
 /*!
- * Public types for Express.
+ * Public types for Express, for `require('express')` and TypeScript's CommonJS
+ * resolution. typings/index.d.mts gives the same types to `import`.
  *
  * Ported from @types/express 5.0.6 (DefinitelyTyped,
  * https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express)

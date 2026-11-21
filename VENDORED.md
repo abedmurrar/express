@@ -4,12 +4,14 @@ This fork keeps its own copies of the packages it needs to change. Each one keep
 
 | Package | Upstream | Version | Upstream commit | Our copy | Tests |
 |---|---|---|---|---|---|
-| `router` | https://github.com/pillarjs/router | 2.3.0 | `d4f4d863` | `lib/router/` | `test/router/` |
+| `router` | https://github.com/pillarjs/router | 2.2.0 | `e6d6b60` | `lib/router/` | `test/router/` |
 | `send` | https://github.com/pillarjs/send | 1.2.1 | `096a6148` | `lib/send/` | `test/send/` (plus `test/send/fixtures/`) |
 
 Why these two: most of the routing bugs and routing performance work are in `router`. The empty-body bug for `/proc` files (#4944) is in `send`.
 
-`router` 2.3.0 is the version a fresh install of upstream Express 5.3.0 already gets, because its range is `^2.2.0`. So vendoring it changes nothing for those users. Compared with 2.2.0 it fixes a rewritten `req.url` losing a slash in a mounted router (upstream issue #4059, pillarjs/router#206). It also adds `router.listRoutes()` (pillarjs/router#174) and the request tracing channels (pillarjs/router#196).
+Both copies are the same versions Express 5.3.0 installs here, and match the installed packages line for line except for the edits listed below.
+
+`router` 2.3.0 (published 2026-11-17) is not vendored yet. This machine's npm config only accepts releases at least 7 days old, so it waits until 2026-11-24 and goes in as a re-sync. It fixes a rewritten `req.url` losing a slash in a mounted router (upstream issue #4059, pillarjs/router#206), and adds `router.listRoutes()` (pillarjs/router#174) and request tracing channels (pillarjs/router#196).
 
 `express.static` still uses the `serve-static` package, which brings its own copy of `send`. Our `lib/send` is used only by `res.sendFile` and `res.download`.
 
@@ -21,10 +23,8 @@ Why these two: most of the routing bugs and routing performance work are in `rou
 
 ### router tests
 
-- `require('..')` changed to `require('../../lib/router')`, and `require('../lib/layer')` changed to `require('../../lib/router/lib/layer')`. `require.resolve('..')` changed the same way in `test/router/tracing.js`.
+- `require('..')` changed to `require('../../lib/router')`.
 - Added `require('node:buffer')` in `support/utils.js`, `router.js` and `route.js`, for the same lint rule.
-- Removed two `eslint-disable-next-line n/handle-callback-err` comments in `tracing.js`, because Express's ESLint config doesn't load that plugin.
-- `index.d.ts`, `lib/route.d.ts`, `test/types*` and the TypeScript setup were not copied.
 
 ### send
 

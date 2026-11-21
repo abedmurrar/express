@@ -2,8 +2,8 @@ const assert = require('assert')
 const finalhandler = require('finalhandler')
 const http = require('http')
 const { METHODS } = require('node:http')
-const { Buffer } = require('node:buffer')
 const request = require('supertest')
+const { Buffer } = require('node:buffer')
 
 const methods = METHODS.map((method) => method.toLowerCase())
 

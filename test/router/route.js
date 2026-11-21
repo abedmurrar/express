@@ -1,8 +1,8 @@
 const { it, describe } = require('mocha')
 const series = require('run-series')
 const Router = require('../../lib/router')
-const { Buffer } = require('node:buffer')
 const utils = require('./support/utils')
+const { Buffer } = require('node:buffer')
 
 const assert = utils.assert
 const createHitHandle = utils.createHitHandle

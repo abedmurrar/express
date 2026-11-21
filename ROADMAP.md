@@ -62,7 +62,7 @@ Docs ride along with each item.
 | [x] | Vendor `router` 2.2.0 into `lib/router` | | master | Medium | router's own tests pass in our suite; every repro unchanged | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [x] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [x] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |
-| [ ] | Support Node 22, 24 and 26 only: `engines` `>= 22`, CI matrix 22, 24 and 26 on Linux and Windows, remove the legacy (Node 16 and 17) workflow, and README and docs updated | PR #7552, discussions#236 | both | Small | CI runs on 22, 24 and 26 only; npm warns when installing on older Node | |
+| [x] | Support Node 22, 24 and 26 only: `engines` `>= 22`, CI matrix 22, 24 and 26 on Linux and Windows, remove the legacy (Node 16 and 17) workflow, and README and docs updated | PR #7552, discussions#236 | both | Small | CI runs on 22, 24 and 26 only; npm warns when installing on older Node | [#12](https://github.com/abedmurrar/express/pull/12) |
 | [ ] | Biome replaces ESLint: lint rules mapped one to one (unused variables except rest siblings and caught errors, `==` only against `null`, no global `Buffer`), the pre-commit hook runs `biome check` on staged files, and `eslint`, `globals` and `eslint.config.js` are removed. No Prettier | PRs #6118, #6480, #6912 | master | Small | the same findings as the ESLint setup on the file with every rule's violation, and 0 on the repo | |
 | [ ] | Format the whole repo with Biome's formatter in one PR, right before the TypeScript conversion, so later diffs stay readable | | master | Medium | no behaviour change: all tests, the differential harness and the coverage gate pass unchanged | |
 | [ ] | Re-sync the vendored router to 2.3.0 once it is 7 days old (from 2026-11-24) | #4059, router#206, router#174, router#196 | master | Small | router tests, harness, repro 4059 | |
@@ -198,7 +198,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
-| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; Biome replaces it, Foundation row), `c8` instead of `nyc`, TypeScript 7, and mocha 12 on master once Node 22 is the minimum | | | Update | both |
+| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; Biome replaces it, Foundation row), `c8` instead of `nyc`, TypeScript 7, and mocha 12 on master (done, #12) | | | Update | both |
 
 ## Bug fixes on the compatible line
 

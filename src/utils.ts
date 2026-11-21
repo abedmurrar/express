@@ -228,15 +228,14 @@ export function compileTrust(val: unknown): TrustFunction {
     }
   }
 
-  var list = val
-  if (typeof val === 'string') {
-    // Support comma-separated values
-    list = val.split(',').map(function (v) {
-      return v.trim()
-    })
-  }
-
-  return proxyaddr.compile((list || []) as string | string[])
+  // Support comma-separated values
+  return proxyaddr.compile(
+    (typeof val === 'string'
+      ? val.split(',').map(function (v) {
+          return v.trim()
+        })
+      : val || []) as string | string[]
+  )
 }
 
 /**

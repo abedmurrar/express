@@ -34,7 +34,7 @@ The full plan, with a decision for every open upstream issue and pull request, i
 * **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
 * **Our own copies of `router` and `send`** (see [VENDORED.md](VENDORED.md)), so routing and file-sending bugs can be fixed here.
 * **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.
-* **Built-in TypeScript types and an ES module entry** (see [TypeScript and ES modules](#typescript-and-es-modules)).
+* **Built-in TypeScript types and an ES module entry** (see [TypeScript and ES modules](#typescript-and-es-modules)), checked by type tests and [`attw`](https://github.com/arethetypeswrong/arethetypeswrong.github.io).
 
 Coming next: bug fixes, speed-ups and strict TypeScript, all on the drop-in line. See [ROADMAP.md](ROADMAP.md).
 
@@ -104,6 +104,8 @@ git config core.hooksPath .githooks   # lint staged files and check commit messa
 npm test                              # all tests
 npm run test-ci                       # all tests, with the 100% coverage gate
 npm run lint                          # Biome
+npm run test:types                    # type tests (strict, loose, @types/express snippets) and the type-size budget
+npm run attw                          # check the packed types and exports with Are the Types Wrong
 REGRESSIONS_ALL=1 npm test            # also run the skipped bug tests (they fail until fixed)
 PROPERTY_RUNS=10000 FUZZ_RUNS=10000 npm test   # longer property and fuzz runs (add PROPERTY_SEED / FUZZ_SEED for a new seed)
 

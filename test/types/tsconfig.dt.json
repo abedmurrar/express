@@ -1,0 +1,14 @@
+{
+  // The compat/ snippets are written for @types/express. This config compiles
+  // them against @types/express and @types/express-serve-static-core, which
+  // shows they are code those types accept; tsconfig.json and
+  // tsconfig.loose.json compile the same files against ours.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "express": ["../../node_modules/@types/express/index.d.ts"],
+      "express-serve-static-core": ["../../node_modules/@types/express-serve-static-core/index.d.ts"]
+    }
+  },
+  "include": ["compat/**/*.ts"]
+}

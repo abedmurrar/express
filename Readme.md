@@ -1,41 +1,14 @@
-<a href="https://expressjs.com/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://expressjs.com/images/logos/logo-express-white.svg">
-    <img alt="Express Logo" src="https://expressjs.com/images/logos/logo-express-black.svg" width="280">
-  </picture>
-</a>
+# A fork of Express
 
-**Fast, unopinionated, minimalist web framework for [Node.js](https://nodejs.org).**
+[![CI][ci-image]][ci-url]
+[![Benchmark][bench-image]][bench-url]
 
-## Table of contents
+This is a fork of [Express](https://github.com/expressjs/express), the web framework for Node.js, maintained at https://github.com/abedmurrar/express. It is not the official Express project, and it isn't published to npm yet.
 
-- [Installation](#installation)
-- [Features](#features)
-- [Docs \& Community](#docs--community)
-- [Quick Start](#quick-start)
-- [Philosophy](#philosophy)
-- [Examples](#examples)
-- [Contributing](#contributing)
-  - [Security Issues](#security-issues)
-  - [Running Tests](#running-tests)
-- [Current project team members](#current-project-team-members)
-  - [TC (Technical Committee)](#tc-technical-committee)
-    - [TC emeriti members](#tc-emeriti-members)
-  - [Triagers](#triagers)
-    - [Emeritus Triagers](#emeritus-triagers)
-- [License](#license)
-
-
-[![NPM Version][npm-version-image]][npm-url]
-[![NPM Downloads][npm-downloads-image]][npm-downloads-url]
-[![Linux Build][github-actions-ci-image]][github-actions-ci-url]
-[![Test Coverage][coveralls-image]][coveralls-url]
-[![OpenSSF Scorecard Badge][ossf-scorecard-badge]][ossf-scorecard-visualizer]
-
+The `master` branch is a drop-in replacement for **Express 5.3.0** on **Node.js 22, 24 and 26**. It gives the same responses byte for byte, except for bug fixes. Community middleware written for Express keeps working unchanged. Breaking changes go to a separate `6.x` line.
 
 ```js
-import express from 'express'
-
+const express = require('express')
 const app = express()
 
 app.get('/', (req, res) => {
@@ -47,236 +20,69 @@ app.listen(3000, () => {
 })
 ```
 
+## What's different from Express 5.3.0
+
+The full plan, with a decision for every open upstream issue and pull request, is in [ROADMAP.md](ROADMAP.md). The research behind it is in [research/](research/README.md). So far:
+
+* **Proof that nothing changes by accident.** Every change runs through:
+  * a differential check that sends the same requests to this fork and to Express 5.3.0 and requires identical responses;
+  * the same check with popular middleware (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit);
+  * a 100% coverage gate.
+* **Regression tests for 19 confirmed bugs**, which stay skipped until each fix lands.
+* **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
+* **Our own copies of `router` and `send`** (see [VENDORED.md](VENDORED.md)), so routing and file-sending bugs can be fixed here.
+* **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.
+
+Coming next: bug fixes, speed-ups and strict TypeScript, all on the drop-in line. See [ROADMAP.md](ROADMAP.md).
+
 ## Installation
 
-This is a [Node.js](https://nodejs.org/en/) module available through the
-[npm registry](https://www.npmjs.com/).
-
-Before installing, [download and install Node.js](https://nodejs.org/en/download/).
 Node.js 22, 24 or 26 is required. Older versions are not supported.
 
-If this is a brand new project, make sure to create a `package.json` first with
-the [`npm init` command](https://docs.npmjs.com/creating-a-package-json-file).
-
-Installation is done using the
-[`npm install` command](https://docs.npmjs.com/downloading-and-installing-packages-locally):
+The fork isn't on npm yet. To try it, install it from GitHub:
 
 ```bash
-npm install express
+npm install github:abedmurrar/express
 ```
 
-Follow [our installing guide](https://expressjs.com/en/starter/installing.html)
-for more information.
+It installs under the name `express`, so `require('express')` keeps working.
 
-## Features
+## Documentation
 
-  * Robust routing
-  * Focus on high performance
-  * Super-high test coverage
-  * HTTP helpers (redirection, caching, etc)
-  * View system supporting 14+ template engines
-  * Content negotiation
-  * Executable for generating applications quickly
+The Express 5 documentation at https://expressjs.com applies to this fork, apart from the changes listed in [History.md](History.md). A docs site for the fork is on the roadmap.
 
-## Docs & Community
-
-  * [Website and Documentation](https://expressjs.com/) - [[website repo](https://github.com/expressjs/expressjs.com)]
-  * [GitHub Organization](https://github.com/expressjs) for Official Middleware & Modules
-  * [GitHub Discussions](https://github.com/expressjs/discussions) for discussion on the development and usage of Express
-
-**PROTIP** Be sure to read the [migration guide to v5](https://expressjs.com/en/guide/migrating-5)
-
-## Quick Start
-
-  The quickest way to get started with express is to utilize the executable [`express(1)`](https://github.com/expressjs/generator) to generate an application as shown below:
-
-  Install the executable. The executable's major version will match Express's:
+## Development
 
 ```bash
-npm install -g express-generator@4
-```
-
-  Create the app:
-
-```bash
-express /tmp/foo && cd /tmp/foo
-```
-
-  Install dependencies:
-
-```bash
+git clone https://github.com/abedmurrar/express.git && cd express
 npm install
+git config core.hooksPath .githooks   # lint staged files and check commit messages
+
+npm test                              # all tests
+npm run test-ci                       # all tests, with the 100% coverage gate
+npm run lint                          # Biome
+REGRESSIONS_ALL=1 npm test            # also run the skipped bug tests (they fail until fixed)
+
+npm run bench:install && npm run bench   # the benchmark comparison (about 25 minutes)
 ```
 
-  Start the server:
+Each change is one pull request in this repository, following the "Definition of done" in [ROADMAP.md](ROADMAP.md). Commits use the GitHub noreply address and carry no `Co-Authored-By` lines.
 
-```bash
-npm start
-```
+## Security
 
-  View the website at: http://localhost:3000
+To report a security problem in this fork, see [SECURITY.md](SECURITY.md).
 
-## Philosophy
+## Credit
 
-  The Express philosophy is to provide small, robust tooling for HTTP servers, making
-  it a great solution for single page applications, websites, hybrids, or public
-  HTTP APIs.
+Express was created by [TJ Holowaychuk](https://github.com/tj) and is maintained by the [Express team and its contributors](https://github.com/expressjs/express/graphs/contributors). Everything here builds on their work. Upstream pull requests taken into this fork keep their authors.
 
-  Express does not force you to use any specific ORM or template engine. With support for over
-  14 template engines via [@ladjs/consolidate](https://github.com/ladjs/consolidate),
-  you can quickly craft your perfect framework.
-
-## Examples
-
-  To view the examples, clone the Express repository:
-
-```bash
-git clone https://github.com/expressjs/express.git --depth 1 && cd express
-```
-
-  Then install the dependencies:
-
-```bash
-npm install
-```
-
-  Then run whichever example you want:
-
-```bash
-node examples/content-negotiation
-```
-
-## Contributing
-
-The Express.js project welcomes all constructive contributions. Contributions take many forms,
-from code for bug fixes and enhancements, to additions and fixes to documentation, additional
-tests, triaging incoming pull requests and issues, and more!
-
-See the [Contributing Guide] for more technical details on contributing.
-
-This project has a [Code of Conduct]. By participating, you are expected to uphold this code.
-
-### Security Issues
-
-If you discover a security vulnerability in Express, please see [Security Policies and Procedures](https://github.com/expressjs/express/security/policy).
-
-### Running Tests
-
-To run the test suite, first install the dependencies:
-
-```bash
-npm install
-```
-
-Then run `npm test`:
-
-```bash
-npm test
-```
-
-## Current project team members
-
-For information about the governance of the express.js project, see [GOVERNANCE.md](https://github.com/expressjs/discussions/blob/HEAD/docs/GOVERNANCE.md).
-
-The original author of Express is [TJ Holowaychuk](https://github.com/tj)
-
-[List of all contributors](https://github.com/expressjs/express/graphs/contributors)
-
-### TC (Technical Committee)
-
-* [UlisesGascon](https://github.com/UlisesGascon) - **Ulises Gascón** (he/him)
-* [jonchurch](https://github.com/jonchurch) - **Jon Church**
-* [wesleytodd](https://github.com/wesleytodd) - **Wes Todd**
-* [LinusU](https://github.com/LinusU) - **Linus Unnebäck**
-* [blakeembrey](https://github.com/blakeembrey) - **Blake Embrey**
-* [sheplu](https://github.com/sheplu) - **Jean Burellier**
-* [crandmck](https://github.com/crandmck) - **Rand McKinney**
-* [ctcpip](https://github.com/ctcpip) - **Chris de Almeida**
-
-<details>
-<summary>TC emeriti members</summary>
-
-#### TC emeriti members
-
-  * [dougwilson](https://github.com/dougwilson) - **Douglas Wilson**
-  * [hacksparrow](https://github.com/hacksparrow) - **Hage Yaapa**
-  * [jonathanong](https://github.com/jonathanong) - **jongleberry**
-  * [niftylettuce](https://github.com/niftylettuce) - **niftylettuce**
-  * [troygoode](https://github.com/troygoode) - **Troy Goode**
-</details>
-
-
-### Triagers
-
-* [aravindvnair99](https://github.com/aravindvnair99) - **Aravind Nair**
-* [bjohansebas](https://github.com/bjohansebas) - **Sebastian Beltran**
-* [carpasse](https://github.com/carpasse) - **Carlos Serrano**
-* [CBID2](https://github.com/CBID2) - **Christine Belzie**
-* [UlisesGascon](https://github.com/UlisesGascon) - **Ulises Gascón** (he/him)
-* [IamLizu](https://github.com/IamLizu) - **S M Mahmudul Hasan** (he/him)
-* [Phillip9587](https://github.com/Phillip9587) - **Phillip Barta**
-* [efekrskl](https://github.com/efekrskl) - **Efe Karasakal**
-* [rxmarbles](https://github.com/rxmarbles) - **Rick Markins** (he/him)
-* [krzysdz](https://github.com/krzysdz)
-* [GroophyLifefor](https://github.com/GroophyLifefor) - **Murat Kirazkaya**
-
-<details>
-<summary>Triagers emeriti members</summary>
-
-#### Emeritus Triagers
-
-  * [AuggieH](https://github.com/AuggieH) - **Auggie Hudak**
-  * [G-Rath](https://github.com/G-Rath) - **Gareth Jones**
-  * [MohammadXroid](https://github.com/MohammadXroid) - **Mohammad Ayashi**
-  * [NawafSwe](https://github.com/NawafSwe) - **Nawaf Alsharqi**
-  * [NotMoni](https://github.com/NotMoni) - **Moni**
-  * [VigneshMurugan](https://github.com/VigneshMurugan) - **Vignesh Murugan**
-  * [davidmashe](https://github.com/davidmashe) - **David Ashe**
-  * [digitaIfabric](https://github.com/digitaIfabric) - **David**
-  * [e-l-i-s-e](https://github.com/e-l-i-s-e) - **Elise Bonner**
-  * [fed135](https://github.com/fed135) - **Frederic Charette**
-  * [firmanJS](https://github.com/firmanJS) - **Firman Abdul Hakim**
-  * [getspooky](https://github.com/getspooky) - **Yasser Ameur**
-  * [ghinks](https://github.com/ghinks) - **Glenn**
-  * [ghousemohamed](https://github.com/ghousemohamed) - **Ghouse Mohamed**
-  * [gireeshpunathil](https://github.com/gireeshpunathil) - **Gireesh Punathil**
-  * [jake32321](https://github.com/jake32321) - **Jake Reed**
-  * [jonchurch](https://github.com/jonchurch) - **Jon Church**
-  * [lekanikotun](https://github.com/lekanikotun) - **Lekan Ikotun**
-  * [marsonya](https://github.com/marsonya) - **akhil marsonya**
-  * [mastermatt](https://github.com/mastermatt) - **Matt R. Wilson**
-  * [maxakuru](https://github.com/maxakuru) - **Max Edell**
-  * [mlrawlings](https://github.com/mlrawlings) - **Michael Rawlings**
-  * [rodion-arr](https://github.com/rodion-arr) - **Rodion Abdurakhimov**
-  * [sheplu](https://github.com/sheplu) - **Jean Burellier**
-  * [tarunyadav1](https://github.com/tarunyadav1) - **Tarun yadav**
-  * [tunniclm](https://github.com/tunniclm) - **Mike Tunnicliffe**
-  * [enyoghasim](https://github.com/enyoghasim) - **David Enyoghasim**
-  * [0ss](https://github.com/0ss) - **Salah**
-  * [ejcheng](https://github.com/ejcheng)- **Eric Cheng** (he/him)
-  * [dakshkhetan](https://github.com/dakshkhetan) - **Daksh Khetan** (he/him)
-  * [lucasraziel](https://github.com/lucasraziel) - **Lucas Soares Do Rego**
-  * [mertcanaltin](https://github.com/mertcanaltin) - **Mert Can Altin**
-  * [dpopp07](https://github.com/dpopp07) - **Dustin Popp**
-  * [Sushmeet](https://github.com/Sushmeet) - **Sushmeet Sunger**
-  * [3imed-jaberi](https://github.com/3imed-jaberi) - **Imed Jaberi**
-
-</details>
-
+The vendored copies of [`router`](https://github.com/pillarjs/router) and [`send`](https://github.com/pillarjs/send) keep their original licences, in `lib/router/LICENSE` and `lib/send/LICENSE`.
 
 ## License
 
-  [MIT](LICENSE)
+[MIT](LICENSE)
 
-[coveralls-image]: https://img.shields.io/coverallsCoverage/github/expressjs/express?branch=master
-[coveralls-url]: https://coveralls.io/r/expressjs/express?branch=master
-[github-actions-ci-image]: https://img.shields.io/github/actions/workflow/status/expressjs/express/ci.yml?branch=master&label=ci
-[github-actions-ci-url]: https://github.com/expressjs/express/actions/workflows/ci.yml
-[npm-downloads-image]: https://img.shields.io/npm/dm/express
-[npm-downloads-url]: https://npmcharts.com/compare/express?minimal=true
-[npm-url]: https://npmjs.org/package/express
-[npm-version-image]: https://img.shields.io/npm/v/express
-[ossf-scorecard-badge]: https://api.scorecard.dev/projects/github.com/expressjs/express/badge
-[ossf-scorecard-visualizer]: https://ossf.github.io/scorecard-visualizer/#/projects/github.com/expressjs/express
-[Code of Conduct]: https://github.com/expressjs/.github/blob/HEAD/CODE_OF_CONDUCT.md
-[Contributing Guide]: https://github.com/expressjs/.github/blob/HEAD/CONTRIBUTING.md
+[ci-image]: https://img.shields.io/github/actions/workflow/status/abedmurrar/express/ci.yml?branch=master&label=ci
+[ci-url]: https://github.com/abedmurrar/express/actions/workflows/ci.yml
+[bench-image]: https://img.shields.io/github/actions/workflow/status/abedmurrar/express/benchmark.yml?label=benchmark
+[bench-url]: https://github.com/abedmurrar/express/actions/workflows/benchmark.yml

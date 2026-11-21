@@ -4,6 +4,8 @@ Unreleased (fork)
 ## 🚀 Improvements
 
 * Add a security test suite (`test/security/`). It checks that an auth guard always runs before the route it protects, however the path is spelled (case, slashes, percent-encoding, path arrays, RegExp paths, HEAD and OPTIONS, `next('route')`); that CR and LF never inject a header or split a response; exactly where redirects point; that no query string or body pollutes `Object.prototype`; and that `res.sendFile`, `res.download` and `express.static` never serve files outside their root or dotfiles. Each group was checked to fail when its guard is broken on purpose. Cases that fail today are skipped bug tests linked to the roadmap, including a new one: a RegExp path with the `g` or `y` flag.
+* A README and security policy for the fork: what it is (a drop-in replacement for Express 5.3.0 on Node 22, 24 and 26, not the official project), how to install it from GitHub, the development commands and credit to Express. `package.json` now points to this repository, and upstream's `funding` entry is removed.
+* Add an ecosystem check (`test/ecosystem/`). Ten popular middleware packages (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit) run on the original Express 5.3.0 and on this fork, and must give byte-identical responses and log lines, including multi-request flows such as sessions. The differential helpers now live in `test/differential/support.js`.
 * Biome replaces ESLint as the only linter and formatter (`npm run lint` is `biome ci .`; the pre-commit hook runs `biome check --staged`). It keeps the old lint rules, and its formatter covers indentation, trailing spaces and final newlines. The whole repo is formatted once; that commit is listed in `.git-blame-ignore-revs`. 63 fewer packages, and no Prettier.
 * Support Node.js 22, 24 and 26 only (`engines` `>= 22`). CI runs those three versions on Linux and Windows, and the legacy Node 16 and 17 workflow is removed. mocha moves to 12.0.3, which needs Node 22.12 or later.
 * Coverage is now measured with c8 (V8's own coverage, replacing `nyc` and its 137 installed packages) and must stay at 100% of statements, branches, functions and lines, or CI fails. New tests cover the last untested paths, including the `res.redirect` deprecations, Promise-like handler results, RegExp mounts, absolute-form URLs and nested path arrays. Three branches that could never run were removed. Every supported Node version (22, 24 and 26) runs it.
@@ -2234,7 +2236,6 @@ This is the first Express 5.0 alpha release, based off 4.10.1.
     - Accept valid `Vary` header string as `field`
 
 3.16.10
-=======
 
   * deps: connect@2.25.10
     - deps: serve-static@~1.5.4
@@ -3425,7 +3426,6 @@ Shaw]
   * Fixed `{req,res}.app` reference when mounting [Ben Weaver]
 
 2.0.0rc
-=======
 
   * Fixed; expose `HTTPSServer` constructor
   * Fixed express(1) default test charset. Closes #579 [reported by secoif]
@@ -3620,7 +3620,6 @@ Shaw]
   * Fixed issue preventing error handlers from being defined anywhere. Closes #387
 
 1.0.0rc
-=======
 
   * Added mounted hook. Closes #369
   * Added connect dependency to _package.json_

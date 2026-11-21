@@ -10,7 +10,7 @@ on:
       - 'lib/**'
       - 'test/**'
       - 'package.json'
-      - '.mocharc.yml'
+      - 'vitest.config.js'
       - 'stryker.config.json'
       - '.github/workflows/mutation.yml'
   schedule:
@@ -29,7 +29,7 @@ jobs:
   stryker:
     name: Stryker on lib/
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -43,19 +43,13 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --include=dev
 
-      # @stryker-mutator/mocha-runner 10.1.1 can't load mocha 12, which renamed
-      # its cli files to .cjs (stryker-mutator/stryker-js#6239, fix in #6205).
-      # Until a fixed release is out, Stryker runs the same tests on mocha 11.8.0.
-      - name: Use mocha 11 for Stryker
-        run: npm install --no-save --ignore-scripts mocha@11.8.0
-
       - name: Restore the incremental file
         if: github.event_name == 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: reports/stryker-incremental.json
-          key: stryker-incremental-${{ github.run_id }}
-          restore-keys: stryker-incremental-
+          key: stryker-incremental-vitest-${{ github.run_id }}
+          restore-keys: stryker-incremental-vitest-
 
       - name: Run Stryker
         shell: bash
@@ -73,7 +67,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: reports/stryker-incremental.json
-          key: stryker-incremental-${{ github.run_id }}
+          key: stryker-incremental-vitest-${{ github.run_id }}
 
       - name: Upload the mutation report
         if: always()

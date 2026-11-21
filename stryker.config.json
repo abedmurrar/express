@@ -1,23 +1,17 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "packageManager": "npm",
-  "testRunner": "mocha",
-  "mochaOptions": {
-    "config": ".mocharc.yml"
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vitest.config.js",
+    "related": false
   },
-  "mutate": [
-    "lib/**/*.js"
-  ],
+  "mutate": ["lib/**/*.js"],
   "coverageAnalysis": "perTest",
   "tempDirName": "stryker-tmp",
   "incremental": true,
   "incrementalFile": "reports/stryker-incremental.json",
-  "reporters": [
-    "clear-text",
-    "progress",
-    "html",
-    "json"
-  ],
+  "reporters": ["clear-text", "progress", "html", "json"],
   "htmlReporter": {
     "fileName": "reports/mutation/mutation.html"
   },

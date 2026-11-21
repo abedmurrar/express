@@ -37,7 +37,7 @@ Coming next: bug fixes, speed-ups and strict TypeScript, all on the drop-in line
 
 ## Installation
 
-Node.js 22, 24 or 26 is required. Older versions are not supported.
+Node.js 22 (22.13 or later), 24 or 26 is required. Older versions are not supported.
 
 The fork isn't on npm yet. To try it, install it from GitHub:
 

@@ -37,6 +37,8 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 - `lib/send/index.js`: `hasListeners` calls `emitter.listenerCount(type)` directly. The fallback for emitters without `listenerCount` can't run on any Node version we support (it has existed since Node 3.2).
 - `lib/send/index.js`: `SendStream.prototype.error` no longer falls back to `String(status)` when a status has no standard message. Every caller passes 400, 403, 404, 412, 416 or 500, so the fallback could never run.
 
+- `lib/send/index.js`: `require('encodeurl').encodeUrl`, because encodeurl 3 is an ES module with a named export (Express itself updated to encodeurl 3).
+
 ### send tests
 
 - `require('..')` changed to `require('../../lib/send')`.

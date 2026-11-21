@@ -165,9 +165,9 @@ app.handle = function handle(req, res, callback) {
   req.res = res
   res.req = req
 
-  // alter the prototypes
-  Object.setPrototypeOf(req, this.request)
-  Object.setPrototypeOf(res, this.response)
+  // alter the prototypes, unless app.listen() already made req and res with them
+  if (Object.getPrototypeOf(req) !== this.request) Object.setPrototypeOf(req, this.request)
+  if (Object.getPrototypeOf(res) !== this.response) Object.setPrototypeOf(res, this.response)
 
   // setup locals
   if (!res.locals) {
@@ -593,13 +593,43 @@ app.render = function render(name, options, callback) {
  */
 
 app.listen = function listen() {
-  var server = http.createServer(this)
+  var server = http.createServer(
+    {
+      IncomingMessage: withPrototype(http.IncomingMessage, this.request),
+      ServerResponse: withPrototype(http.ServerResponse, this.response)
+    },
+    this
+  )
   var args = slice.call(arguments)
   if (typeof args[args.length - 1] === 'function') {
     var done = (args[args.length - 1] = once(args[args.length - 1]))
     server.once('error', done)
   }
   return server.listen.apply(server, args)
+}
+
+/**
+ * Return a constructor that makes `Base` objects whose prototype already is
+ * `proto`, so app.handle() has no prototype to swap for requests on servers
+ * made by app.listen(). Each object is checked as it's made: if `proto` no
+ * longer inherits from `Base` (its chain was pointed somewhere else, as in
+ * the "Prototype" section of the overriding guide), a plain `Base` object
+ * is made and app.handle() swaps as before.
+ *
+ * Idea from upstream PR #7555 by Nigro Simone.
+ *
+ * @param {Function} Base
+ * @param {Object} proto
+ * @return {Function}
+ * @private
+ */
+
+function withPrototype(Base, proto) {
+  function WithPrototype() {
+    return Reflect.construct(Base, arguments, proto instanceof Base ? WithPrototype : Base)
+  }
+  WithPrototype.prototype = proto
+  return WithPrototype
 }
 
 /**

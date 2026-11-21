@@ -3,7 +3,9 @@
 // Differential harness: every scenario runs on the baseline Express (5.3.0
 // from npm, installed as `express-baseline`) and on this repository. Status,
 // headers and body bytes must match, except for scenarios listed in
-// `allowed`, which must differ (so the list never goes stale).
+// `allowed`, which must differ (so the list never goes stale). Each scenario
+// runs twice: on http.createServer(app) and on app.listen(), which takes a
+// different path in this fork (no per-request prototype swap).
 //
 // The method of comparing two implementations response by response comes from
 // ultimate-express's test runner (https://github.com/dimdenGD/ultimate-express).
@@ -15,28 +17,35 @@ var { scenarios, allowed } = require('./scenarios')
 var { serve, sequence, close } = require('./support')
 
 describe('differential: responses match Express 5.3.0', function () {
-  scenarios.forEach(function (scenario) {
-    it(scenario.name, async function () {
-      var a = await serve(baseline, scenario.setup)
-      var b = await serve(ours, scenario.setup)
-      try {
-        var expected = (await sequence(a, [scenario.req]))[0]
-        var actual = (await sequence(b, [scenario.req]))[0]
-      } finally {
-        await close(a)
-        await close(b)
-      }
+  var modes = [
+    { prefix: '', listen: false },
+    { prefix: 'app.listen(): ', listen: true }
+  ]
 
-      if (Object.prototype.hasOwnProperty.call(allowed, scenario.name)) {
-        assert.notDeepStrictEqual(
-          actual,
-          expected,
-          'expected a difference (' + allowed[scenario.name] + '), but the responses match; remove it from `allowed`'
-        )
-        return
-      }
+  modes.forEach(function (mode) {
+    scenarios.forEach(function (scenario) {
+      it(mode.prefix + scenario.name, async function () {
+        var a = await serve(baseline, scenario.setup, mode.listen)
+        var b = await serve(ours, scenario.setup, mode.listen)
+        try {
+          var expected = (await sequence(a, [scenario.req]))[0]
+          var actual = (await sequence(b, [scenario.req]))[0]
+        } finally {
+          await close(a)
+          await close(b)
+        }
 
-      assert.deepStrictEqual(actual, expected)
+        if (Object.prototype.hasOwnProperty.call(allowed, scenario.name)) {
+          assert.notDeepStrictEqual(
+            actual,
+            expected,
+            'expected a difference (' + allowed[scenario.name] + '), but the responses match; remove it from `allowed`'
+          )
+          return
+        }
+
+        assert.deepStrictEqual(actual, expected)
+      })
     })
   })
 

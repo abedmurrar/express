@@ -10,11 +10,13 @@ var { Buffer } = require('node:buffer')
 // Headers whose value depends on the moment, not on Express.
 var VOLATILE = new Set(['date'])
 
-function serve(express, setup) {
+// `listen` true starts the app with app.listen() instead of
+// http.createServer(app); the fork skips the prototype swap there.
+function serve(express, setup, listen) {
   var app = express()
   setup(app, express)
   return new Promise(function (resolve) {
-    var server = http.createServer(app).listen(0, '127.0.0.1', function () {
+    var server = (listen ? app : http.createServer(app)).listen(0, '127.0.0.1', function () {
       resolve(server)
     })
   })

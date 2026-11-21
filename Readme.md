@@ -27,8 +27,9 @@ The full plan, with a decision for every open upstream issue and pull request, i
 * **Proof that nothing changes by accident.** Every change runs through:
   * a differential check that sends the same requests to this fork and to Express 5.3.0 and requires identical responses;
   * the same check with popular middleware (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit);
+  * a fuzzer that builds random apps and requests and runs that check on each, and property tests that check query parsing, routing, content negotiation, cookies, ranges, ETags and freshness on random inputs;
   * a 100% coverage gate.
-* **Regression tests for 19 confirmed bugs**, which stay skipped until each fix lands.
+* **Regression tests for 20 confirmed bugs**, which stay skipped until each fix lands.
 * **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
 * **Our own copies of `router` and `send`** (see [VENDORED.md](VENDORED.md)), so routing and file-sending bugs can be fixed here.
 * **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.
@@ -62,6 +63,7 @@ npm test                              # all tests
 npm run test-ci                       # all tests, with the 100% coverage gate
 npm run lint                          # Biome
 REGRESSIONS_ALL=1 npm test            # also run the skipped bug tests (they fail until fixed)
+PROPERTY_RUNS=10000 FUZZ_RUNS=10000 npm test   # longer property and fuzz runs (add PROPERTY_SEED / FUZZ_SEED for a new seed)
 
 npm run bench:install && npm run bench   # the benchmark comparison (about 25 minutes)
 ```

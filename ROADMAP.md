@@ -188,10 +188,10 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
 | [ ] | `fresh` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `http-errors` | ^2.0.0 | 2.0.1 | Update | master |
-| [ ] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Drop: `Object.defineProperties` with `Object.getOwnPropertyDescriptors` | master |
+| [x] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Dropped (#24): a three-line `mixin` with `Object.getOwnPropertyNames` and `Object.defineProperty`, same semantics (skips names the app already has) | master |
 | [ ] | `mime-types` | ^3.0.0 | 3.0.2 | Update | master |
 | [ ] | `on-finished` | ^2.4.1 | 2.4.2 | Update | master |
-| [ ] | `once` | ^1.4.0 | 1.4.0 | Drop: a three-line local helper | master |
+| [x] | `once` | ^1.4.0 | 1.4.0 | Dropped (#24): a small local `once` in `app.listen`; this also removes `wrappy` | master |
 | [ ] | `parseurl` | ^1.3.3 | 1.3.3 | Keep (WHATWG `URL` parses differently) | master |
 | [ ] | `proxy-addr` | ^2.0.8 | 2.0.8 | Keep | master |
 | [ ] | `qs` | ^6.16.0 | 6.17.1 | Update | master |

@@ -1,0 +1,704 @@
+{
+  "meta": {
+    "date": "2026-11-21T16:37:00.554Z",
+    "node": "v24.17.0",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+    "cpus": 8,
+    "loadAverageAtStart": 0.33,
+    "pinned": {
+      "server": "0,4",
+      "load": "1-3,5-7"
+    },
+    "base": "master bed5ef2b",
+    "head": "foundation/coverage-gate a5d7c7d2",
+    "rounds": 3,
+    "durationSeconds": 5,
+    "warmupSeconds": 2,
+    "connections": 50,
+    "frameworkVersions": {
+      "express-original": "5.3.0",
+      "fastify": "5.12.8",
+      "koa": "3.3.0",
+      "@koa/router": "15.7.1",
+      "@koa/bodyparser": "6.1.0",
+      "hono": "4.13.19",
+      "@hono/node-server": "2.1.11",
+      "polka": "0.5.2",
+      "autocannon": "9.0.0"
+    }
+  },
+  "rows": [
+    {
+      "scenario": "hello",
+      "target": "express 5.3.0 (npm)",
+      "rps": 34152,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36426,
+        32976,
+        34152
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "base master (bed5ef2b)",
+      "rps": 34917,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36547,
+        33870,
+        34917
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "head foundation/coverage-gate (a5d7c7d2)",
+      "rps": 34850,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38518,
+        32946,
+        34850
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "fastify",
+      "rps": 57802,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        59050,
+        55094,
+        57802
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "koa",
+      "rps": 37981,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        37904,
+        37981,
+        40010
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "hono",
+      "rps": 58250,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        58614,
+        53904,
+        58250
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "polka",
+      "rps": 54320,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        54320,
+        49827,
+        54678
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "node:http",
+      "rps": 63510,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        63936,
+        61910,
+        63510
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "express 5.3.0 (npm)",
+      "rps": 30818,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        31354,
+        25128,
+        30818
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "base master (bed5ef2b)",
+      "rps": 30587,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        31112,
+        29141,
+        30587
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "head foundation/coverage-gate (a5d7c7d2)",
+      "rps": 30866,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        30866,
+        28622,
+        31648
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "fastify",
+      "rps": 54077,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        54173,
+        47971,
+        54077
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "koa",
+      "rps": 36995,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36995,
+        30918,
+        37059
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "hono",
+      "rps": 53155,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        53155,
+        46813,
+        53456
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "polka",
+      "rps": 49309,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        49309,
+        41002,
+        50032
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "node:http",
+      "rps": 59773,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        60131,
+        49270,
+        59773
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "express 5.3.0 (npm)",
+      "rps": 33963,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        34693,
+        31928,
+        33963
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "base master (bed5ef2b)",
+      "rps": 34027,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        34734,
+        27627,
+        34027
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "head foundation/coverage-gate (a5d7c7d2)",
+      "rps": 33682,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        34117,
+        27986,
+        33682
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "fastify",
+      "rps": 58058,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        58154,
+        52227,
+        58058
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "koa",
+      "rps": 39395,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        40150,
+        32432,
+        39395
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "hono",
+      "rps": 55478,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        55478,
+        49590,
+        55581
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "polka",
+      "rps": 50730,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        50730,
+        45610,
+        50954
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "node:http",
+      "rps": 62410,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        62410,
+        58691,
+        63786
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "express 5.3.0 (npm)",
+      "rps": 31837,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32085,
+        26875,
+        31837
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "base master (bed5ef2b)",
+      "rps": 31637,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        31637,
+        30366,
+        32328
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "head foundation/coverage-gate (a5d7c7d2)",
+      "rps": 32107,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32528,
+        27790,
+        32107
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "fastify",
+      "rps": 56848,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        56848,
+        54838,
+        57738
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "koa",
+      "rps": 38205,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38467,
+        35870,
+        38205
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "hono",
+      "rps": 45680,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        45680,
+        42890,
+        45853
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "polka",
+      "rps": 47670,
+      "p50": 0,
+      "p99": 2,
+      "runs": [
+        48470,
+        45430,
+        47670
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "node:http",
+      "rps": 63667,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        63667,
+        55690,
+        63789
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "express 5.3.0 (npm)",
+      "rps": 25611,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25611,
+        22933,
+        25675
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "base master (bed5ef2b)",
+      "rps": 25691,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25691,
+        22008,
+        25906
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "head foundation/coverage-gate (a5d7c7d2)",
+      "rps": 25304,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25464,
+        22632,
+        25304
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "fastify",
+      "rps": 58109,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        58531,
+        51158,
+        58109
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "koa",
+      "rps": 27544,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        27544,
+        24152,
+        28043
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "hono",
+      "rps": 51517,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        52886,
+        45424,
+        51517
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "polka",
+      "rps": 45923,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        45923,
+        42416,
+        48042
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "node:http",
+      "rps": 44899,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        44899,
+        39114,
+        45533
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "express 5.3.0 (npm)",
+      "rps": 22763,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22795,
+        22309,
+        22763
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "base master (bed5ef2b)",
+      "rps": 22690,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22690,
+        19957,
+        22808
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "head foundation/coverage-gate (a5d7c7d2)",
+      "rps": 22741,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22878,
+        20331,
+        22741
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "fastify",
+      "rps": 36413,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36413,
+        34456,
+        39062
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "koa",
+      "rps": 22770,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22770,
+        21250,
+        23982
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "hono",
+      "rps": 34056,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        34056,
+        32549,
+        36286
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "polka",
+      "rps": 29464,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        29464,
+        27854,
+        31477
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "node:http",
+      "rps": 42230,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        40362,
+        42230,
+        44438
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "express 5.3.0 (npm)",
+      "rps": 42083,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        39954,
+        42422,
+        42083
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "base master (bed5ef2b)",
+      "rps": 42307,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        39096,
+        42307,
+        42845
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "head foundation/coverage-gate (a5d7c7d2)",
+      "rps": 42256,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        37578,
+        42467,
+        42256
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "fastify",
+      "rps": 56086,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        49981,
+        56086,
+        56784
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "koa",
+      "rps": 41354,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        37634,
+        41558,
+        41354
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "hono",
+      "rps": 51062,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        48579,
+        51702,
+        51062
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "polka",
+      "rps": 63197,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        60387,
+        63862,
+        63197
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "node:http",
+      "rps": 60810,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        56931,
+        61693,
+        60810
+      ]
+    }
+  ]
+}

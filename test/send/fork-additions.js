@@ -35,6 +35,33 @@ describe('send (fork additions)', function () {
     })
   })
 
+  // Windows reports these failures as ENOENT, so without a stub the other
+  // cases of onStatError only run on Linux and macOS.
+  ;['ENAMETOOLONG', 'ENOTDIR'].forEach(function (code) {
+    it('answers 404 when stat fails with ' + code, function (done) {
+      var realStat = fs.stat
+      var file = path.join(FIXTURES, 'name.txt')
+      var stubbed = 0
+      fs.stat = function (p, cb) {
+        if (p === file) {
+          stubbed++
+          var err = new Error(code)
+          err.code = code
+          return process.nextTick(cb, err)
+        }
+        return realStat.apply(fs, arguments)
+      }
+      var server = http.createServer(function (req, res) {
+        send(req, '/name.txt', { root: FIXTURES }).pipe(res)
+      })
+      request(server).get('/').expect(404, function (err) {
+        fs.stat = realStat
+        if (!err) assert.strictEqual(stubbed, 1, 'the fs.stat stub was not used')
+        done(err)
+      })
+    })
+  })
+
   it('restores fs.stat after the test above', function () {
     assert.strictEqual(typeof fs.stat, 'function')
     assert.notStrictEqual(fs.stat.name, '')

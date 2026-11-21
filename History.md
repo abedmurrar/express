@@ -31,6 +31,7 @@ Unreleased (fork)
 
 ## 🐞 Bug fixes
 
+* `npm test` builds `lib/` itself. The `pretest` and `prepack` hooks never ran, because the repo's `.npmrc` sets `ignore-scripts=true`, so on a fresh checkout `npm test` found no `lib/` and every test file failed to load. The hooks are removed. The release workflow now builds explicitly and fails if the package is missing `lib/` (without it, `npm publish` would have shipped no code).
 - Fixed HTTP header conflict between Content-Length and Transfer-Encoding in res.send - by [@YuryShkoda](https://github.com/YuryShkoda) in [#4893](https://github.com/expressjs/express/pull/4893)
 
 

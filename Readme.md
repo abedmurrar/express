@@ -58,7 +58,7 @@ The fork's docs site is https://abedmurrar.github.io/express/. It has the Expres
 ```bash
 git clone https://github.com/abedmurrar/express.git && cd express
 npm install
-npm run build                         # compile src/ into lib/ (npm test does this first)
+npm run build                         # compile src/ into lib/ (npm test and test-ci build first)
 git config core.hooksPath .githooks   # lint staged files and check commit messages
 
 npm test                              # all tests

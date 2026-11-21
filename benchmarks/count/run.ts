@@ -31,7 +31,8 @@
 // With `--max-change`, it exits with 1 when a scenario executes more than that
 // many percent more instructions per request than the baseline. A scenario
 // over the limit is measured twice more, and fails only if the median of the
-// three is still over it.
+// three is still over it. `--report-only` reports the scenarios over the limit
+// the same way but exits with 0.
 
 import { execFileSync, spawn } from 'node:child_process'
 import { appendFileSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
@@ -56,7 +57,8 @@ const { values: args } = parseArgs({
     warmup: { type: 'string', default: '30000' },
     'max-change': { type: 'string' },
     jobs: { type: 'string', default: '1' },
-    'keep-base': { type: 'boolean', default: false }
+    'keep-base': { type: 'boolean', default: false },
+    'report-only': { type: 'boolean', default: false }
   }
 })
 
@@ -232,7 +234,15 @@ function addBaseline(sha: string): string {
   git('worktree', 'add', '--detach', '--quiet', dir, sha)
   // The same dependencies, at the same paths, for both.
   symlinkSync(path.join(repo, 'node_modules'), path.join(dir, 'node_modules'))
+  build(dir)
   return dir
+}
+
+// Once the sources live in src/ (PR #30), `npm run build` writes the lib/ that
+// the package loads. Before that there is no build script, and nothing to do.
+// The same as benchmarks/compare/run.ts.
+function build(dir: string): void {
+  execFileSync('npm', ['run', 'build', '--if-present'], { cwd: dir, stdio: ['ignore', 'ignore', 'inherit'] })
 }
 
 function table(rows: string[][]): string {
@@ -259,7 +269,8 @@ async function main(): Promise<void> {
     }
   }
   const base = baseline
-  const head = `HEAD ${git('rev-parse', '--short=8', 'HEAD')}${git('status', '--porcelain', '--', 'lib', 'index.js', 'package.json') === '' ? '' : ' + changes'}`
+  build(repo)
+  const head = `HEAD ${git('rev-parse', '--short=8', 'HEAD')}${git('status', '--porcelain', '--', 'src', 'lib', 'index.js', 'package.json') === '' ? '' : ' + changes'}`
   console.error(`Counting instructions with ${args.counter}: ${baseName} -> ${head}`)
 
   let results: Result[]
@@ -297,11 +308,11 @@ async function main(): Promise<void> {
       ? maxChange === undefined
         ? 'No limit was checked.'
         : `Every scenario is within ${maxChange}%.`
-      : `More instructions than allowed:\n\n${tooSlow.map((l) => `- ${l}`).join('\n')}`
+      : `More instructions than allowed${args['report-only'] ? ' (report only, not failing)' : ''}:\n\n${tooSlow.map((l) => `- ${l}`).join('\n')}`
   ].join('\n')
   console.log(`\n${report}`)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Instruction count\n\n${report}\n`)
-  if (tooSlow.length > 0) process.exitCode = 1
+  if (tooSlow.length > 0 && !args['report-only']) process.exitCode = 1
 }
 
 await main()

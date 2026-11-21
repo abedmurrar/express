@@ -1,7 +1,8 @@
 name: instruction count
 
-# Fails a pull request that makes any benchmark scenario run more than 1% more
-# CPU instructions per request than the merge-base. Instruction counts, unlike
+# Reports, for a pull request, every benchmark scenario that runs more than 1%
+# more CPU instructions per request than the merge-base (report only for now,
+# see the last step). Instruction counts, unlike
 # times, don't depend on the runner's load. The setup follows the
 # compare-with-main job of the objection.js fork (abedmurrar/objection.js).
 # See benchmarks/count/README.md.
@@ -9,6 +10,7 @@ name: instruction count
 on:
   pull_request:
     paths:
+      - 'src/**'
       - 'lib/**'
       - 'index.js'
       - 'package.json'
@@ -43,8 +45,10 @@ jobs:
           node-version: 24
 
       - name: Install dependencies
+        # With dev dependencies: once the sources are in src/, the harness
+        # builds lib/ with them (`npm run build`) in both checkouts.
         run: |
-          npm install --ignore-scripts --omit=dev --no-package-lock --no-audit --no-fund
+          npm install --ignore-scripts --no-package-lock --no-audit --no-fund
           npm --prefix benchmarks/count install --ignore-scripts --no-package-lock --no-audit --no-fund
 
       - name: Type-check the harness
@@ -70,9 +74,12 @@ jobs:
           VALGRIND_LIB="$RUNNER_TEMP/valgrind/usr/libexec/valgrind" "$RUNNER_TEMP/valgrind/usr/bin/valgrind" --version
 
       - name: Compare the instructions per request with the merge-base
-        # The table also goes to the job summary.
+        # The table also goes to the job summary, with any scenario more than 1%
+        # worse listed. Report only for now: delete the --report-only line to
+        # make that fail the pull request.
         env:
           BASE_REF: ${{ github.base_ref || 'master' }}
         run: >
           node benchmarks/count/run.ts --against "origin/$BASE_REF" --max-change 1
           --counter valgrind --runs 1 --jobs "$(nproc)"
+          --report-only

@@ -22,6 +22,7 @@ const deprecate = (require('depd') as typeof import('depd'))('router')
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { MatchFunction, MatchOptions, ParamData } from 'path-to-regexp'
+import type { Route } from './route'
 
 /** Call it to pass control on, or with an error (or `'route'`, `'router'`) to skip ahead. */
 export type NextFunction = (err?: unknown) => void
@@ -34,7 +35,7 @@ export interface RouterRequest extends IncomingMessage {
   baseUrl: string
   originalUrl: string
   params: Params
-  route?: object
+  route?: Route
   next: NextFunction
 }
 
@@ -61,7 +62,7 @@ export interface Layer {
   slash: boolean
   matchers: Array<MatchFunction<Params>>
   method?: string | undefined // set by the route
-  route?: object | undefined // set by the router
+  route?: Route | undefined // set by the router
   handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
   handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
   match(path: string | null | undefined): boolean

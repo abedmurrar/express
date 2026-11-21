@@ -4,6 +4,15 @@ Unreleased (fork)
 ## 🚀 Improvements
 
 * Add mutation testing with Stryker: it makes small deliberate changes to `lib/` and checks that a test fails for each. It runs weekly and on demand for everything, and on pull requests for what changed. The first run scored 92.08%, and the build now fails below 92. New tests close gaps it found in content-type parameters, query keys like `toString`, send's error page and conditional requests, error messages, `req.protocol`, `req.hostname`, `req.fresh`, `req.is` and `OPTIONS`. `reports/mutation-baseline.md` lists the rest, and the mutants that can't change behaviour, with reasons.
+* Add a docs website (`docs/`, built with VitePress) for https://abedmurrar.github.io/express/. It has the English Express 5.x docs from expressjs.com (getting started, the guide, the 5.x API reference, the security and performance best practices and the migration guide), used under CC BY 4.0 with credit to the Express contributors, plus a Fork tab: the differences from Express 5.3.0, the compatibility promise and how it's checked, benchmarks, a roadmap summary and install steps. Every page says it's an unofficial fork and links to expressjs.com. The `docs` workflow builds it on PRs and deploys it to GitHub Pages on pushes to `master`. Its dependencies live in `docs/package.json`, so the library's install doesn't grow.
+* Add a release flow, adapted from the objection fork. `npm run release -- <patch|minor|...> [--dry-run]` checks lint and tests, bumps the version, turns "Unreleased (fork)" in History.md into a dated section, commits and tags. A `v*` tag runs CI and then publishes with npm provenance through trusted publishing. Publishing stays blocked until the package is renamed; see RELEASING.md.
+* Add a security test suite (`test/security/`). It checks that an auth guard always runs before the route it protects, however the path is spelled (case, slashes, percent-encoding, path arrays, RegExp paths, HEAD and OPTIONS, `next('route')`); that CR and LF never inject a header or split a response; exactly where redirects point; that no query string or body pollutes `Object.prototype`; and that `res.sendFile`, `res.download` and `express.static` never serve files outside their root or dotfiles. Each group was checked to fail when its guard is broken on purpose. Cases that fail today are skipped bug tests linked to the roadmap, including a new one: a RegExp path with the `g` or `y` flag.
+* Drop the `merge-descriptors`, `once` and `wrappy` packages in favour of short built-in equivalents, with the same behaviour.
+* A README and security policy for the fork: what it is (a drop-in replacement for Express 5.3.0 on Node 22, 24 and 26, not the official project), how to install it from GitHub, the development commands and credit to Express. `package.json` now points to this repository, and upstream's `funding` entry is removed.
+* Run the own test suites of cors, express-session, multer and express-rate-limit (625 tests) against Express 5.3.0 and against this fork (`npm run test:ecosystem-suites`, and the `ecosystem` CI workflow on PRs and weekly). Every test that passes on 5.3.0 must also pass here, and today all 625 do.
+* Grow the differential harness with 3,306 generated scenarios (`test/differential/generated.js`). Every `res` method and every `req` property is called with many kinds of arguments, and combined with app settings, HTTP methods, paths and request headers so that every pair of values meets at least once. They run on Express 5.3.0 and on this fork in about 6 seconds and must give byte-identical responses and error logs. There are no differences.
+* Add an ecosystem check (`test/ecosystem/`). Ten popular middleware packages (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit) run on the original Express 5.3.0 and on this fork, and must give byte-identical responses and log lines, including multi-request flows such as sessions. The differential helpers now live in `test/differential/support.js`.
+* Run the benchmark comparison in CI (the `benchmark` workflow) on every PR that touches `lib/`, `index.js`, `package.json` or `benchmarks/`. The table goes to the run summary and the results are kept as an artifact. The CPU pinning now reads the machine's CPU topology instead of assuming 8 threads.
 * Biome replaces ESLint as the only linter and formatter (`npm run lint` is `biome ci .`; the pre-commit hook runs `biome check --staged`). It keeps the old lint rules, and its formatter covers indentation, trailing spaces and final newlines. The whole repo is formatted once; that commit is listed in `.git-blame-ignore-revs`. 63 fewer packages, and no Prettier.
 * Support Node.js 22, 24 and 26 only (`engines` `>= 22`). CI runs those three versions on Linux and Windows, and the legacy Node 16 and 17 workflow is removed. mocha moves to 12.0.3, which needs Node 22.12 or later.
 * Coverage is now measured with c8 (V8's own coverage, replacing `nyc` and its 137 installed packages) and must stay at 100% of statements, branches, functions and lines, or CI fails. New tests cover the last untested paths, including the `res.redirect` deprecations, Promise-like handler results, RegExp mounts, absolute-form URLs and nested path arrays. Three branches that could never run were removed. Every supported Node version (22, 24 and 26) runs it.
@@ -2234,7 +2243,6 @@ This is the first Express 5.0 alpha release, based off 4.10.1.
     - Accept valid `Vary` header string as `field`
 
 3.16.10
-=======
 
   * deps: connect@2.25.10
     - deps: serve-static@~1.5.4
@@ -3425,7 +3433,6 @@ Shaw]
   * Fixed `{req,res}.app` reference when mounting [Ben Weaver]
 
 2.0.0rc
-=======
 
   * Fixed; expose `HTTPSServer` constructor
   * Fixed express(1) default test charset. Closes #579 [reported by secoif]
@@ -3620,7 +3627,6 @@ Shaw]
   * Fixed issue preventing error handlers from being defined anywhere. Closes #387
 
 1.0.0rc
-=======
 
   * Added mounted hook. Closes #369
   * Added connect dependency to _package.json_

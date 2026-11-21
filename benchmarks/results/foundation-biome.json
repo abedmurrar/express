@@ -1,0 +1,704 @@
+{
+  "meta": {
+    "date": "2026-11-21T17:06:00.013Z",
+    "node": "v24.17.0",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+    "cpus": 8,
+    "loadAverageAtStart": 0.39,
+    "pinned": {
+      "server": "0,4",
+      "load": "1-3,5-7"
+    },
+    "base": "master 7b7a3f65",
+    "head": "foundation/biome 937bd052",
+    "rounds": 3,
+    "durationSeconds": 5,
+    "warmupSeconds": 2,
+    "connections": 50,
+    "frameworkVersions": {
+      "express-original": "5.3.0",
+      "fastify": "5.12.8",
+      "koa": "3.3.0",
+      "@koa/router": "15.7.1",
+      "@koa/bodyparser": "6.1.0",
+      "hono": "4.13.19",
+      "@hono/node-server": "2.1.11",
+      "polka": "0.5.2",
+      "autocannon": "9.0.0"
+    }
+  },
+  "rows": [
+    {
+      "scenario": "hello",
+      "target": "express 5.3.0 (npm)",
+      "rps": 34834,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36227,
+        34834,
+        34600
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "base master (7b7a3f65)",
+      "rps": 34680,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36266,
+        34680,
+        34568
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "head foundation/biome (937bd052)",
+      "rps": 35685,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36566,
+        35685,
+        35378
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "fastify",
+      "rps": 57546,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        51638,
+        57546,
+        59958
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "koa",
+      "rps": 40182,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        35384,
+        40976,
+        40182
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "hono",
+      "rps": 57482,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        51018,
+        57482,
+        58749
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "polka",
+      "rps": 55197,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        52611,
+        55197,
+        55510
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "node:http",
+      "rps": 64381,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        63923,
+        64573,
+        64381
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "express 5.3.0 (npm)",
+      "rps": 31288,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        30981,
+        31445,
+        31288
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "base master (7b7a3f65)",
+      "rps": 31307,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        31307,
+        31547,
+        30898
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "head foundation/biome (937bd052)",
+      "rps": 31160,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        30722,
+        31160,
+        31422
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "fastify",
+      "rps": 54819,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        54819,
+        54122,
+        54954
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "koa",
+      "rps": 36944,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36944,
+        36650,
+        36970
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "hono",
+      "rps": 53910,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        54243,
+        53910,
+        52950
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "polka",
+      "rps": 50621,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        50230,
+        50621,
+        50845
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "node:http",
+      "rps": 59088,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        59088,
+        59658,
+        58518
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "express 5.3.0 (npm)",
+      "rps": 34546,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        34546,
+        34210,
+        34763
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "base master (7b7a3f65)",
+      "rps": 33506,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32070,
+        34027,
+        33506
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "head foundation/biome (937bd052)",
+      "rps": 34098,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        34338,
+        33640,
+        34098
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "fastify",
+      "rps": 57802,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        57802,
+        58883,
+        57770
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "koa",
+      "rps": 39792,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        39792,
+        39709,
+        39990
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "hono",
+      "rps": 54986,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        54986,
+        54486,
+        56426
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "polka",
+      "rps": 50806,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        50806,
+        51133,
+        50499
+      ]
+    },
+    {
+      "scenario": "params",
+      "target": "node:http",
+      "rps": 64077,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        63322,
+        64742,
+        64077
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "express 5.3.0 (npm)",
+      "rps": 32128,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32128,
+        32346,
+        30363
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "base master (7b7a3f65)",
+      "rps": 32453,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32910,
+        32453,
+        30709
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "head foundation/biome (937bd052)",
+      "rps": 32450,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        32450,
+        32635,
+        31389
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "fastify",
+      "rps": 57085,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        57680,
+        57085,
+        52938
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "koa",
+      "rps": 37590,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38390,
+        37590,
+        24994
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "hono",
+      "rps": 45219,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        45955,
+        45219,
+        35875
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "polka",
+      "rps": 48150,
+      "p50": 0,
+      "p99": 2,
+      "runs": [
+        49085,
+        48150,
+        39152
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "node:http",
+      "rps": 63059,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        63059,
+        64413,
+        60330
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "express 5.3.0 (npm)",
+      "rps": 25288,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25288,
+        25406,
+        24146
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "base master (7b7a3f65)",
+      "rps": 25259,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        25502,
+        25259,
+        24517
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "head foundation/biome (937bd052)",
+      "rps": 24795,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        24795,
+        25189,
+        24142
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "fastify",
+      "rps": 57046,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        57046,
+        58077,
+        55088
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "koa",
+      "rps": 27115,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        27454,
+        27115,
+        25221
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "hono",
+      "rps": 51165,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        51165,
+        52496,
+        48413
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "polka",
+      "rps": 47990,
+      "p50": 1,
+      "p99": 1,
+      "runs": [
+        47990,
+        48682,
+        45994
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "node:http",
+      "rps": 45008,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        45014,
+        45008,
+        42486
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "express 5.3.0 (npm)",
+      "rps": 22488,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22488,
+        22552,
+        20498
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "base master (7b7a3f65)",
+      "rps": 22635,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22635,
+        23051,
+        21458
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "head foundation/biome (937bd052)",
+      "rps": 22635,
+      "p50": 2,
+      "p99": 4,
+      "runs": [
+        22843,
+        22635,
+        20741
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "fastify",
+      "rps": 38019,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        38019,
+        38819,
+        35566
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "koa",
+      "rps": 24222,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        24344,
+        24222,
+        21896
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "hono",
+      "rps": 36178,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        36238,
+        36178,
+        33418
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "polka",
+      "rps": 31370,
+      "p50": 1,
+      "p99": 3,
+      "runs": [
+        31370,
+        31706,
+        29752
+      ]
+    },
+    {
+      "scenario": "post-json",
+      "target": "node:http",
+      "rps": 44195,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        44195,
+        44374,
+        39320
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "express 5.3.0 (npm)",
+      "rps": 41622,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        42672,
+        41622,
+        40554
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "base master (7b7a3f65)",
+      "rps": 41501,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        41501,
+        43037,
+        39402
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "head foundation/biome (937bd052)",
+      "rps": 42134,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        42211,
+        42134,
+        39112
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "fastify",
+      "rps": 54960,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        56016,
+        54960,
+        54595
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "koa",
+      "rps": 41667,
+      "p50": 1,
+      "p99": 2,
+      "runs": [
+        41782,
+        41667,
+        40522
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "hono",
+      "rps": 52726,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        52726,
+        53027,
+        49834
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "polka",
+      "rps": 62864,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        62864,
+        63642,
+        60541
+      ]
+    },
+    {
+      "scenario": "not-found",
+      "target": "node:http",
+      "rps": 61853,
+      "p50": 0,
+      "p99": 1,
+      "runs": [
+        61853,
+        62038,
+        58333
+      ]
+    }
+  ]
+}

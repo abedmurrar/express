@@ -32,3 +32,7 @@ research/bench/express-*/
 stryker-tmp
 reports/*
 !reports/mutation-baseline.md
+
+# docs site build output and cache (docs/node_modules is covered above)
+docs/.vitepress/cache/
+docs/.vitepress/dist/

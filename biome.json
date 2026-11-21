@@ -8,7 +8,10 @@
       "!benchmarks/compare/node_modules",
       "!benchmarks/compare/.refs",
       "!stryker-tmp",
-      "!reports"
+      "!reports",
+      "!docs/node_modules",
+      "!docs/.vitepress/cache",
+      "!docs/.vitepress/dist"
     ]
   },
   "formatter": {

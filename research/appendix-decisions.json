@@ -1313,8 +1313,8 @@
       "note": "6.x: removes the express.static re-export."
     },
     "7552": {
-      "decision": "cherry-pick",
-      "item": "Node.js 24 minimum",
+      "decision": "roadmap",
+      "item": "Support Node 22, 24 and 26 only: `engines` `>= 22`, CI matrix 22, 24 and 26 on Linux and Windows, remove the legacy (Node 16 and 17) workflow, and README and docs updated",
       "note": "6.x: requires Node.js 24 or higher."
     },
     "7553": {

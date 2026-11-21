@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Update `content-type` to 3.1.1, `encodeurl` to 3.0.1 and `content-disposition` to 3.0.0. They're ES modules now, and Express loads them with `require()`, so the minimum is Node.js 22.13. Responses are unchanged: `res.location` still converts its input to a string. `type-is` 3 changes what `req.is()` returns, so it waits for 6.x.
 * A README and security policy for the fork: what it is (a drop-in replacement for Express 5.3.0 on Node 22, 24 and 26, not the official project), how to install it from GitHub, the development commands and credit to Express. `package.json` now points to this repository, and upstream's `funding` entry is removed.
 * Add an ecosystem check (`test/ecosystem/`). Ten popular middleware packages (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit) run on the original Express 5.3.0 and on this fork, and must give byte-identical responses and log lines, including multi-request flows such as sessions. The differential helpers now live in `test/differential/support.js`.
 * Biome replaces ESLint as the only linter and formatter (`npm run lint` is `biome ci .`; the pre-commit hook runs `biome check --staged`). It keeps the old lint rules, and its formatter covers indentation, trailing spaces and final newlines. The whole repo is formatted once; that commit is listed in `.git-blame-ignore-revs`. 63 fewer packages, and no Prettier.

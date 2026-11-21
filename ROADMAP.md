@@ -62,9 +62,9 @@ Docs ride along with each item.
 | [x] | Vendor `router` 2.2.0 into `lib/router` | | master | Medium | router's own tests pass in our suite; every repro unchanged | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [x] | Vendor `send` 1.2.1 into `lib/send` | | master | Medium | send's own tests pass in our suite | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [x] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |
-| [ ] | Support Node 22, 24 and 26 only: `engines` `>= 22`, CI matrix 22, 24 and 26 on Linux and Windows, remove the legacy (Node 16 and 17) workflow, and README and docs updated | PR #7552, discussions#236 | both | Small | CI runs on 22, 24 and 26 only; npm warns when installing on older Node | |
-| [ ] | Biome replaces ESLint: lint rules mapped one to one (unused variables except rest siblings and caught errors, `==` only against `null`, no global `Buffer`), the pre-commit hook runs `biome check` on staged files, and `eslint`, `globals` and `eslint.config.js` are removed. No Prettier | PRs #6118, #6480, #6912 | master | Small | the same findings as the ESLint setup on the file with every rule's violation, and 0 on the repo | |
-| [ ] | Format the whole repo with Biome's formatter in one PR, right before the TypeScript conversion, so later diffs stay readable | | master | Medium | no behaviour change: all tests, the differential harness and the coverage gate pass unchanged | |
+| [x] | Support Node 22, 24 and 26 only: `engines` `>= 22`, CI matrix 22, 24 and 26 on Linux and Windows, remove the legacy (Node 16 and 17) workflow, and README and docs updated | PR #7552, discussions#236 | both | Small | CI runs on 22, 24 and 26 only; npm warns when installing on older Node | [#12](https://github.com/abedmurrar/express/pull/12) |
+| [x] | Biome replaces ESLint: lint rules mapped one to one (unused variables except rest siblings and caught errors, `==` only against `null`, no global `Buffer`), the pre-commit hook runs `biome check` on staged files, and `eslint`, `globals` and `eslint.config.js` are removed. No Prettier | PRs #6118, #6480, #6912 | master | Small | the same three lint findings as ESLint at the same positions on the file with every violation, and the formatter flags the indentation, trailing-space and final-newline cases; 0 findings on the repo | [#13](https://github.com/abedmurrar/express/pull/13) |
+| [x] | Format the whole repo with Biome's formatter in one PR, right before the TypeScript conversion, so later diffs stay readable | | master | Medium | done together with the switch, because Biome checks indentation, trailing spaces and final newlines only through its formatter. Same 2,326 tests, 100% coverage, and the differential harness unchanged; the commit is in `.git-blame-ignore-revs` | [#13](https://github.com/abedmurrar/express/pull/13) |
 | [ ] | Re-sync the vendored router to 2.3.0 once it is 7 days old (from 2026-11-24) | #4059, router#206, router#174, router#196 | master | Small | router tests, harness, repro 4059 | |
 | [x] | Update mocha and supertest | #7547, PR #7600 | master | Small | the same tests as master run and pass (2,273 passing, 19 skipped regression tests); mocha 11.8.0 here, mocha 12 (Node 20.19+) on 6.x | [#7](https://github.com/abedmurrar/express/pull/7) |
 | [x] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | 8 ported with their authors (35 more tests, all passing); #6703's tests were already on master | [#8](https://github.com/abedmurrar/express/pull/8) |
@@ -138,7 +138,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | the CI gate fails on any uncovered line | |
+| [x] | Coverage measured with V8 coverage (`c8`), enforced at 100% lines and branches for `lib/` | | master | Medium | 100% statements, branches, functions and lines; `test-ci` exits 1 when the new tests are removed. Two commented `c8 ignore` lines: the never-called `Router.prototype` function and a race guard in `sendFile` | [#10](https://github.com/abedmurrar/express/pull/10) |
 | [ ] | Mutation testing (Stryker) on `lib/`, with a minimum score; every surviving mutant gets a test or a written reason | | master | Large | mutation report committed | |
 | [ ] | Grow the differential harness to 1,000+ scenarios, generated from every `res`/`req` method, argument type, setting, HTTP method and header combination | | master | Large | 0 unexplained diffs | |
 | [ ] | Property-based tests (fast-check) for query parsing, path matching, content negotiation, cookies, ranges, ETag and freshness | | master | Large | properties hold for 10,000 runs each | |
@@ -198,7 +198,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
-| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; Biome replaces it, Foundation row), `c8` instead of `nyc`, TypeScript 7, and mocha 12 on master once Node 22 is the minimum | | | Update | both |
+| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; replaced by Biome, #13), `c8` instead of `nyc` (done, #10), TypeScript 7, and mocha 12 on master (done, #12) | | | Update | both |
 
 ## Bug fixes on the compatible line
 

@@ -22,6 +22,8 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 - `lib/router/index.js`: added `const { Buffer } = require('node:buffer')` to match Express's lint rule against the global `Buffer`. No behaviour change.
 - `lib/router/index.js`: renamed two function names so no file has two functions with the same name, which the coverage merge (`lcov` 2) rejects. `Router.prototype.handle` is now `function handleRequest`, and the inner `param` helper in `processParams` is now `nextParam`. Property names are unchanged; only stack-trace frame names differ. The route layer's handler keeps the name `handle`, because tools read it through `layer.name`.
 
+- `lib/router/index.js`: the function used as `Router.prototype` is now named `RouterPrototype`, so c8's lcov report doesn't list two functions called `Router`, which breaks the CI coverage merge. It also carries a `/* c8 ignore next */`, because it exists only so routers inherit from `Function` and is never called. Upstream marked it with `istanbul ignore` for the same reason.
+
 ### router tests
 
 - `require('..')` changed to `require('../../lib/router')`.
@@ -32,9 +34,17 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 - `lib/send/index.js`: added `var Buffer = require('node:buffer').Buffer`, for the same lint rule. No behaviour change.
 - `lib/send/index.js`: renamed function names for the same coverage reason. `SendStream.prototype.send` is now `function sendPath`, and the two inner `next` helpers in `sendFile` and `sendIndex` are now `nextExtension` and `nextIndex`. The exported `send` function keeps its name.
 
+- `lib/send/index.js`: `hasListeners` calls `emitter.listenerCount(type)` directly. The fallback for emitters without `listenerCount` can't run on any Node version we support (it has existed since Node 3.2).
+- `lib/send/index.js`: `SendStream.prototype.error` no longer falls back to `String(status)` when a status has no standard message. Every caller passes 400, 403, 404, 412, 416 or 500, so the fallback could never run.
+
 ### send tests
 
 - `require('..')` changed to `require('../../lib/send')`.
+- `test/send/fork-additions.js` is ours, not upstream's: it covers a trailing-separator path that stats as a file (possible on Windows).
+
+## Formatting
+
+Our copies of `router` and `send`, and their tests, are formatted with Biome like the rest of the repo (the commit listed in `.git-blame-ignore-revs`), and their unused catch bindings are written as `catch {}`. When re-syncing, diff upstream's changes between versions and apply them by hand; don't copy upstream files over ours. The `eslint-disable` comments in the copied tests are left as they are. They do nothing now.
 
 ## Dependencies
 

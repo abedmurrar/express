@@ -1,0 +1,4 @@
+# Commits that only reformat code; `git blame` skips them when
+# blame.ignoreRevsFile is set (GitHub uses this file automatically).
+# Biome formatting pass
+dd6a48825fa2af03da2d0e022f1c86165113d4f7

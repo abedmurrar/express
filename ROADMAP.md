@@ -126,11 +126,11 @@ The fork must never look like the official Express project. It keeps credit to E
 
 | Status | Item | Line | Proof | PR |
 |---|---|---|---|---|
-| [ ] | README for the fork: what it is, how it differs from Express 5.3.0 (link to this roadmap), install, credit to Express and its contributors, no Express logo | master | | |
+| [x] | README for the fork: what it is, how it differs from Express 5.3.0 (link to this roadmap), install, credit to Express and its contributors, no Express logo | says what the fork is and isn't, the drop-in promise, how to install from GitHub, development commands and credit; no Express logo | [#16](https://github.com/abedmurrar/express/pull/16) |
 | [ ] | Docs website: fork expressjs/expressjs.com, mark it clearly as the fork's docs with credit and the original licence, and publish it on GitHub Pages | master | the site builds and is live on Pages | |
 | [ ] | Docs content: our changes, new APIs, TypeScript usage, the middleware-compatibility promise, and a "differences from Express 5.3.0" page | master | | |
-| [ ] | Update every project URL to the fork: `package.json` (`homepage`, `repository`, `bugs`; remove upstream's `funding`), README links and badges (CI, scorecard), the clone instructions, the security policy, links in code comments and error messages, and the generator templates. Links that cite upstream issues, PRs and history stay pointing upstream | master | a URL check in CI that fails on project links to upstream outside the allowed list | |
-| [ ] | Our own security policy (`SECURITY.md`) for reports about the fork | master | | |
+| [~] | Update every project URL to the fork: `package.json` (`homepage`, `repository`, `bugs`; remove upstream's `funding`), README links and badges (CI, scorecard), the clone instructions, the security policy, links in code comments and error messages, and the generator templates. Links that cite upstream issues, PRs and history stay pointing upstream | master | `package.json` (homepage, repository, bugs; upstream `funding` removed), README links and badges, the clone instructions and the security policy are done. Still to do: links in code comments and error messages, the generator templates, and the CI URL check | [#16](https://github.com/abedmurrar/express/pull/16) |
+| [x] | Our own security policy (`SECURITY.md`) for reports about the fork | private vulnerability reporting is turned on for the repository | [#16](https://github.com/abedmurrar/express/pull/16) |
 
 ## Tests
 

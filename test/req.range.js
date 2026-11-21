@@ -1,10 +1,10 @@
 'use strict'
 
-var express = require('..');
+var express = require('..')
 var request = require('supertest')
 
-describe('req', function(){
-  describe('.range(size)', function(){
+describe('req', function () {
+  describe('.range(size)', function () {
     it('should return parsed ranges', function (done) {
       var app = express()
 
@@ -13,9 +13,9 @@ describe('req', function(){
       })
 
       request(app)
-      .get('/')
-      .set('Range', 'bytes=0-50,51-100')
-      .expect(200, '[{"start":0,"end":50},{"start":51,"end":100}]', done)
+        .get('/')
+        .set('Range', 'bytes=0-50,51-100')
+        .expect(200, '[{"start":0,"end":50},{"start":51,"end":100}]', done)
     })
 
     it('should cap to the given size', function (done) {
@@ -25,10 +25,7 @@ describe('req', function(){
         res.json(req.range(75))
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'bytes=0-100')
-      .expect(200, '[{"start":0,"end":74}]', done)
+      request(app).get('/').set('Range', 'bytes=0-100').expect(200, '[{"start":0,"end":74}]', done)
     })
 
     it('should cap to the given size when open-ended', function (done) {
@@ -38,10 +35,7 @@ describe('req', function(){
         res.json(req.range(75))
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'bytes=0-')
-      .expect(200, '[{"start":0,"end":74}]', done)
+      request(app).get('/').set('Range', 'bytes=0-').expect(200, '[{"start":0,"end":74}]', done)
     })
 
     it('should have a .type', function (done) {
@@ -51,10 +45,7 @@ describe('req', function(){
         res.json(req.range(120).type)
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'bytes=0-100')
-      .expect(200, '"bytes"', done)
+      request(app).get('/').set('Range', 'bytes=0-100').expect(200, '"bytes"', done)
     })
 
     it('should accept any type', function (done) {
@@ -64,10 +55,7 @@ describe('req', function(){
         res.json(req.range(120).type)
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'users=0-2')
-      .expect(200, '"users"', done)
+      request(app).get('/').set('Range', 'users=0-2').expect(200, '"users"', done)
     })
 
     it('should return undefined if no range', function (done) {
@@ -77,9 +65,7 @@ describe('req', function(){
         res.send(String(req.range(120)))
       })
 
-      request(app)
-      .get('/')
-      .expect(200, 'undefined', done)
+      request(app).get('/').expect(200, 'undefined', done)
     })
 
     it('should return -1 if range is unsatisfiable', function (done) {
@@ -89,10 +75,7 @@ describe('req', function(){
         res.json(req.range(120))
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'bytes=200-300')
-      .expect(200, '-1', done)
+      request(app).get('/').set('Range', 'bytes=200-300').expect(200, '-1', done)
     })
 
     it('should return -2 if range is syntactically invalid', function (done) {
@@ -102,28 +85,24 @@ describe('req', function(){
         res.json(req.range(120))
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'bytes 0-2')
-      .expect(200, '-2', done)
+      request(app).get('/').set('Range', 'bytes 0-2').expect(200, '-2', done)
     })
   })
 
-  describe('.range(size, options)', function(){
-    describe('with "combine: true" option', function(){
+  describe('.range(size, options)', function () {
+    describe('with "combine: true" option', function () {
       it('should return combined ranges', function (done) {
         var app = express()
 
         app.use(function (req, res) {
-          res.json(req.range(120, {
-            combine: true
-          }))
+          res.json(
+            req.range(120, {
+              combine: true
+            })
+          )
         })
 
-        request(app)
-        .get('/')
-        .set('Range', 'bytes=0-50,51-100')
-        .expect(200, '[{"start":0,"end":100}]', done)
+        request(app).get('/').set('Range', 'bytes=0-50,51-100').expect(200, '[{"start":0,"end":100}]', done)
       })
     })
 
@@ -131,30 +110,28 @@ describe('req', function(){
       var app = express()
 
       app.use(function (req, res) {
-        res.json(req.range(120, {
-          combine: true
-        }))
+        res.json(
+          req.range(120, {
+            combine: true
+          })
+        )
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'bytes=200-300')
-      .expect(200, '-1', done)
+      request(app).get('/').set('Range', 'bytes=200-300').expect(200, '-1', done)
     })
 
     it('should return -2 if range is syntactically invalid with options', function (done) {
       var app = express()
 
       app.use(function (req, res) {
-        res.json(req.range(120, {
-          combine: true
-        }))
+        res.json(
+          req.range(120, {
+            combine: true
+          })
+        )
       })
 
-      request(app)
-      .get('/')
-      .set('Range', 'bytes 0-2')
-      .expect(200, '-2', done)
+      request(app).get('/').set('Range', 'bytes 0-2').expect(200, '-2', done)
     })
   })
 })

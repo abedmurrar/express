@@ -3,7 +3,7 @@
 var assert = require('node:assert')
 var express = require('../')
 
-describe('app', function(){
+describe('app', function () {
   describe('.locals', function () {
     it('should default object with null prototype', function () {
       var app = express()

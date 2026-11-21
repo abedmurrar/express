@@ -1,41 +1,35 @@
 'use strict'
 
-var express = require('../')
-  , request = require('supertest')
-  , assert = require('node:assert');
+var express = require('../'),
+  request = require('supertest'),
+  assert = require('node:assert')
 
-describe('req', function(){
-  describe('.ip', function(){
-    describe('when X-Forwarded-For is present', function(){
-      describe('when "trust proxy" is enabled', function(){
-        it('should return the client addr', function(done){
-          var app = express();
+describe('req', function () {
+  describe('.ip', function () {
+    describe('when X-Forwarded-For is present', function () {
+      describe('when "trust proxy" is enabled', function () {
+        it('should return the client addr', function (done) {
+          var app = express()
 
-          app.enable('trust proxy');
+          app.enable('trust proxy')
 
-          app.use(function(req, res, next){
-            res.send(req.ip);
-          });
+          app.use(function (req, res, next) {
+            res.send(req.ip)
+          })
 
-          request(app)
-          .get('/')
-          .set('X-Forwarded-For', 'client, p1, p2')
-          .expect('client', done);
+          request(app).get('/').set('X-Forwarded-For', 'client, p1, p2').expect('client', done)
         })
 
         it('should return the addr after trusted proxy based on count', function (done) {
-          var app = express();
+          var app = express()
 
-          app.set('trust proxy', 2);
+          app.set('trust proxy', 2)
 
-          app.use(function(req, res, next){
-            res.send(req.ip);
-          });
+          app.use(function (req, res, next) {
+            res.send(req.ip)
+          })
 
-          request(app)
-          .get('/')
-          .set('X-Forwarded-For', 'client, p1, p2')
-          .expect('p1', done);
+          request(app).get('/').set('X-Forwarded-For', 'client, p1, p2').expect('p1', done)
         })
 
         it('should return the addr after trusted proxy based on list', function (done) {
@@ -54,33 +48,31 @@ describe('req', function(){
         })
 
         it('should return the addr after trusted proxy, from sub app', function (done) {
-          var app = express();
-          var sub = express();
+          var app = express()
+          var sub = express()
 
-          app.set('trust proxy', 2);
-          app.use(sub);
+          app.set('trust proxy', 2)
+          app.use(sub)
 
           sub.use(function (req, res, next) {
-            res.send(req.ip);
-          });
+            res.send(req.ip)
+          })
 
-          request(app)
-          .get('/')
-          .set('X-Forwarded-For', 'client, p1, p2')
-          .expect(200, 'p1', done);
+          request(app).get('/').set('X-Forwarded-For', 'client, p1, p2').expect(200, 'p1', done)
         })
       })
 
-      describe('when "trust proxy" is disabled', function(){
-        it('should return the remote address', function(done){
-          var app = express();
+      describe('when "trust proxy" is disabled', function () {
+        it('should return the remote address', function (done) {
+          var app = express()
 
-          app.use(function(req, res, next){
-            res.send(req.ip);
-          });
+          app.use(function (req, res, next) {
+            res.send(req.ip)
+          })
 
           var test = request(app).get('/')
-          test.set('X-Forwarded-For', 'client, p1, p2')
+          test
+            .set('X-Forwarded-For', 'client, p1, p2')
             .expect(200)
             .expect(checkExpectedClientAddress(test._server))
             .end(done)
@@ -88,20 +80,18 @@ describe('req', function(){
       })
     })
 
-    describe('when X-Forwarded-For is not present', function(){
-      it('should return the remote address', function(done){
-        var app = express();
+    describe('when X-Forwarded-For is not present', function () {
+      it('should return the remote address', function (done) {
+        var app = express()
 
-        app.enable('trust proxy');
+        app.enable('trust proxy')
 
-        app.use(function(req, res, next){
-          res.send(req.ip);
-        });
+        app.use(function (req, res, next) {
+          res.send(req.ip)
+        })
 
         var test = request(app).get('/')
-        test.expect(200)
-          .expect(checkExpectedClientAddress(test._server))
-          .end(done)
+        test.expect(200).expect(checkExpectedClientAddress(test._server)).end(done)
       })
     })
   })
@@ -114,7 +104,7 @@ describe('req', function(){
  */
 
 function checkExpectedClientAddress(server) {
-  var expected;
+  var expected
   if (server.listening) {
     expected = getExpectedClientAddress(server)
   } else {
@@ -132,7 +122,5 @@ function checkExpectedClientAddress(server) {
  */
 
 function getExpectedClientAddress(server) {
-  return server.address().address === '::'
-    ? '::ffff:127.0.0.1'
-    : '127.0.0.1';
+  return server.address().address === '::' ? '::ffff:127.0.0.1' : '127.0.0.1'
 }

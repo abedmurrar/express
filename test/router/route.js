@@ -30,23 +30,20 @@ describe('Router', function () {
       route.get(saw)
       route.post(saw)
 
-      series([
-        function (cb) {
-          request(server)
-            .get('/foo')
-            .expect(200, 'saw GET /foo', cb)
-        },
-        function (cb) {
-          request(server)
-            .post('/foo')
-            .expect(200, 'saw POST /foo', cb)
-        },
-        function (cb) {
-          request(server)
-            .put('/foo')
-            .expect(404, cb)
-        }
-      ], done)
+      series(
+        [
+          function (cb) {
+            request(server).get('/foo').expect(200, 'saw GET /foo', cb)
+          },
+          function (cb) {
+            request(server).post('/foo').expect(200, 'saw POST /foo', cb)
+          },
+          function (cb) {
+            request(server).put('/foo').expect(404, cb)
+          }
+        ],
+        done
+      )
     })
 
     it('should route without method', function (done) {
@@ -84,28 +81,24 @@ describe('Router', function () {
 
       router.use(saw)
 
-      series([
-        function (cb) {
-          request(server)
-            .get('/foo')
-            .expect('x-fn-2', 'hit')
-            .expect('x-fn-3', 'hit')
-            .expect(200, 'saw GET /foo', cb)
-        },
-        function (cb) {
-          request(server)
-            .post('/foo')
-            .expect('x-fn-1', 'hit')
-            .expect('x-fn-2', 'hit')
-            .expect(200, 'saw POST /foo', cb)
-        },
-        function (cb) {
-          request(server)
-            .put('/foo')
-            .expect('x-fn-2', 'hit')
-            .expect(200, 'saw PUT /foo', cb)
-        }
-      ], done)
+      series(
+        [
+          function (cb) {
+            request(server).get('/foo').expect('x-fn-2', 'hit').expect('x-fn-3', 'hit').expect(200, 'saw GET /foo', cb)
+          },
+          function (cb) {
+            request(server)
+              .post('/foo')
+              .expect('x-fn-1', 'hit')
+              .expect('x-fn-2', 'hit')
+              .expect(200, 'saw POST /foo', cb)
+          },
+          function (cb) {
+            request(server).put('/foo').expect('x-fn-2', 'hit').expect(200, 'saw PUT /foo', cb)
+          }
+        ],
+        done
+      )
     })
 
     it('should not error on empty route', function (done) {
@@ -115,18 +108,17 @@ describe('Router', function () {
 
       assert.ok(route)
 
-      series([
-        function (cb) {
-          request(server)
-            .get('/foo')
-            .expect(404, cb)
-        },
-        function (cb) {
-          request(server)
-            .head('/foo')
-            .expect(404, cb)
-        }
-      ], done)
+      series(
+        [
+          function (cb) {
+            request(server).get('/foo').expect(404, cb)
+          },
+          function (cb) {
+            request(server).head('/foo').expect(404, cb)
+          }
+        ],
+        done
+      )
     })
 
     it('should not invoke singular error route', function (done) {
@@ -134,13 +126,11 @@ describe('Router', function () {
       const route = router.route('/foo')
       const server = createServer(router)
 
-      route.all(function handleError (err, req, res, next) {
+      route.all(function handleError(err, req, res, next) {
         throw err || new Error('boom!')
       })
 
-      request(server)
-        .get('/foo')
-        .expect(404, done)
+      request(server).get('/foo').expect(404, done)
     })
 
     it('should not stack overflow with a large sync stack', function (done) {
@@ -151,14 +141,14 @@ describe('Router', function () {
       const server = createServer(router)
 
       for (let i = 0; i < 6000; i++) {
-        route.all(function (req, res, next) { next() })
+        route.all(function (req, res, next) {
+          next()
+        })
       }
 
       route.get(helloWorld)
 
-      request(server)
-        .get('/foo')
-        .expect(200, 'hello, world', done)
+      request(server).get('/foo').expect(200, 'hello, world', done)
     })
 
     describe('.all(...fn)', function () {
@@ -187,23 +177,20 @@ describe('Router', function () {
 
         route.all(saw)
 
-        series([
-          function (cb) {
-            request(server)
-              .get('/foo')
-              .expect(200, 'saw GET /foo', cb)
-          },
-          function (cb) {
-            request(server)
-              .post('/foo')
-              .expect(200, 'saw POST /foo', cb)
-          },
-          function (cb) {
-            request(server)
-              .put('/foo')
-              .expect(200, 'saw PUT /foo', cb)
-          }
-        ], done)
+        series(
+          [
+            function (cb) {
+              request(server).get('/foo').expect(200, 'saw GET /foo', cb)
+            },
+            function (cb) {
+              request(server).post('/foo').expect(200, 'saw POST /foo', cb)
+            },
+            function (cb) {
+              request(server).put('/foo').expect(200, 'saw PUT /foo', cb)
+            }
+          ],
+          done
+        )
       })
 
       it('should accept multiple arguments', function (done) {
@@ -213,11 +200,7 @@ describe('Router', function () {
 
         route.all(createHitHandle(1), createHitHandle(2), helloWorld)
 
-        request(server)
-          .get('/foo')
-          .expect('x-fn-1', 'hit')
-          .expect('x-fn-2', 'hit')
-          .expect(200, 'hello, world', done)
+        request(server).get('/foo').expect('x-fn-1', 'hit').expect('x-fn-2', 'hit').expect(200, 'hello, world', done)
       })
 
       it('should accept single array of handlers', function (done) {
@@ -227,11 +210,7 @@ describe('Router', function () {
 
         route.all([createHitHandle(1), createHitHandle(2), helloWorld])
 
-        request(server)
-          .get('/foo')
-          .expect('x-fn-1', 'hit')
-          .expect('x-fn-2', 'hit')
-          .expect(200, 'hello, world', done)
+        request(server).get('/foo').expect('x-fn-1', 'hit').expect('x-fn-2', 'hit').expect(200, 'hello, world', done)
       })
 
       it('should accept nested arrays of handlers', function (done) {
@@ -250,98 +229,99 @@ describe('Router', function () {
       })
     })
 
-    methods.slice().sort().forEach(function (method) {
-      if (method === 'connect') {
-        // CONNECT is tricky and supertest doesn't support it
-        return
-      }
-      if (method === 'query' && process.version.startsWith('v21')) {
-        return
-      }
+    methods
+      .slice()
+      .sort()
+      .forEach(function (method) {
+        if (method === 'connect') {
+          // CONNECT is tricky and supertest doesn't support it
+          return
+        }
+        if (method === 'query' && process.version.startsWith('v21')) {
+          return
+        }
 
-      const body = method !== 'head'
-        ? shouldHaveBody(Buffer.from('hello, world'))
-        : shouldNotHaveBody()
+        const body = method !== 'head' ? shouldHaveBody(Buffer.from('hello, world')) : shouldNotHaveBody()
 
-      describe('.' + method + '(...fn)', function () {
-        it('should respond to a ' + method.toUpperCase() + ' request', function (done) {
-          const router = new Router()
-          const route = router.route('/')
-          const server = createServer(router)
+        describe('.' + method + '(...fn)', function () {
+          it('should respond to a ' + method.toUpperCase() + ' request', function (done) {
+            const router = new Router()
+            const route = router.route('/')
+            const server = createServer(router)
 
-          route[method](helloWorld)
+            route[method](helloWorld)
 
-          request(server)[method]('/')
-            .expect(200)
-            .expect(body)
-            .end(done)
-        })
+            request(server)[method]('/').expect(200).expect(body).end(done)
+          })
 
-        it('should reject no arguments', function () {
-          const router = new Router()
-          const route = router.route('/')
-          assert.throws(route[method].bind(route), /argument handler is required/)
-        })
+          it('should reject no arguments', function () {
+            const router = new Router()
+            const route = router.route('/')
+            assert.throws(route[method].bind(route), /argument handler is required/)
+          })
 
-        it('should reject empty array', function () {
-          const router = new Router()
-          const route = router.route('/')
-          assert.throws(route[method].bind(route, []), /argument handler is required/)
-        })
+          it('should reject empty array', function () {
+            const router = new Router()
+            const route = router.route('/')
+            assert.throws(route[method].bind(route, []), /argument handler is required/)
+          })
 
-        it('should reject invalid fn', function () {
-          const router = new Router()
-          const route = router.route('/')
-          assert.throws(route[method].bind(route, 2), /argument handler must be a function/)
-        })
+          it('should reject invalid fn', function () {
+            const router = new Router()
+            const route = router.route('/')
+            assert.throws(route[method].bind(route, 2), /argument handler must be a function/)
+          })
 
-        it('should accept multiple arguments', function (done) {
-          const router = new Router()
-          const route = router.route('/foo')
-          const server = createServer(router)
+          it('should accept multiple arguments', function (done) {
+            const router = new Router()
+            const route = router.route('/foo')
+            const server = createServer(router)
 
-          route[method](createHitHandle(1), createHitHandle(2), helloWorld)
+            route[method](createHitHandle(1), createHitHandle(2), helloWorld)
 
-          request(server)[method]('/foo')
-            .expect(200)
-            .expect('x-fn-1', 'hit')
-            .expect('x-fn-2', 'hit')
-            .expect(body)
-            .end(done)
-        })
+            request(server)
+              [method]('/foo')
+              .expect(200)
+              .expect('x-fn-1', 'hit')
+              .expect('x-fn-2', 'hit')
+              .expect(body)
+              .end(done)
+          })
 
-        it('should accept single array of handlers', function (done) {
-          const router = new Router()
-          const route = router.route('/foo')
-          const server = createServer(router)
+          it('should accept single array of handlers', function (done) {
+            const router = new Router()
+            const route = router.route('/foo')
+            const server = createServer(router)
 
-          route[method]([createHitHandle(1), createHitHandle(2), helloWorld])
+            route[method]([createHitHandle(1), createHitHandle(2), helloWorld])
 
-          request(server)[method]('/foo')
-            .expect(200)
-            .expect('x-fn-1', 'hit')
-            .expect('x-fn-2', 'hit')
-            .expect(body)
-            .end(done)
-        })
+            request(server)
+              [method]('/foo')
+              .expect(200)
+              .expect('x-fn-1', 'hit')
+              .expect('x-fn-2', 'hit')
+              .expect(body)
+              .end(done)
+          })
 
-        it('should accept nested arrays of handlers', function (done) {
-          const router = new Router()
-          const route = router.route('/foo')
-          const server = createServer(router)
+          it('should accept nested arrays of handlers', function (done) {
+            const router = new Router()
+            const route = router.route('/foo')
+            const server = createServer(router)
 
-          route[method]([[createHitHandle(1), createHitHandle(2)], createHitHandle(3)], helloWorld)
+            route[method]([[createHitHandle(1), createHitHandle(2)], createHitHandle(3)], helloWorld)
 
-          request(server)[method]('/foo')
-            .expect(200)
-            .expect('x-fn-1', 'hit')
-            .expect('x-fn-2', 'hit')
-            .expect('x-fn-3', 'hit')
-            .expect(body)
-            .end(done)
+            request(server)
+              [method]('/foo')
+              .expect(200)
+              .expect('x-fn-1', 'hit')
+              .expect('x-fn-2', 'hit')
+              .expect('x-fn-3', 'hit')
+              .expect(body)
+              .end(done)
+          })
         })
       })
-    })
 
     describe('error handling', function () {
       it('should handle errors from next(err)', function (done) {
@@ -349,20 +329,18 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function createError (req, res, next) {
+        route.all(function createError(req, res, next) {
           next(new Error('boom!'))
         })
 
         route.all(helloWorld)
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        request(server)
-          .get('/foo')
-          .expect(500, 'caught: boom!', done)
+        request(server).get('/foo').expect(500, 'caught: boom!', done)
       })
 
       it('should handle errors thrown', function (done) {
@@ -370,20 +348,18 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function createError (req, res, next) {
+        route.all(function createError(req, res, next) {
           throw new Error('boom!')
         })
 
         route.all(helloWorld)
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        request(server)
-          .get('/foo')
-          .expect(500, 'caught: boom!', done)
+        request(server).get('/foo').expect(500, 'caught: boom!', done)
       })
 
       it('should handle errors thrown in error handlers', function (done) {
@@ -391,22 +367,20 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function createError (req, res, next) {
+        route.all(function createError(req, res, next) {
           throw new Error('boom!')
         })
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           throw new Error('ouch: ' + err.message)
         })
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        request(server)
-          .get('/foo')
-          .expect(500, 'caught: ouch: boom!', done)
+        request(server).get('/foo').expect(500, 'caught: ouch: boom!', done)
       })
     })
 
@@ -416,17 +390,14 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.get(function handle (req, res, next) {
+        route.get(function handle(req, res, next) {
           res.setHeader('x-next', 'route')
           next('route')
         })
 
         router.use(saw)
 
-        request(server)
-          .get('/foo')
-          .expect('x-next', 'route')
-          .expect(200, 'saw GET /foo', done)
+        request(server).get('/foo').expect('x-next', 'route').expect(200, 'saw GET /foo', done)
       })
 
       it('should invoke next route', function (done) {
@@ -434,17 +405,14 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.get(function handle (req, res, next) {
+        route.get(function handle(req, res, next) {
           res.setHeader('x-next', 'route')
           next('route')
         })
 
         router.route('/foo').all(saw)
 
-        request(server)
-          .get('/foo')
-          .expect('x-next', 'route')
-          .expect(200, 'saw GET /foo', done)
+        request(server).get('/foo').expect('x-next', 'route').expect(200, 'saw GET /foo', done)
       })
 
       it('should skip next handlers in route', function (done) {
@@ -453,7 +421,7 @@ describe('Router', function () {
         const server = createServer(router)
 
         route.all(createHitHandle(1))
-        route.get(function goNext (req, res, next) {
+        route.get(function goNext(req, res, next) {
           res.setHeader('x-next', 'route')
           next('route')
         })
@@ -474,20 +442,17 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function goNext (req, res, next) {
+        route.all(function goNext(req, res, next) {
           res.setHeader('x-next', 'route')
           next('route')
         })
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        request(server)
-          .get('/foo')
-          .expect('x-next', 'route')
-          .expect(404, done)
+        request(server).get('/foo').expect('x-next', 'route').expect(404, done)
       })
     })
 
@@ -497,7 +462,7 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        function handle (req, res, next) {
+        function handle(req, res, next) {
           res.setHeader('x-next', 'router')
           next('router')
         }
@@ -506,11 +471,7 @@ describe('Router', function () {
 
         router.use(saw)
 
-        request(server)
-          .get('/foo')
-          .expect('x-next', 'router')
-          .expect(shouldNotHitHandle(1))
-          .expect(404, done)
+        request(server).get('/foo').expect('x-next', 'router').expect(shouldNotHitHandle(1)).expect(404, done)
       })
 
       it('should not invoke error handlers', function (done) {
@@ -518,25 +479,22 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function goNext (req, res, next) {
+        route.all(function goNext(req, res, next) {
           res.setHeader('x-next', 'router')
           next('router')
         })
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        router.use(function handleError (err, req, res, next) {
+        router.use(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        request(server)
-          .get('/foo')
-          .expect('x-next', 'router')
-          .expect(404, done)
+        request(server).get('/foo').expect('x-next', 'router').expect(404, done)
       })
     })
 
@@ -546,20 +504,18 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function createError (req, res, next) {
+        route.all(function createError(req, res, next) {
           return Promise.reject(new Error('boom!'))
         })
 
         route.all(helloWorld)
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        request(server)
-          .get('/foo')
-          .expect(500, 'caught: boom!', done)
+        request(server).get('/foo').expect(500, 'caught: boom!', done)
       })
 
       it('should pass rejected promise without value', function (done) {
@@ -567,20 +523,18 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function createError (req, res, next) {
+        route.all(function createError(req, res, next) {
           return Promise.reject() // eslint-disable-line prefer-promise-reject-errors
         })
 
         route.all(helloWorld)
 
-        route.all(function handleError (err, req, res, next) {
+        route.all(function handleError(err, req, res, next) {
           res.statusCode = 500
           res.end('caught: ' + err.message)
         })
 
-        request(server)
-          .get('/foo')
-          .expect(500, 'caught: Rejected promise', done)
+        request(server).get('/foo').expect(500, 'caught: Rejected promise', done)
       })
 
       it('should ignore resolved promise', function (done) {
@@ -588,7 +542,7 @@ describe('Router', function () {
         const route = router.route('/foo')
         const server = createServer(router)
 
-        route.all(function createError (req, res, next) {
+        route.all(function createError(req, res, next) {
           saw(req, res)
           return Promise.resolve('foo')
         })
@@ -597,9 +551,7 @@ describe('Router', function () {
           done(new Error('Unexpected route invoke'))
         })
 
-        request(server)
-          .get('/foo')
-          .expect(200, 'saw GET /foo', done)
+        request(server).get('/foo').expect(200, 'saw GET /foo', done)
       })
 
       describe('error handling', function () {
@@ -608,22 +560,20 @@ describe('Router', function () {
           const route = router.route('/foo')
           const server = createServer(router)
 
-          route.all(function createError (req, res, next) {
+          route.all(function createError(req, res, next) {
             return Promise.reject(new Error('boom!'))
           })
 
-          route.all(function handleError (err, req, res, next) {
+          route.all(function handleError(err, req, res, next) {
             return Promise.reject(new Error('caught: ' + err.message))
           })
 
-          route.all(function handleError (err, req, res, next) {
+          route.all(function handleError(err, req, res, next) {
             res.statusCode = 500
             res.end('caught again: ' + err.message)
           })
 
-          request(server)
-            .get('/foo')
-            .expect(500, 'caught again: caught: boom!', done)
+          request(server).get('/foo').expect(500, 'caught again: caught: boom!', done)
         })
 
         it('should pass rejected promise without value', function (done) {
@@ -631,23 +581,21 @@ describe('Router', function () {
           const route = router.route('/foo')
           const server = createServer(router)
 
-          route.all(function createError (req, res, next) {
+          route.all(function createError(req, res, next) {
             return Promise.reject(new Error('boom!'))
           })
 
-          route.all(function handleError (err, req, res, next) {
+          route.all(function handleError(err, req, res, next) {
             assert.equal(err.message, 'boom!')
             return Promise.reject() // eslint-disable-line prefer-promise-reject-errors
           })
 
-          route.all(function handleError (err, req, res, next) {
+          route.all(function handleError(err, req, res, next) {
             res.statusCode = 500
             res.end('caught again: ' + err.message)
           })
 
-          request(server)
-            .get('/foo')
-            .expect(500, 'caught again: Rejected promise', done)
+          request(server).get('/foo').expect(500, 'caught again: Rejected promise', done)
         })
 
         it('should ignore resolved promise', function (done) {
@@ -655,11 +603,11 @@ describe('Router', function () {
           const route = router.route('/foo')
           const server = createServer(router)
 
-          route.all(function createError (req, res, next) {
+          route.all(function createError(req, res, next) {
             return Promise.reject(new Error('boom!'))
           })
 
-          route.all(function handleError (err, req, res, next) {
+          route.all(function handleError(err, req, res, next) {
             res.statusCode = 500
             res.end('caught: ' + err.message)
             return Promise.resolve('foo')
@@ -669,9 +617,7 @@ describe('Router', function () {
             done(new Error('Unexpected route invoke'))
           })
 
-          request(server)
-            .get('/foo')
-            .expect(500, 'caught: boom!', done)
+          request(server).get('/foo').expect(500, 'caught: boom!', done)
         })
       })
     })
@@ -685,9 +631,7 @@ describe('Router', function () {
 
           route.all(sendParams)
 
-          request(server)
-            .get('/bar')
-            .expect(200, { foo: 'bar' }, done)
+          request(server).get('/bar').expect(200, { foo: 'bar' }, done)
         })
 
         it('should match single path segment', function (done) {
@@ -697,9 +641,7 @@ describe('Router', function () {
 
           route.all(sendParams)
 
-          request(server)
-            .get('/bar/bar')
-            .expect(404, done)
+          request(server).get('/bar/bar').expect(404, done)
         })
 
         it('should work multiple times', function (done) {
@@ -709,9 +651,7 @@ describe('Router', function () {
 
           route.all(sendParams)
 
-          request(server)
-            .get('/fizz/buzz')
-            .expect(200, { foo: 'fizz', bar: 'buzz' }, done)
+          request(server).get('/fizz/buzz').expect(200, { foo: 'fizz', bar: 'buzz' }, done)
         })
 
         it('should work inside literal parentheses', function (done) {
@@ -721,9 +661,7 @@ describe('Router', function () {
 
           route.all(sendParams)
 
-          request(server)
-            .get('/tj(edit)')
-            .expect(200, { user: 'tj', op: 'edit' }, done)
+          request(server).get('/tj(edit)').expect(200, { user: 'tj', op: 'edit' }, done)
         })
 
         it('should work within arrays', function (done) {
@@ -732,18 +670,17 @@ describe('Router', function () {
           const server = createServer(router)
 
           route.all(sendParams)
-          series([
-            function (cb) {
-              request(server)
-                .get('/user/tj/poke')
-                .expect(200, { user: 'tj' }, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/user/tj/pokes')
-                .expect(200, { user: 'tj' }, cb)
-            }
-          ], done)
+          series(
+            [
+              function (cb) {
+                request(server).get('/user/tj/poke').expect(200, { user: 'tj' }, cb)
+              },
+              function (cb) {
+                request(server).get('/user/tj/pokes').expect(200, { user: 'tj' }, cb)
+              }
+            ],
+            done
+          )
         })
       })
 
@@ -754,18 +691,17 @@ describe('Router', function () {
           const server = createServer(router)
 
           route.all(sendParams)
-          series([
-            function (cb) {
-              request(server)
-                .get('/bar')
-                .expect(200, { foo: 'bar' }, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/')
-                .expect(200, {}, cb)
-            }
-          ], done)
+          series(
+            [
+              function (cb) {
+                request(server).get('/bar').expect(200, { foo: 'bar' }, cb)
+              },
+              function (cb) {
+                request(server).get('/').expect(200, {}, cb)
+              }
+            ],
+            done
+          )
         })
 
         it('should work in any segment', function (done) {
@@ -774,18 +710,17 @@ describe('Router', function () {
           const server = createServer(router)
 
           route.all(sendParams)
-          series([
-            function (cb) {
-              request(server)
-                .get('/user/bar/delete')
-                .expect(200, { foo: 'bar' }, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/user/delete')
-                .expect(200, {}, cb)
-            }
-          ], done)
+          series(
+            [
+              function (cb) {
+                request(server).get('/user/bar/delete').expect(200, { foo: 'bar' }, cb)
+              },
+              function (cb) {
+                request(server).get('/user/delete').expect(200, {}, cb)
+              }
+            ],
+            done
+          )
         })
       })
 
@@ -796,23 +731,24 @@ describe('Router', function () {
           const server = createServer(router)
 
           route.all(sendParams)
-          series([
-            function (cb) {
-              request(server)
-                .get('/')
-                .expect(200, {}, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/bar')
-                .expect(200, { foo: ['bar'] }, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/fizz/buzz')
-                .expect(200, { foo: ['fizz', 'buzz'] }, cb)
-            }
-          ], done)
+          series(
+            [
+              function (cb) {
+                request(server).get('/').expect(200, {}, cb)
+              },
+              function (cb) {
+                request(server)
+                  .get('/bar')
+                  .expect(200, { foo: ['bar'] }, cb)
+              },
+              function (cb) {
+                request(server)
+                  .get('/fizz/buzz')
+                  .expect(200, { foo: ['fizz', 'buzz'] }, cb)
+              }
+            ],
+            done
+          )
         })
 
         it('should work in any segment', function (done) {
@@ -821,23 +757,24 @@ describe('Router', function () {
           const server = createServer(router)
 
           route.all(sendParams)
-          series([
-            function (cb) {
-              request(server)
-                .get('/user/delete')
-                .expect(200, {}, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/user/bar/delete')
-                .expect(200, { foo: ['bar'] }, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/user/fizz/buzz/delete')
-                .expect(200, { foo: ['fizz', 'buzz'] }, cb)
-            }
-          ], done)
+          series(
+            [
+              function (cb) {
+                request(server).get('/user/delete').expect(200, {}, cb)
+              },
+              function (cb) {
+                request(server)
+                  .get('/user/bar/delete')
+                  .expect(200, { foo: ['bar'] }, cb)
+              },
+              function (cb) {
+                request(server)
+                  .get('/user/fizz/buzz/delete')
+                  .expect(200, { foo: ['fizz', 'buzz'] }, cb)
+              }
+            ],
+            done
+          )
         })
       })
 
@@ -849,18 +786,17 @@ describe('Router', function () {
 
           route.all(sendParams)
 
-          series([
-            function (cb) {
-              request(server)
-                .get('/foo')
-                .expect(404, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/42')
-                .expect(200, { foo: '42' }, cb)
-            }
-          ], done)
+          series(
+            [
+              function (cb) {
+                request(server).get('/foo').expect(404, cb)
+              },
+              function (cb) {
+                request(server).get('/42').expect(200, { foo: '42' }, cb)
+              }
+            ],
+            done
+          )
         })
       })
 
@@ -871,18 +807,17 @@ describe('Router', function () {
           const server = createServer(router)
 
           route.all(sendParams)
-          series([
-            function (cb) {
-              request(server)
-                .get('/page_foo')
-                .expect(404, cb)
-            },
-            function (cb) {
-              request(server)
-                .get('/page_42')
-                .expect(200, { 0: '42' }, cb)
-            }
-          ], done)
+          series(
+            [
+              function (cb) {
+                request(server).get('/page_foo').expect(404, cb)
+              },
+              function (cb) {
+                request(server).get('/page_42').expect(200, { 0: '42' }, cb)
+              }
+            ],
+            done
+          )
         })
 
         it('should not treat regexp as literal regexp', function () {
@@ -896,20 +831,20 @@ describe('Router', function () {
   })
 })
 
-function helloWorld (req, res) {
+function helloWorld(req, res) {
   res.statusCode = 200
   res.setHeader('Content-Type', 'text/plain')
   res.end('hello, world')
 }
 
-function saw (req, res) {
+function saw(req, res) {
   const msg = 'saw ' + req.method + ' ' + req.url
   res.statusCode = 200
   res.setHeader('Content-Type', 'text/plain')
   res.end(msg)
 }
 
-function sendParams (req, res) {
+function sendParams(req, res) {
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/json')
   res.end(JSON.stringify(req.params))

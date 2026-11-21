@@ -12,9 +12,7 @@ describe('FQDN url', function () {
 
     router.use(saw)
 
-    rawrequest(server)
-      .get('http://example.com/foo')
-      .expect(200, 'saw GET http://example.com/foo', done)
+    rawrequest(server).get('http://example.com/foo').expect(200, 'saw GET http://example.com/foo', done)
   })
 
   it('should strip/restore FQDN req.url', function (done) {
@@ -57,15 +55,15 @@ describe('FQDN url', function () {
   })
 })
 
-function setsaw (num) {
+function setsaw(num) {
   const name = 'x-saw-' + String(num)
-  return function hit (req, res, next) {
+  return function hit(req, res, next) {
     res.setHeader(name, req.method + ' ' + req.url)
     next()
   }
 }
 
-function saw (req, res) {
+function saw(req, res) {
   const msg = 'saw ' + req.method + ' ' + req.url
   res.statusCode = 200
   res.setHeader('Content-Type', 'text/plain')

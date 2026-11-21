@@ -13,10 +13,7 @@ describe('req.is()', function () {
       res.json(req.is('application/json'))
     })
 
-    request(app)
-      .get('/')
-      .type('application/json')
-      .expect(200, 'null', done)
+    request(app).get('/').type('application/json').expect(200, 'null', done)
   })
 
   describe('when given a mime type', function () {
@@ -27,11 +24,7 @@ describe('req.is()', function () {
         res.json(req.is('application/json'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, '"application/json"', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, '"application/json"', done)
     })
 
     it('should return false when not matching', function (done) {
@@ -41,11 +34,7 @@ describe('req.is()', function () {
         res.json(req.is('image/jpeg'))
       })
 
-      request(app)
-        .post('/')
-        .type('application/json')
-        .send('{}')
-        .expect(200, 'false', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, 'false', done)
     })
 
     it('should return false when none in list matches', function (done) {
@@ -55,11 +44,7 @@ describe('req.is()', function () {
         res.json(req.is(['image/jpeg', 'text/html']))
       })
 
-      request(app)
-        .post('/')
-        .type('application/json')
-        .send('{}')
-        .expect(200, 'false', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, 'false', done)
     })
 
     it('should ignore charset', function (done) {
@@ -69,15 +54,11 @@ describe('req.is()', function () {
         res.json(req.is('application/json'))
       })
 
-      request(app)
-        .post('/')
-        .type('application/json; charset=UTF-8')
-        .send('{}')
-        .expect(200, '"application/json"', done)
+      request(app).post('/').type('application/json; charset=UTF-8').send('{}').expect(200, '"application/json"', done)
     })
   })
 
-  describe('when content-type is not present', function(){
+  describe('when content-type is not present', function () {
     it('should return false for single type', function (done) {
       var app = express()
 
@@ -86,11 +67,7 @@ describe('req.is()', function () {
         res.json(req.is('application/json'))
       })
 
-      request(app)
-      .post('/')
-      .send('{}')
-      .unset('Content-Type')
-      .expect(200, 'false', done)
+      request(app).post('/').send('{}').unset('Content-Type').expect(200, 'false', done)
     })
 
     it('should return false for multiple types', function (done) {
@@ -101,15 +78,11 @@ describe('req.is()', function () {
         res.json(req.is(['application/json', 'image/jpeg']))
       })
 
-      request(app)
-        .post('/')
-        .send('{}')
-        .unset('Content-Type')
-        .expect(200, 'false', done)
+      request(app).post('/').send('{}').unset('Content-Type').expect(200, 'false', done)
     })
   })
 
-  describe('when given an extension', function(){
+  describe('when given an extension', function () {
     it('should lookup the mime type', function (done) {
       var app = express()
 
@@ -117,11 +90,7 @@ describe('req.is()', function () {
         res.json(req.is('json'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, '"json"', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, '"json"', done)
     })
 
     it('should lookup the first matching extension from list', function (done) {
@@ -132,21 +101,13 @@ describe('req.is()', function () {
         res.json(req.is(['json', 'html']))
       })
 
-      request(app)
-        .post('/')
-        .type('application/json')
-        .send('{}')
-        .expect(200, '"json"', cb)
+      request(app).post('/').type('application/json').send('{}').expect(200, '"json"', cb)
 
-      request(app)
-        .post('/')
-        .type('text/html')
-        .send('{}')
-        .expect(200, '"html"', cb)
+      request(app).post('/').type('text/html').send('{}').expect(200, '"html"', cb)
     })
   })
 
-  describe('when given */subtype', function(){
+  describe('when given */subtype', function () {
     it('should return the full type when matching', function (done) {
       var app = express()
 
@@ -154,11 +115,7 @@ describe('req.is()', function () {
         res.json(req.is('*/json'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, '"application/json"', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, '"application/json"', done)
     })
 
     it('should return false when not matching', function (done) {
@@ -168,11 +125,7 @@ describe('req.is()', function () {
         res.json(req.is('*/html'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, 'false', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, 'false', done)
     })
 
     it('should ignore charset', function (done) {
@@ -182,15 +135,11 @@ describe('req.is()', function () {
         res.json(req.is('*/json'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json; charset=UTF-8')
-      .send('{}')
-      .expect(200, '"application/json"', done)
+      request(app).post('/').type('application/json; charset=UTF-8').send('{}').expect(200, '"application/json"', done)
     })
   })
 
-  describe('when given type/*', function(){
+  describe('when given type/*', function () {
     it('should return the full type when matching', function (done) {
       var app = express()
 
@@ -198,11 +147,7 @@ describe('req.is()', function () {
         res.json(req.is('application/*'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, '"application/json"', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, '"application/json"', done)
     })
 
     it('should return false when not matching', function (done) {
@@ -212,11 +157,7 @@ describe('req.is()', function () {
         res.json(req.is('text/*'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, 'false', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, 'false', done)
     })
 
     it('should ignore charset', function (done) {
@@ -226,11 +167,7 @@ describe('req.is()', function () {
         res.json(req.is('application/*'))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json; charset=UTF-8')
-      .send('{}')
-      .expect(200, '"application/json"', done)
+      request(app).post('/').type('application/json; charset=UTF-8').send('{}').expect(200, '"application/json"', done)
     })
   })
 
@@ -245,14 +182,14 @@ describe('req.is()', function () {
         })
       })
 
-      request(app)
-        .post('/')
-        .type('application/json')
-        .send('{}')
-        .expect(200, {
+      request(app).post('/').type('application/json').send('{}').expect(
+        200,
+        {
           extensionFirst: 'json',
           wildcardFirst: 'application/json'
-        }, done)
+        },
+        done
+      )
     })
 
     it('should not flatten the argument', function (done) {
@@ -262,15 +199,11 @@ describe('req.is()', function () {
         res.json(req.is(['text/*', 'application/json']))
       })
 
-      request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, '"application/json"', done)
+      request(app).post('/').type('application/json').send('{}').expect(200, '"application/json"', done)
     })
   })
 
-  it('should match wildcards in list and return full type or false', function (done){
+  it('should match wildcards in list and return full type or false', function (done) {
     var app = express()
     var cb = after(3, done)
 
@@ -278,22 +211,10 @@ describe('req.is()', function () {
       res.json(req.is(['application/*', '*/jpeg']))
     })
 
-    request(app)
-      .post('/')
-      .type('image/jpeg')
-      .send('{}')
-      .expect(200, '"image/jpeg"', cb)
+    request(app).post('/').type('image/jpeg').send('{}').expect(200, '"image/jpeg"', cb)
 
-    request(app)
-      .post('/')
-      .type('text/html')
-      .send('{}')
-      .expect(200, 'false', cb)
+    request(app).post('/').type('text/html').send('{}').expect(200, 'false', cb)
 
-    request(app)
-      .post('/')
-      .type('application/json')
-      .send('{}')
-      .expect(200, '"application/json"', cb)
+    request(app).post('/').type('application/json').send('{}').expect(200, '"application/json"', cb)
   })
 })

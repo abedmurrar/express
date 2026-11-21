@@ -1,25 +1,23 @@
 'use strict'
 
 var after = require('after')
-var express = require('../')
-  , request = require('supertest');
+var express = require('../'),
+  request = require('supertest')
 
-describe('app', function(){
-  describe('.response', function(){
-    it('should extend the response prototype', function(done){
-      var app = express();
+describe('app', function () {
+  describe('.response', function () {
+    it('should extend the response prototype', function (done) {
+      var app = express()
 
-      app.response.shout = function(str){
-        this.send(str.toUpperCase());
-      };
+      app.response.shout = function (str) {
+        this.send(str.toUpperCase())
+      }
 
-      app.use(function(req, res){
-        res.shout('hey');
-      });
+      app.use(function (req, res) {
+        res.shout('hey')
+      })
 
-      request(app)
-      .get('/')
-      .expect('HEY', done);
+      request(app).get('/').expect('HEY', done)
     })
 
     it('should only extend for the referenced app', function (done) {
@@ -39,9 +37,7 @@ describe('app', function(){
         res.shout('foo')
       })
 
-      request(app1)
-        .get('/')
-        .expect(200, 'FOO', cb)
+      request(app1).get('/').expect(200, 'FOO', cb)
 
       request(app2)
         .get('/')
@@ -67,13 +63,9 @@ describe('app', function(){
         res.shout('foo')
       })
 
-      request(app1)
-        .get('/')
-        .expect(200, 'FOO', cb)
+      request(app1).get('/').expect(200, 'FOO', cb)
 
-      request(app1)
-        .get('/sub')
-        .expect(200, 'FOO', cb)
+      request(app1).get('/sub').expect(200, 'FOO', cb)
     })
 
     it('should allow sub app to override', function (done) {
@@ -99,13 +91,9 @@ describe('app', function(){
         res.shout('foo')
       })
 
-      request(app1)
-        .get('/')
-        .expect(200, 'FOO', cb)
+      request(app1).get('/').expect(200, 'FOO', cb)
 
-      request(app1)
-        .get('/sub')
-        .expect(200, 'foo!', cb)
+      request(app1).get('/sub').expect(200, 'foo!', cb)
     })
 
     it('should not pollute parent app', function (done) {
@@ -131,13 +119,9 @@ describe('app', function(){
         res.shout('foo')
       })
 
-      request(app1)
-        .get('/sub')
-        .expect(200, 'foo!', cb)
+      request(app1).get('/sub').expect(200, 'foo!', cb)
 
-      request(app1)
-        .get('/sub/foo')
-        .expect(200, 'FOO', cb)
+      request(app1).get('/sub/foo').expect(200, 'FOO', cb)
     })
   })
 })

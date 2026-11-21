@@ -18,21 +18,21 @@ exports.shouldHitHandle = shouldHitHandle
 exports.shouldNotHitHandle = shouldNotHitHandle
 exports.methods = methods
 
-function createHitHandle (num) {
+function createHitHandle(num) {
   const name = 'x-fn-' + String(num)
-  return function hit (req, res, next) {
+  return function hit(req, res, next) {
     res.setHeader(name, 'hit')
     next()
   }
 }
 
-function createServer (router) {
-  return http.createServer(function onRequest (req, res) {
+function createServer(router) {
+  return http.createServer(function onRequest(req, res) {
     router(req, res, finalhandler(req, res))
   })
 }
 
-function rawrequest (server) {
+function rawrequest(server) {
   const _headers = {}
   let _method
   let _path
@@ -42,7 +42,7 @@ function rawrequest (server) {
     _test[method] = go.bind(null, method)
   })
 
-  function expect (status, body, callback) {
+  function expect(status, body, callback) {
     if (arguments.length === 2) {
       _headers[status.toLowerCase()] = body
       return this
@@ -57,7 +57,7 @@ function rawrequest (server) {
 
     onListening.call(server)
 
-    function onListening () {
+    function onListening() {
       const addr = this.address()
       const port = addr.port
 
@@ -71,7 +71,9 @@ function rawrequest (server) {
         let buf = ''
 
         res.setEncoding('utf8')
-        res.on('data', function (s) { buf += s })
+        res.on('data', function (s) {
+          buf += s
+        })
         res.on('end', function () {
           let err = null
 
@@ -97,7 +99,7 @@ function rawrequest (server) {
     }
   }
 
-  function go (method, path) {
+  function go(method, path) {
     _method = method
     _path = path
 
@@ -109,34 +111,32 @@ function rawrequest (server) {
   return _test
 }
 
-function shouldHaveBody (buf) {
+function shouldHaveBody(buf) {
   return function (res) {
-    const body = !Buffer.isBuffer(res.body)
-      ? Buffer.from(res.text)
-      : res.body
+    const body = !Buffer.isBuffer(res.body) ? Buffer.from(res.text) : res.body
     assert.ok(body, 'response has body')
     assert.strictEqual(body.toString('hex'), buf.toString('hex'))
   }
 }
 
-function shouldHitHandle (num) {
+function shouldHitHandle(num) {
   const header = 'x-fn-' + String(num)
   return function (res) {
     assert.equal(res.headers[header], 'hit', 'should hit handle ' + num)
   }
 }
 
-function shouldNotHaveBody () {
+function shouldNotHaveBody() {
   return function (res) {
     assert.ok(res.text === '' || res.text === undefined)
   }
 }
 
-function shouldNotHitHandle (num) {
+function shouldNotHitHandle(num) {
   return shouldNotHaveHeader('x-fn-' + String(num))
 }
 
-function shouldNotHaveHeader (header) {
+function shouldNotHaveHeader(header) {
   return function (res) {
     assert.ok(!(header.toLowerCase() in res.headers), 'should not have header ' + header)
   }

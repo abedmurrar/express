@@ -1,69 +1,57 @@
 'use strict'
 
-var express = require('../')
-  , request = require('supertest')
-  , cookieParser = require('cookie-parser')
+var express = require('../'),
+  request = require('supertest'),
+  cookieParser = require('cookie-parser')
 
-describe('res', function(){
-  describe('.cookie(name, object)', function(){
-    it('should generate a JSON cookie', function(done){
-      var app = express();
+describe('res', function () {
+  describe('.cookie(name, object)', function () {
+    it('should generate a JSON cookie', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.cookie('user', { name: 'tobi' }).end();
-      });
+      app.use(function (req, res) {
+        res.cookie('user', { name: 'tobi' }).end()
+      })
 
-      request(app)
-      .get('/')
-      .expect('Set-Cookie', 'user=j%3A%7B%22name%22%3A%22tobi%22%7D; Path=/')
-      .expect(200, done)
+      request(app).get('/').expect('Set-Cookie', 'user=j%3A%7B%22name%22%3A%22tobi%22%7D; Path=/').expect(200, done)
     })
   })
 
-  describe('.cookie(name, string)', function(){
-    it('should set a cookie', function(done){
-      var app = express();
+  describe('.cookie(name, string)', function () {
+    it('should set a cookie', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.cookie('name', 'tobi').end();
-      });
+      app.use(function (req, res) {
+        res.cookie('name', 'tobi').end()
+      })
 
-      request(app)
-      .get('/')
-      .expect('Set-Cookie', 'name=tobi; Path=/')
-      .expect(200, done)
+      request(app).get('/').expect('Set-Cookie', 'name=tobi; Path=/').expect(200, done)
     })
 
-    it('should allow multiple calls', function(done){
-      var app = express();
+    it('should allow multiple calls', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.cookie('name', 'tobi');
-        res.cookie('age', 1);
-        res.cookie('gender', '?');
-        res.end();
-      });
+      app.use(function (req, res) {
+        res.cookie('name', 'tobi')
+        res.cookie('age', 1)
+        res.cookie('gender', '?')
+        res.end()
+      })
 
-      request(app)
-        .get('/')
-        .expect('Set-Cookie', 'name=tobi; Path=/,age=1; Path=/,gender=%3F; Path=/')
-        .expect(200, done)
+      request(app).get('/').expect('Set-Cookie', 'name=tobi; Path=/,age=1; Path=/,gender=%3F; Path=/').expect(200, done)
     })
   })
 
-  describe('.cookie(name, string, options)', function(){
-    it('should set params', function(done){
-      var app = express();
+  describe('.cookie(name, string, options)', function () {
+    it('should set params', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.cookie('name', 'tobi', { httpOnly: true, secure: true });
-        res.end();
-      });
+      app.use(function (req, res) {
+        res.cookie('name', 'tobi', { httpOnly: true, secure: true })
+        res.end()
+      })
 
-      request(app)
-      .get('/')
-      .expect('Set-Cookie', 'name=tobi; Path=/; HttpOnly; Secure')
-      .expect(200, done)
+      request(app).get('/').expect('Set-Cookie', 'name=tobi; Path=/; HttpOnly; Secure').expect(200, done)
     })
 
     describe('expires', function () {
@@ -83,28 +71,25 @@ describe('res', function(){
 
     describe('partitioned', function () {
       it('should set partitioned', function (done) {
-        var app = express();
+        var app = express()
 
         app.use(function (req, res) {
-          res.cookie('name', 'tobi', { partitioned: true });
-          res.end();
-        });
+          res.cookie('name', 'tobi', { partitioned: true })
+          res.end()
+        })
 
-        request(app)
-          .get('/')
-          .expect('Set-Cookie', 'name=tobi; Path=/; Partitioned')
-          .expect(200, done)
+        request(app).get('/').expect('Set-Cookie', 'name=tobi; Path=/; Partitioned').expect(200, done)
       })
     })
 
-    describe('maxAge', function(){
-      it('should expire immediately when maxAge is zero', function(done){
-        var app = express();
+    describe('maxAge', function () {
+      it('should expire immediately when maxAge is zero', function (done) {
+        var app = express()
 
-        app.use(function(req, res){
-          res.cookie('name', 'tobi', { maxAge: 0 });
-          res.end();
-        });
+        app.use(function (req, res) {
+          res.cookie('name', 'tobi', { maxAge: 0 })
+          res.end()
+        })
 
         request(app)
           .get('/')
@@ -112,13 +97,13 @@ describe('res', function(){
           .expect(200, done)
       })
 
-      it('should set relative expires', function(done){
-        var app = express();
+      it('should set relative expires', function (done) {
+        var app = express()
 
-        app.use(function(req, res){
-          res.cookie('name', 'tobi', { maxAge: 1000 });
-          res.end();
-        });
+        app.use(function (req, res) {
+          res.cookie('name', 'tobi', { maxAge: 1000 })
+          res.end()
+        })
 
         request(app)
           .get('/')
@@ -126,33 +111,31 @@ describe('res', function(){
           .expect(200, done)
       })
 
-      it('should set max-age', function(done){
-        var app = express();
+      it('should set max-age', function (done) {
+        var app = express()
 
-        app.use(function(req, res){
-          res.cookie('name', 'tobi', { maxAge: 1000 });
-          res.end();
-        });
+        app.use(function (req, res) {
+          res.cookie('name', 'tobi', { maxAge: 1000 })
+          res.end()
+        })
 
         request(app)
-        .get('/')
-        .expect('Set-Cookie', /Max-Age=1/, done)
+          .get('/')
+          .expect('Set-Cookie', /Max-Age=1/, done)
       })
 
-      it('should not mutate the options object', function(done){
-        var app = express();
+      it('should not mutate the options object', function (done) {
+        var app = express()
 
-        var options = { maxAge: 1000 };
-        var optionsCopy = { ...options };
+        var options = { maxAge: 1000 }
+        var optionsCopy = { ...options }
 
-        app.use(function(req, res){
+        app.use(function (req, res) {
           res.cookie('name', 'tobi', options)
           res.json(options)
-        });
+        })
 
-        request(app)
-        .get('/')
-        .expect(200, optionsCopy, done)
+        request(app).get('/').expect(200, optionsCopy, done)
       })
 
       it('should not throw on null', function (done) {
@@ -163,11 +146,7 @@ describe('res', function(){
           res.end()
         })
 
-        request(app)
-          .get('/')
-          .expect(200)
-          .expect('Set-Cookie', 'name=tobi; Path=/')
-          .end(done)
+        request(app).get('/').expect(200).expect('Set-Cookie', 'name=tobi; Path=/').end(done)
       })
 
       it('should not throw on undefined', function (done) {
@@ -178,11 +157,7 @@ describe('res', function(){
           res.end()
         })
 
-        request(app)
-          .get('/')
-          .expect(200)
-          .expect('Set-Cookie', 'name=tobi; Path=/')
-          .end(done)
+        request(app).get('/').expect(200).expect('Set-Cookie', 'name=tobi; Path=/').end(done)
       })
 
       it('should throw an error with invalid maxAge', function (done) {
@@ -256,53 +231,56 @@ describe('res', function(){
       })
     })
 
-    describe('signed', function(){
-      it('should generate a signed JSON cookie', function(done){
-        var app = express();
+    describe('signed', function () {
+      it('should generate a signed JSON cookie', function (done) {
+        var app = express()
 
-        app.use(cookieParser('foo bar baz'));
+        app.use(cookieParser('foo bar baz'))
 
-        app.use(function(req, res){
-          res.cookie('user', { name: 'tobi' }, { signed: true }).end();
-        });
+        app.use(function (req, res) {
+          res.cookie('user', { name: 'tobi' }, { signed: true }).end()
+        })
 
         request(app)
           .get('/')
-          .expect('Set-Cookie', 'user=s%3Aj%3A%7B%22name%22%3A%22tobi%22%7D.K20xcwmDS%2BPb1rsD95o5Jm5SqWs1KteqdnynnB7jkTE; Path=/')
+          .expect(
+            'Set-Cookie',
+            'user=s%3Aj%3A%7B%22name%22%3A%22tobi%22%7D.K20xcwmDS%2BPb1rsD95o5Jm5SqWs1KteqdnynnB7jkTE; Path=/'
+          )
           .expect(200, done)
       })
     })
 
-    describe('signed without secret', function(){
-      it('should throw an error', function(done){
-        var app = express();
+    describe('signed without secret', function () {
+      it('should throw an error', function (done) {
+        var app = express()
 
-        app.use(cookieParser());
+        app.use(cookieParser())
 
-        app.use(function(req, res){
-          res.cookie('name', 'tobi', { signed: true }).end();
-        });
+        app.use(function (req, res) {
+          res.cookie('name', 'tobi', { signed: true }).end()
+        })
 
         request(app)
-        .get('/')
-        .expect(500, /secret\S+ required for signed cookies/, done);
+          .get('/')
+          .expect(500, /secret\S+ required for signed cookies/, done)
       })
     })
 
-    describe('.signedCookie(name, string)', function(){
-      it('should set a signed cookie', function(done){
-        var app = express();
+    describe('.signedCookie(name, string)', function () {
+      it('should set a signed cookie', function (done) {
+        var app = express()
 
-        app.use(cookieParser('foo bar baz'));
+        app.use(cookieParser('foo bar baz'))
 
-        app.use(function(req, res){
-          res.cookie('name', 'tobi', { signed: true }).end();
-        });
+        app.use(function (req, res) {
+          res.cookie('name', 'tobi', { signed: true }).end()
+        })
 
         request(app)
-        .get('/')
-        .expect('Set-Cookie', 'name=s%3Atobi.xJjV2iZ6EI7C8E5kzwbfA9PVLl1ZR07UTnuTgQQ4EnQ; Path=/')
-        .expect(200, done)
+          .get('/')
+          .expect('Set-Cookie', 'name=s%3Atobi.xJjV2iZ6EI7C8E5kzwbfA9PVLl1ZR07UTnuTgQQ4EnQ; Path=/')
+          .expect(200, done)
       })
     })
   })

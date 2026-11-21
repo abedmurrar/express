@@ -5,7 +5,7 @@ var AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage
 
 var express = require('..')
 var request = require('supertest')
-const { Buffer } = require('node:buffer');
+const { Buffer } = require('node:buffer')
 
 describe('express.raw()', function () {
   before(function () {
@@ -240,7 +240,7 @@ describe('express.raw()', function () {
       it('should parse when truthy value returned', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return req.headers['content-type'] === 'application/vnd.octet'
         }
 
@@ -253,7 +253,7 @@ describe('express.raw()', function () {
       it('should work without content-type', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return true
         }
 
@@ -265,21 +265,18 @@ describe('express.raw()', function () {
       it('should not invoke without a body', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           throw new Error('oops!')
         }
 
-        request(app)
-          .get('/')
-          .expect(404, done)
+        request(app).get('/').expect(404, done)
       })
     })
   })
 
   describe('with verify option', function () {
     it('should assert value is function', function () {
-      assert.throws(createApp.bind(null, { verify: 'lol' }),
-        /TypeError: option verify must be function/)
+      assert.throws(createApp.bind(null, { verify: 'lol' }), /TypeError: option verify must be function/)
     })
 
     it('should error from verify', function (done) {
@@ -489,16 +486,18 @@ describe('express.raw()', function () {
   })
 })
 
-function createApp (options) {
+function createApp(options) {
   var app = express()
 
   app.use(express.raw(options))
 
   app.use(function (err, req, res, next) {
     res.status(err.status || 500)
-    res.send(String(req.headers['x-error-property']
-      ? err[req.headers['x-error-property']]
-      : ('[' + err.type + '] ' + err.message)))
+    res.send(
+      String(
+        req.headers['x-error-property'] ? err[req.headers['x-error-property']] : '[' + err.type + '] ' + err.message
+      )
+    )
   })
 
   app.post('/', function (req, res) {

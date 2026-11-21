@@ -12,11 +12,7 @@ describe('HEAD', function () {
 
     router.get('/users', sethit(1), saw)
 
-    request(server)
-      .head('/users')
-      .expect('Content-Type', 'text/plain')
-      .expect('x-fn-1', 'hit')
-      .expect(200, done)
+    request(server).head('/users').expect('Content-Type', 'text/plain').expect('x-fn-1', 'hit').expect(200, done)
   })
 
   it('should invoke head if prior to get', function (done) {
@@ -26,24 +22,20 @@ describe('HEAD', function () {
     router.head('/users', sethit(1), saw)
     router.get('/users', sethit(2), saw)
 
-    request(server)
-      .head('/users')
-      .expect('Content-Type', 'text/plain')
-      .expect('x-fn-1', 'hit')
-      .expect(200, done)
+    request(server).head('/users').expect('Content-Type', 'text/plain').expect('x-fn-1', 'hit').expect(200, done)
   })
 })
 
-function saw (req, res) {
+function saw(req, res) {
   const msg = 'saw ' + req.method + ' ' + req.url
   res.statusCode = 200
   res.setHeader('Content-Type', 'text/plain')
   res.end(msg)
 }
 
-function sethit (num) {
+function sethit(num) {
   const name = 'x-fn-' + String(num)
-  return function hit (req, res, next) {
+  return function hit(req, res, next) {
     res.setHeader(name, 'hit')
     next()
   }

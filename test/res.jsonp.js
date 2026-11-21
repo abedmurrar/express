@@ -1,160 +1,160 @@
 'use strict'
 
-var express = require('../')
-  , request = require('supertest')
-  , assert = require('node:assert');
-var utils = require('./support/utils');
+var express = require('../'),
+  request = require('supertest'),
+  assert = require('node:assert')
+var utils = require('./support/utils')
 
-describe('res', function(){
-  describe('.jsonp(object)', function(){
-    it('should respond with jsonp', function(done){
-      var app = express();
+describe('res', function () {
+  describe('.jsonp(object)', function () {
+    it('should respond with jsonp', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.jsonp({ count: 1 });
-      });
+      app.use(function (req, res) {
+        res.jsonp({ count: 1 })
+      })
 
       request(app)
-      .get('/?callback=something')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect(200, /something\(\{"count":1\}\);/, done);
+        .get('/?callback=something')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect(200, /something\(\{"count":1\}\);/, done)
     })
 
-    it('should use first callback parameter with jsonp', function(done){
-      var app = express();
+    it('should use first callback parameter with jsonp', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.jsonp({ count: 1 });
-      });
+      app.use(function (req, res) {
+        res.jsonp({ count: 1 })
+      })
 
       request(app)
-      .get('/?callback=something&callback=somethingelse')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect(200, /something\(\{"count":1\}\);/, done);
+        .get('/?callback=something&callback=somethingelse')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect(200, /something\(\{"count":1\}\);/, done)
     })
 
-    it('should ignore object callback parameter with jsonp', function(done){
-      var app = express();
+    it('should ignore object callback parameter with jsonp', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.jsonp({ count: 1 });
-      });
+      app.use(function (req, res) {
+        res.jsonp({ count: 1 })
+      })
 
       request(app)
-      .get('/?callback[a]=something')
-      .expect('Content-Type', 'application/json; charset=utf-8')
-      .expect(200, '{"count":1}', done)
+        .get('/?callback[a]=something')
+        .expect('Content-Type', 'application/json; charset=utf-8')
+        .expect(200, '{"count":1}', done)
     })
 
-    it('should allow renaming callback', function(done){
-      var app = express();
+    it('should allow renaming callback', function (done) {
+      var app = express()
 
-      app.set('jsonp callback name', 'clb');
+      app.set('jsonp callback name', 'clb')
 
-      app.use(function(req, res){
-        res.jsonp({ count: 1 });
-      });
+      app.use(function (req, res) {
+        res.jsonp({ count: 1 })
+      })
 
       request(app)
-      .get('/?clb=something')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect(200, /something\(\{"count":1\}\);/, done);
+        .get('/?clb=something')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect(200, /something\(\{"count":1\}\);/, done)
     })
 
-    it('should allow []', function(done){
-      var app = express();
+    it('should allow []', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.jsonp({ count: 1 });
-      });
+      app.use(function (req, res) {
+        res.jsonp({ count: 1 })
+      })
 
       request(app)
-      .get('/?callback=callbacks[123]')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect(200, /callbacks\[123\]\(\{"count":1\}\);/, done);
+        .get('/?callback=callbacks[123]')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect(200, /callbacks\[123\]\(\{"count":1\}\);/, done)
     })
 
-    it('should disallow arbitrary js', function(done){
-      var app = express();
+    it('should disallow arbitrary js', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.jsonp({});
-      });
+      app.use(function (req, res) {
+        res.jsonp({})
+      })
 
       request(app)
-      .get('/?callback=foo;bar()')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect(200, /foobar\(\{\}\);/, done);
+        .get('/?callback=foo;bar()')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect(200, /foobar\(\{\}\);/, done)
     })
 
-    it('should escape utf whitespace', function(done){
-      var app = express();
+    it('should escape utf whitespace', function (done) {
+      var app = express()
 
-      app.use(function(req, res){
-        res.jsonp({ str: '\u2028 \u2029 woot' });
-      });
-
-      request(app)
-      .get('/?callback=foo')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect(200, /foo\(\{"str":"\\u2028 \\u2029 woot"\}\);/, done);
-    });
-
-    it('should not escape utf whitespace for json fallback', function(done){
-      var app = express();
-
-      app.use(function(req, res){
-        res.jsonp({ str: '\u2028 \u2029 woot' });
-      });
+      app.use(function (req, res) {
+        res.jsonp({ str: '\u2028 \u2029 woot' })
+      })
 
       request(app)
-      .get('/')
-      .expect('Content-Type', 'application/json; charset=utf-8')
-      .expect(200, '{"str":"\u2028 \u2029 woot"}', done);
-    });
+        .get('/?callback=foo')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect(200, /foo\(\{"str":"\\u2028 \\u2029 woot"\}\);/, done)
+    })
+
+    it('should not escape utf whitespace for json fallback', function (done) {
+      var app = express()
+
+      app.use(function (req, res) {
+        res.jsonp({ str: '\u2028 \u2029 woot' })
+      })
+
+      request(app)
+        .get('/')
+        .expect('Content-Type', 'application/json; charset=utf-8')
+        .expect(200, '{"str":"\u2028 \u2029 woot"}', done)
+    })
 
     it('should include security header and prologue', function (done) {
-      var app = express();
+      var app = express()
 
-      app.use(function(req, res){
-        res.jsonp({ count: 1 });
-      });
+      app.use(function (req, res) {
+        res.jsonp({ count: 1 })
+      })
 
       request(app)
-      .get('/?callback=something')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect('X-Content-Type-Options', 'nosniff')
-      .expect(200, /^\/\*\*\//, done);
+        .get('/?callback=something')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect('X-Content-Type-Options', 'nosniff')
+        .expect(200, /^\/\*\*\//, done)
     })
 
-    it('should not override previous Content-Types with no callback', function(done){
-      var app = express();
+    it('should not override previous Content-Types with no callback', function (done) {
+      var app = express()
 
-      app.get('/', function(req, res){
-        res.type('application/vnd.example+json');
-        res.jsonp({ hello: 'world' });
-      });
+      app.get('/', function (req, res) {
+        res.type('application/vnd.example+json')
+        res.jsonp({ hello: 'world' })
+      })
 
       request(app)
-      .get('/')
-      .expect('Content-Type', 'application/vnd.example+json; charset=utf-8')
-      .expect(utils.shouldNotHaveHeader('X-Content-Type-Options'))
-      .expect(200, '{"hello":"world"}', done);
+        .get('/')
+        .expect('Content-Type', 'application/vnd.example+json; charset=utf-8')
+        .expect(utils.shouldNotHaveHeader('X-Content-Type-Options'))
+        .expect(200, '{"hello":"world"}', done)
     })
 
-    it('should override previous Content-Types with callback', function(done){
-      var app = express();
+    it('should override previous Content-Types with callback', function (done) {
+      var app = express()
 
-      app.get('/', function(req, res){
-        res.type('application/vnd.example+json');
-        res.jsonp({ hello: 'world' });
-      });
+      app.get('/', function (req, res) {
+        res.type('application/vnd.example+json')
+        res.jsonp({ hello: 'world' })
+      })
 
       request(app)
-      .get('/?callback=cb')
-      .expect('Content-Type', 'text/javascript; charset=utf-8')
-      .expect('X-Content-Type-Options', 'nosniff')
-      .expect(200, /cb\(\{"hello":"world"\}\);$/, done);
+        .get('/?callback=cb')
+        .expect('Content-Type', 'text/javascript; charset=utf-8')
+        .expect('X-Content-Type-Options', 'nosniff')
+        .expect(200, /cb\(\{"hello":"world"\}\);$/, done)
     })
 
     describe('when given undefined', function () {
@@ -232,7 +232,7 @@ describe('res', function(){
         request(app)
           .get('/?callback=cb')
           .expect('Content-Type', 'text/javascript; charset=utf-8')
-          .expect(200, '/**/ typeof cb === \'function\' && cb(42);', done)
+          .expect(200, "/**/ typeof cb === 'function' && cb(42);", done)
       })
 
       it('should invoke callback with no arguments when toJSON returns undefined', function (done) {
@@ -249,7 +249,7 @@ describe('res', function(){
         request(app)
           .get('/?callback=cb')
           .expect('Content-Type', 'text/javascript; charset=utf-8')
-          .expect(200, '/**/ typeof cb === \'function\' && cb();', done)
+          .expect(200, "/**/ typeof cb === 'function' && cb();", done)
       })
 
       it('should forward errors thrown by toJSON before sending a response', function (done) {
@@ -270,9 +270,7 @@ describe('res', function(){
           res.status(500).send('serialization failed')
         })
 
-        request(app)
-          .get('/?callback=cb')
-          .expect(500, 'serialization failed', done)
+        request(app).get('/?callback=cb').expect(500, 'serialization failed', done)
       })
     })
 
@@ -322,9 +320,9 @@ describe('res', function(){
         })
 
         request(app)
-        .get('/?callback=foo')
-        .expect('Content-Type', 'text/javascript; charset=utf-8')
-        .expect(200, /foo\({"\\u0026":"\\u2028\\u003cscript\\u003e\\u2029"}\)/, done)
+          .get('/?callback=foo')
+          .expect('Content-Type', 'text/javascript; charset=utf-8')
+          .expect(200, /foo\({"\\u0026":"\\u2028\\u003cscript\\u003e\\u2029"}\)/, done)
       })
 
       it('should not break undefined escape', function (done) {
@@ -343,46 +341,44 @@ describe('res', function(){
       })
     })
 
-    describe('"json replacer" setting', function(){
-      it('should be passed to JSON.stringify()', function(done){
-        var app = express();
+    describe('"json replacer" setting', function () {
+      it('should be passed to JSON.stringify()', function (done) {
+        var app = express()
 
-        app.set('json replacer', function(key, val){
-          return key[0] === '_'
-            ? undefined
-            : val;
-        });
+        app.set('json replacer', function (key, val) {
+          return key[0] === '_' ? undefined : val
+        })
 
-        app.use(function(req, res){
-          res.jsonp({ name: 'tobi', _id: 12345 });
-        });
+        app.use(function (req, res) {
+          res.jsonp({ name: 'tobi', _id: 12345 })
+        })
 
         request(app)
-        .get('/')
-        .expect('Content-Type', 'application/json; charset=utf-8')
-        .expect(200, '{"name":"tobi"}', done)
+          .get('/')
+          .expect('Content-Type', 'application/json; charset=utf-8')
+          .expect(200, '{"name":"tobi"}', done)
       })
     })
 
-    describe('"json spaces" setting', function(){
-      it('should be undefined by default', function(){
-        var app = express();
-        assert(undefined === app.get('json spaces'));
+    describe('"json spaces" setting', function () {
+      it('should be undefined by default', function () {
+        var app = express()
+        assert(undefined === app.get('json spaces'))
       })
 
-      it('should be passed to JSON.stringify()', function(done){
-        var app = express();
+      it('should be passed to JSON.stringify()', function (done) {
+        var app = express()
 
-        app.set('json spaces', 2);
+        app.set('json spaces', 2)
 
-        app.use(function(req, res){
-          res.jsonp({ name: 'tobi', age: 2 });
-        });
+        app.use(function (req, res) {
+          res.jsonp({ name: 'tobi', age: 2 })
+        })
 
         request(app)
-        .get('/')
-        .expect('Content-Type', 'application/json; charset=utf-8')
-        .expect(200, '{\n  "name": "tobi",\n  "age": 2\n}', done)
+          .get('/')
+          .expect('Content-Type', 'application/json; charset=utf-8')
+          .expect(200, '{\n  "name": "tobi",\n  "age": 2\n}', done)
       })
     })
   })

@@ -53,7 +53,7 @@ describe('res', function () {
       app.use(function (req, res) {
         res.set('Set-Cookie', 'pet=tobi')
         res.end()
-      });
+      })
 
       request(app)
         .get('/')
@@ -70,7 +70,7 @@ describe('res', function () {
         next()
       })
 
-      app.use(function(req, res){
+      app.use(function (req, res) {
         res.append('Set-Cookie', 'fizz=buzz')
         res.end()
       })
@@ -120,7 +120,7 @@ describe('res', function () {
   })
 })
 
-function shouldHaveHeaderValues (key, values) {
+function shouldHaveHeaderValues(key, values) {
   return function (res) {
     var headers = res.headers[key.toLowerCase()]
     assert.ok(headers, 'should have header "' + key + '"')

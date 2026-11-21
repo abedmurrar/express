@@ -2,7 +2,7 @@
 
 var assert = require('node:assert')
 var AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage
-const { Buffer } = require('node:buffer');
+const { Buffer } = require('node:buffer')
 
 var express = require('..')
 var request = require('supertest')
@@ -200,7 +200,9 @@ describe('express.urlencoded()', function () {
 
             var depth = 0
             var ref = obj.foo
-            while ((ref = ref.p)) { depth++ }
+            while ((ref = ref.p)) {
+              depth++
+            }
             assert.strictEqual(depth, 32)
           })
           .expect(200, done)
@@ -316,13 +318,17 @@ describe('express.urlencoded()', function () {
   describe('with parameterLimit option', function () {
     describe('with extended: false', function () {
       it('should reject 0', function () {
-        assert.throws(createApp.bind(null, { extended: false, parameterLimit: 0 }),
-          /TypeError: option parameterLimit must be a positive number/)
+        assert.throws(
+          createApp.bind(null, { extended: false, parameterLimit: 0 }),
+          /TypeError: option parameterLimit must be a positive number/
+        )
       })
 
       it('should reject string', function () {
-        assert.throws(createApp.bind(null, { extended: false, parameterLimit: 'beep' }),
-          /TypeError: option parameterLimit must be a positive number/)
+        assert.throws(
+          createApp.bind(null, { extended: false, parameterLimit: 'beep' }),
+          /TypeError: option parameterLimit must be a positive number/
+        )
       })
 
       it('should 413 if over limit', function (done) {
@@ -371,13 +377,17 @@ describe('express.urlencoded()', function () {
 
     describe('with extended: true', function () {
       it('should reject 0', function () {
-        assert.throws(createApp.bind(null, { extended: true, parameterLimit: 0 }),
-          /TypeError: option parameterLimit must be a positive number/)
+        assert.throws(
+          createApp.bind(null, { extended: true, parameterLimit: 0 }),
+          /TypeError: option parameterLimit must be a positive number/
+        )
       })
 
       it('should reject string', function () {
-        assert.throws(createApp.bind(null, { extended: true, parameterLimit: 'beep' }),
-          /TypeError: option parameterLimit must be a positive number/)
+        assert.throws(
+          createApp.bind(null, { extended: true, parameterLimit: 'beep' }),
+          /TypeError: option parameterLimit must be a positive number/
+        )
       })
 
       it('should 413 if over limit', function (done) {
@@ -472,11 +482,7 @@ describe('express.urlencoded()', function () {
       })
 
       it('should ignore application/x-foo', function (done) {
-        request(this.app)
-          .post('/')
-          .set('Content-Type', 'application/x-foo')
-          .send('user=tobi')
-          .expect(200, '', done)
+        request(this.app).post('/').set('Content-Type', 'application/x-foo').send('user=tobi').expect(200, '', done)
       })
     })
 
@@ -484,7 +490,7 @@ describe('express.urlencoded()', function () {
       it('should parse when truthy value returned', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return req.headers['content-type'] === 'application/vnd.something'
         }
 
@@ -498,7 +504,7 @@ describe('express.urlencoded()', function () {
       it('should work without content-type', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return true
         }
 
@@ -510,21 +516,18 @@ describe('express.urlencoded()', function () {
       it('should not invoke without a body', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           throw new Error('oops!')
         }
 
-        request(app)
-          .get('/')
-          .expect(404, done)
+        request(app).get('/').expect(404, done)
       })
     })
   })
 
   describe('with verify option', function () {
     it('should assert value if function', function () {
-      assert.throws(createApp.bind(null, { verify: 'lol' }),
-        /TypeError: option verify must be function/)
+      assert.throws(createApp.bind(null, { verify: 'lol' }), /TypeError: option verify must be function/)
     })
 
     it('should error from verify', function (done) {
@@ -785,7 +788,7 @@ describe('express.urlencoded()', function () {
   })
 })
 
-function createManyParams (count) {
+function createManyParams(count) {
   var str = ''
 
   if (count === 0) {
@@ -802,16 +805,18 @@ function createManyParams (count) {
   return str
 }
 
-function createApp (options) {
+function createApp(options) {
   var app = express()
 
   app.use(express.urlencoded(options))
 
   app.use(function (err, req, res, next) {
     res.status(err.status || 500)
-    res.send(String(req.headers['x-error-property']
-      ? err[req.headers['x-error-property']]
-      : ('[' + err.type + '] ' + err.message)))
+    res.send(
+      String(
+        req.headers['x-error-property'] ? err[req.headers['x-error-property']] : '[' + err.type + '] ' + err.message
+      )
+    )
   })
 
   app.post('/', function (req, res) {
@@ -821,7 +826,7 @@ function createApp (options) {
   return app
 }
 
-function expectKeyCount (count) {
+function expectKeyCount(count) {
   return function (res) {
     assert.strictEqual(Object.keys(JSON.parse(res.text)).length, count)
   }

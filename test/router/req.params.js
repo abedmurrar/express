@@ -12,9 +12,7 @@ describe('req.params', function () {
 
     router.get('/', sawParams)
 
-    request(server)
-      .get('/')
-      .expect(200, '{}', done)
+    request(server).get('/').expect(200, '{}', done)
   })
 
   it('should not exist outside the router', function (done) {
@@ -28,10 +26,7 @@ describe('req.params', function () {
 
     router.get('/', hitParams(1))
 
-    request(server)
-      .get('/')
-      .expect('x-params-1', '{}')
-      .expect(200, '', done)
+    request(server).get('/').expect('x-params-1', '{}').expect(200, '', done)
   })
 
   it('should overwrite value outside the router', function (done) {
@@ -43,9 +38,7 @@ describe('req.params', function () {
 
     router.get('/', sawParams)
 
-    request(server)
-      .get('/')
-      .expect(200, '{}', done)
+    request(server).get('/').expect(200, '{}', done)
   })
 
   it('should restore previous value outside the router', function (done) {
@@ -61,10 +54,7 @@ describe('req.params', function () {
 
     router.get('/', hitParams(1))
 
-    request(server)
-      .get('/')
-      .expect('x-params-1', '{}')
-      .expect(200, '{"foo":"bar"}', done)
+    request(server).get('/').expect('x-params-1', '{}').expect(200, '{"foo":"bar"}', done)
   })
 
   describe('when "mergeParams: true"', function () {
@@ -100,10 +90,7 @@ describe('req.params', function () {
 
       router.get('/:fizz', hitParams(1))
 
-      request(server)
-        .get('/buzz')
-        .expect('x-params-1', '{"fizz":"buzz"}')
-        .expect(200, '42', done)
+      request(server).get('/buzz').expect('x-params-1', '{"fizz":"buzz"}').expect(200, '42', done)
     })
 
     it('should overwrite outside keys that are the same', function (done) {
@@ -119,10 +106,7 @@ describe('req.params', function () {
 
       router.get('/:foo', hitParams(1))
 
-      request(server)
-        .get('/buzz')
-        .expect('x-params-1', '{"foo":"buzz"}')
-        .expect(200, '{"foo":"bar"}', done)
+      request(server).get('/buzz').expect('x-params-1', '{"foo":"buzz"}').expect(200, '{"foo":"bar"}', done)
     })
 
     describe('with numeric properties in req.params', function () {
@@ -158,24 +142,21 @@ describe('req.params', function () {
 
         router.get(/\/([^/]*)/, hitParams(1))
 
-        request(server)
-          .get('/bar')
-          .expect('x-params-1', '{"0":"foo","1":"bar"}')
-          .expect(200, '{"0":"foo"}', done)
+        request(server).get('/bar').expect('x-params-1', '{"0":"foo","1":"bar"}').expect(200, '{"0":"foo"}', done)
       })
     })
   })
 })
 
-function hitParams (num) {
+function hitParams(num) {
   const name = 'x-params-' + String(num)
-  return function hit (req, res, next) {
+  return function hit(req, res, next) {
     res.setHeader(name, JSON.stringify(req.params))
     next()
   }
 }
 
-function sawParams (req, res) {
+function sawParams(req, res) {
   res.statusCode = 200
   res.setHeader('Content-Type', 'application/json')
   res.end(JSON.stringify(req.params))

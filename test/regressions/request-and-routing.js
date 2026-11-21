@@ -11,69 +11,121 @@ var { bug, request } = require('./support')
 describe('regressions: request, app and routing', function () {
   bug('#7532 req.subdomains is empty for an IPv6 host', '`req.subdomains` splits IPv6 literals', async function () {
     var app = express()
-    app.get('/', function (req, res) { res.json(req.subdomains) })
+    app.get('/', function (req, res) {
+      res.json(req.subdomains)
+    })
     var r = await request(app, { headers: { Host: '[::ffff:127.0.0.1]:3000' } })
     assert.deepStrictEqual(JSON.parse(r.body), [])
   })
 
-  bug('PR #7317 req.hostname ignores userinfo in the Host header', 'Userinfo in the Host header becomes `req.hostname`', async function () {
-    var app = express()
-    app.get('/', function (req, res) { res.json(req.hostname) })
-    var r = await request(app, { headers: { Host: 'evil.example:x@good.example' } })
-    assert.strictEqual(JSON.parse(r.body), 'good.example')
-  })
+  bug(
+    'PR #7317 req.hostname ignores userinfo in the Host header',
+    'Userinfo in the Host header becomes `req.hostname`',
+    async function () {
+      var app = express()
+      app.get('/', function (req, res) {
+        res.json(req.hostname)
+      })
+      var r = await request(app, { headers: { Host: 'evil.example:x@good.example' } })
+      assert.strictEqual(JSON.parse(r.body), 'good.example')
+    }
+  )
 
-  bug('PR #7330 a trusted X-Forwarded-Proto of HTTPS counts as secure', 'Uppercase `X-Forwarded-Proto: HTTPS` is not secure', async function () {
-    var app = express()
-    app.set('trust proxy', true)
-    app.get('/', function (req, res) { res.json([req.protocol, req.secure]) })
-    var r = await request(app, { headers: { 'X-Forwarded-Proto': 'HTTPS' } })
-    assert.deepStrictEqual(JSON.parse(r.body), ['https', true])
-  })
+  bug(
+    'PR #7330 a trusted X-Forwarded-Proto of HTTPS counts as secure',
+    'Uppercase `X-Forwarded-Proto: HTTPS` is not secure',
+    async function () {
+      var app = express()
+      app.set('trust proxy', true)
+      app.get('/', function (req, res) {
+        res.json([req.protocol, req.secure])
+      })
+      var r = await request(app, { headers: { 'X-Forwarded-Proto': 'HTTPS' } })
+      assert.deepStrictEqual(JSON.parse(r.body), ['https', true])
+    }
+  )
 
-  bug('PR #7501 app.listen removes its startup error listener', '`app.listen` leaves its error listener attached', function (done) {
-    var app = express()
-    var server = app.listen(0, '127.0.0.1', function () {
-      var count = server.listenerCount('error')
-      server.close()
-      assert.strictEqual(count, 0)
-      done()
-    })
-  })
+  bug(
+    'PR #7501 app.listen removes its startup error listener',
+    '`app.listen` leaves its error listener attached',
+    function (done) {
+      var app = express()
+      var server = app.listen(0, '127.0.0.1', function () {
+        var count = server.listenerCount('error')
+        server.close()
+        assert.strictEqual(count, 0)
+        done()
+      })
+    }
+  )
 
   bug('#4557 a router mounted at "//" does not answer "/"', 'A `//` mount also matches `/`', async function () {
     var app = express()
     var admin = express.Router()
-    admin.get('/secret', function (req, res) { res.send('admin router') })
+    admin.get('/secret', function (req, res) {
+      res.send('admin router')
+    })
     app.use('//', admin)
-    app.get('/secret', function (req, res) { res.send('main app') })
+    app.get('/secret', function (req, res) {
+      res.send('main app')
+    })
     var r = await request(app, { path: '/secret' })
     assert.strictEqual(r.body.toString(), 'main app')
   })
 
-  bug('#4059 a req.url rewritten inside a mounted router keeps its slash', 'A `req.url` rewrite in a mounted router loses a slash', async function () {
-    var app = express()
-    var router = express.Router()
-    router.use(function (req, res, next) { req.url = '/index.html'; next() })
-    app.use('/app', router)
-    app.use(function (req, res) { res.send(req.url) })
-    var r = await request(app, { path: '/app' })
-    assert.strictEqual(r.body.toString(), '/app/index.html')
-  })
+  bug(
+    '#4059 a req.url rewritten inside a mounted router keeps its slash',
+    'A `req.url` rewrite in a mounted router loses a slash',
+    async function () {
+      var app = express()
+      var router = express.Router()
+      router.use(function (req, res, next) {
+        req.url = '/index.html'
+        next()
+      })
+      app.use('/app', router)
+      app.use(function (req, res) {
+        res.send(req.url)
+      })
+      var r = await request(app, { path: '/app' })
+      assert.strictEqual(r.body.toString(), '/app/index.html')
+    }
+  )
 
-  bug('#6809 mounting a router on itself is rejected with a clear error', 'A router cycle gives a stack overflow instead of a clear error', function () {
-    var r = express.Router()
-    assert.throws(function () { r.use(r) }, function (err) {
-      return err instanceof TypeError && /itself/.test(err.message)
-    })
-  })
+  bug(
+    '#6809 mounting a router on itself is rejected with a clear error',
+    'A router cycle gives a stack overflow instead of a clear error',
+    function () {
+      var r = express.Router()
+      assert.throws(
+        function () {
+          r.use(r)
+        },
+        function (err) {
+          return err instanceof TypeError && /itself/.test(err.message)
+        }
+      )
+    }
+  )
 
   describe('behaviour this line keeps (pinned)', function () {
     it('#2526 a route-level error handler does not run for errors from earlier layers (by design)', async function () {
       var app = express()
-      app.all('/{*splat}', function (req, res, next) { next(new Error('fabricated')) })
-      app.get('/', function (err, req, res, next) { next() }, function (req, res) { res.sendStatus(204) })
-      app.use(function (err, req, res, next) { res.status(500).send('app error handler') })
+      app.all('/{*splat}', function (req, res, next) {
+        next(new Error('fabricated'))
+      })
+      app.get(
+        '/',
+        function (err, req, res, next) {
+          next()
+        },
+        function (req, res) {
+          res.sendStatus(204)
+        }
+      )
+      app.use(function (err, req, res, next) {
+        res.status(500).send('app error handler')
+      })
       var r = await request(app)
       assert.strictEqual(r.status, 500)
       assert.strictEqual(r.body.toString(), 'app error handler')
@@ -83,12 +135,22 @@ describe('regressions: request, app and routing', function () {
       var app = express()
       var seen = 'unset'
       app.get('/u/:id', function (req, res) {
-        res.on('finish', function () { seen = req.params && req.params.id })
-        res.format({ 'application/json': function () { res.json({}) } })
+        res.on('finish', function () {
+          seen = req.params && req.params.id
+        })
+        res.format({
+          'application/json': function () {
+            res.json({})
+          }
+        })
       })
-      app.use(function (err, req, res, next) { res.status(err.status || 500).end() })
+      app.use(function (err, req, res, next) {
+        res.status(err.status || 500).end()
+      })
       var r = await request(app, { path: '/u/42', headers: { Accept: 'text/csv' } })
-      await new Promise(function (resolve) { setTimeout(resolve, 20) })
+      await new Promise(function (resolve) {
+        setTimeout(resolve, 20)
+      })
       assert.strictEqual(r.status, 406)
       assert.strictEqual(seen, undefined)
     })
@@ -96,7 +158,10 @@ describe('regressions: request, app and routing', function () {
     it('#5626 an OPTIONS handler can set a header and send JSON', async function () {
       var app = express()
       var router = express.Router()
-      router.options('/', function (req, res) { res.status(200).setHeader('Access-Control-Allow-Methods', 'GET'); res.json({ schema: 1 }) })
+      router.options('/', function (req, res) {
+        res.status(200).setHeader('Access-Control-Allow-Methods', 'GET')
+        res.json({ schema: 1 })
+      })
       app.use(router)
       var r = await request(app, { method: 'OPTIONS' })
       assert.strictEqual(r.status, 200)
@@ -108,18 +173,24 @@ describe('regressions: request, app and routing', function () {
       var app = express()
       app.set('strict routing', true)
       var r = express.Router({ strict: true })
-      r.get('/', function (req, res) { res.send('hi') })
+      r.get('/', function (req, res) {
+        res.send('hi')
+      })
       app.use('/strict/', r)
       assert.strictEqual((await request(app, { path: '/strict' })).status, 200)
       assert.strictEqual((await request(app, { path: '/strict/' })).status, 200)
     })
 
     it('#5878 query parsers keep the first 1000 parameters without an error (6.x changes this)', async function () {
-      var many = Array.from({ length: 1200 }, function (_, i) { return 'k' + i + '=' + i }).join('&')
+      var many = Array.from({ length: 1200 }, function (_, i) {
+        return 'k' + i + '=' + i
+      }).join('&')
       for (var parser of ['simple', 'extended']) {
         var app = express()
         app.set('query parser', parser)
-        app.get('/', function (req, res) { res.json(Object.keys(req.query).length) })
+        app.get('/', function (req, res) {
+          res.json(Object.keys(req.query).length)
+        })
         var r = await request(app, { path: '/?' + many })
         assert.strictEqual(r.status, 200, parser)
         assert.strictEqual(JSON.parse(r.body), 1000, parser)
@@ -129,8 +200,16 @@ describe('regressions: request, app and routing', function () {
     it('PR #7151 the extended parser turns more than 20 repeated keys into an object (6.x changes this)', async function () {
       var app = express()
       app.set('query parser', 'extended')
-      app.get('/', function (req, res) { res.json([Array.isArray(req.query.ids), Object.keys(req.query.ids).length]) })
-      var r = await request(app, { path: '/?' + Array.from({ length: 21 }, function (_, i) { return 'ids=' + i }).join('&') })
+      app.get('/', function (req, res) {
+        res.json([Array.isArray(req.query.ids), Object.keys(req.query.ids).length])
+      })
+      var r = await request(app, {
+        path:
+          '/?' +
+          Array.from({ length: 21 }, function (_, i) {
+            return 'ids=' + i
+          }).join('&')
+      })
       assert.deepStrictEqual(JSON.parse(r.body), [false, 21])
     })
   })

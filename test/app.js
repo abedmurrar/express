@@ -4,50 +4,48 @@ var assert = require('node:assert')
 var express = require('..')
 var request = require('supertest')
 
-describe('app', function(){
-  it('should inherit from event emitter', function(done){
-    var app = express();
-    app.on('foo', done);
-    app.emit('foo');
+describe('app', function () {
+  it('should inherit from event emitter', function (done) {
+    var app = express()
+    app.on('foo', done)
+    app.emit('foo')
   })
 
-  it('should be callable', function(){
-    var app = express();
-    assert.equal(typeof app, 'function');
+  it('should be callable', function () {
+    var app = express()
+    assert.equal(typeof app, 'function')
   })
 
-  it('should 404 without routes', function(done){
-    request(express())
-    .get('/')
-    .expect(404, done);
+  it('should 404 without routes', function (done) {
+    request(express()).get('/').expect(404, done)
   })
 })
 
-describe('app.parent', function(){
-  it('should return the parent when mounted', function(){
-    var app = express()
-      , blog = express()
-      , blogAdmin = express();
+describe('app.parent', function () {
+  it('should return the parent when mounted', function () {
+    var app = express(),
+      blog = express(),
+      blogAdmin = express()
 
-    app.use('/blog', blog);
-    blog.use('/admin', blogAdmin);
+    app.use('/blog', blog)
+    blog.use('/admin', blogAdmin)
 
-    assert(!app.parent, 'app.parent');
+    assert(!app.parent, 'app.parent')
     assert.strictEqual(blog.parent, app)
     assert.strictEqual(blogAdmin.parent, blog)
   })
 })
 
-describe('app.mountpath', function(){
-  it('should return the mounted path', function(){
-    var admin = express();
-    var app = express();
-    var blog = express();
-    var fallback = express();
+describe('app.mountpath', function () {
+  it('should return the mounted path', function () {
+    var admin = express()
+    var app = express()
+    var blog = express()
+    var fallback = express()
 
-    app.use('/blog', blog);
-    app.use(fallback);
-    blog.use('/admin', admin);
+    app.use('/blog', blog)
+    app.use(fallback)
+    blog.use('/admin', admin)
 
     assert.strictEqual(admin.mountpath, '/admin')
     assert.strictEqual(app.mountpath, '/')
@@ -56,14 +54,14 @@ describe('app.mountpath', function(){
   })
 })
 
-describe('app.path()', function(){
-  it('should return the canonical', function(){
-    var app = express()
-      , blog = express()
-      , blogAdmin = express();
+describe('app.path()', function () {
+  it('should return the canonical', function () {
+    var app = express(),
+      blog = express(),
+      blogAdmin = express()
 
-    app.use('/blog', blog);
-    blog.use('/admin', blogAdmin);
+    app.use('/blog', blog)
+    blog.use('/admin', blogAdmin)
 
     assert.strictEqual(app.path(), '')
     assert.strictEqual(blog.path(), '/blog')
@@ -71,7 +69,7 @@ describe('app.path()', function(){
   })
 })
 
-describe('in development', function(){
+describe('in development', function () {
   before(function () {
     this.env = process.env.NODE_ENV
     process.env.NODE_ENV = 'development'
@@ -81,13 +79,13 @@ describe('in development', function(){
     process.env.NODE_ENV = this.env
   })
 
-  it('should disable "view cache"', function(){
-    var app = express();
+  it('should disable "view cache"', function () {
+    var app = express()
     assert.ok(!app.enabled('view cache'))
   })
 })
 
-describe('in production', function(){
+describe('in production', function () {
   before(function () {
     this.env = process.env.NODE_ENV
     process.env.NODE_ENV = 'production'
@@ -97,13 +95,13 @@ describe('in production', function(){
     process.env.NODE_ENV = this.env
   })
 
-  it('should enable "view cache"', function(){
-    var app = express();
+  it('should enable "view cache"', function () {
+    var app = express()
     assert.ok(app.enabled('view cache'))
   })
 })
 
-describe('without NODE_ENV', function(){
+describe('without NODE_ENV', function () {
   before(function () {
     this.env = process.env.NODE_ENV
     process.env.NODE_ENV = ''
@@ -113,8 +111,8 @@ describe('without NODE_ENV', function(){
     process.env.NODE_ENV = this.env
   })
 
-  it('should default to development', function(){
-    var app = express();
+  it('should default to development', function () {
+    var app = express()
     assert.strictEqual(app.get('env'), 'development')
   })
 })

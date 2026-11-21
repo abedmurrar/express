@@ -15,10 +15,7 @@ describe('OPTIONS', function () {
     router.post('/users', saw)
     router.put('/users', saw)
 
-    request(server)
-      .options('/users')
-      .expect('Allow', 'GET, HEAD, POST, PUT')
-      .expect(200, 'GET, HEAD, POST, PUT', done)
+    request(server).options('/users').expect('Allow', 'GET, HEAD, POST, PUT').expect(200, 'GET, HEAD, POST, PUT', done)
   })
 
   it('should not contain methods multiple times', function (done) {
@@ -30,10 +27,7 @@ describe('OPTIONS', function () {
     router.put('/users', saw)
     router.get('/users', saw)
 
-    request(server)
-      .options('/users')
-      .expect('GET, HEAD, PUT')
-      .expect('Allow', 'GET, HEAD, PUT', done)
+    request(server).options('/users').expect('GET, HEAD, PUT').expect('Allow', 'GET, HEAD, PUT', done)
   })
 
   it('should not include "all" routes', function (done) {
@@ -58,9 +52,7 @@ describe('OPTIONS', function () {
 
     router.get('/users', saw)
 
-    request(server)
-      .options('/')
-      .expect(404, done)
+    request(server).options('/').expect(404, done)
   })
 
   it('should do nothing with explicit options route', function (done) {
@@ -70,15 +62,13 @@ describe('OPTIONS', function () {
     router.get('/users', saw)
     router.options('/users', saw)
 
-    request(server)
-      .options('/users')
-      .expect(200, 'saw OPTIONS /users', done)
+    request(server).options('/users').expect(200, 'saw OPTIONS /users', done)
   })
 
   describe('when error occurs in respone handler', function () {
     it('should pass error to callback', function (done) {
       const router = Router()
-      const server = createServer(function hander (req, res, next) {
+      const server = createServer(function hander(req, res, next) {
         res.writeHead(200)
         router(req, res, function (err) {
           res.end(String(Boolean(err)))
@@ -87,23 +77,21 @@ describe('OPTIONS', function () {
 
       router.get('/users', saw)
 
-      request(server)
-        .options('/users')
-        .expect(200, 'true', done)
+      request(server).options('/users').expect(200, 'true', done)
     })
   })
 })
 
-function saw (req, res) {
+function saw(req, res) {
   const msg = 'saw ' + req.method + ' ' + req.url
   res.statusCode = 200
   res.setHeader('Content-Type', 'text/plain')
   res.end(msg)
 }
 
-function sethit (num) {
+function sethit(num) {
   const name = 'x-fn-' + String(num)
-  return function hit (req, res, next) {
+  return function hit(req, res, next) {
     res.setHeader(name, 'hit')
     next()
   }

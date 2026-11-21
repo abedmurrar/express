@@ -2,7 +2,7 @@
 
 var assert = require('node:assert')
 var AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage
-const { Buffer } = require('node:buffer');
+const { Buffer } = require('node:buffer')
 
 var express = require('..')
 var request = require('supertest')
@@ -244,11 +244,7 @@ describe('express.json()', function () {
       })
 
       it('should parse primitives', function (done) {
-        request(this.app)
-          .post('/')
-          .set('Content-Type', 'application/json')
-          .send('true')
-          .expect(200, 'true', done)
+        request(this.app).post('/').set('Content-Type', 'application/json').send('true').expect(200, 'true', done)
       })
     })
 
@@ -353,7 +349,7 @@ describe('express.json()', function () {
       it('should parse when truthy value returned', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return req.headers['content-type'] === 'application/vnd.api+json'
         }
 
@@ -367,7 +363,7 @@ describe('express.json()', function () {
       it('should work without content-type', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return true
         }
 
@@ -379,21 +375,18 @@ describe('express.json()', function () {
       it('should not invoke without a body', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           throw new Error('oops!')
         }
 
-        request(app)
-          .get('/')
-          .expect(404, done)
+        request(app).get('/').expect(404, done)
       })
     })
   })
 
   describe('with verify option', function () {
     it('should assert value if function', function () {
-      assert.throws(createApp.bind(null, { verify: 'lol' }),
-        /TypeError: option verify must be function/)
+      assert.throws(createApp.bind(null, { verify: 'lol' }), /TypeError: option verify must be function/)
     })
 
     it('should error from verify', function (done) {
@@ -719,7 +712,7 @@ describe('express.json()', function () {
   })
 })
 
-function createApp (options) {
+function createApp(options) {
   var app = express()
 
   app.use(express.json(options))
@@ -727,9 +720,11 @@ function createApp (options) {
   app.use(function (err, req, res, next) {
     // console.log(err)
     res.status(err.status || 500)
-    res.send(String(req.headers['x-error-property']
-      ? err[req.headers['x-error-property']]
-      : ('[' + err.type + '] ' + err.message)))
+    res.send(
+      String(
+        req.headers['x-error-property'] ? err[req.headers['x-error-property']] : '[' + err.type + '] ' + err.message
+      )
+    )
   })
 
   app.post('/', function (req, res) {
@@ -739,17 +734,17 @@ function createApp (options) {
   return app
 }
 
-function parseError (str) {
+function parseError(str) {
   try {
-    JSON.parse(str); throw new SyntaxError('strict violation')
+    JSON.parse(str)
+    throw new SyntaxError('strict violation')
   } catch (e) {
     return e.message
   }
 }
 
-function shouldContainInBody (str) {
+function shouldContainInBody(str) {
   return function (res) {
-    assert.ok(res.text.indexOf(str) !== -1,
-      'expected \'' + res.text + '\' to contain \'' + str + '\'')
+    assert.ok(res.text.indexOf(str) !== -1, "expected '" + res.text + "' to contain '" + str + "'")
   }
 }

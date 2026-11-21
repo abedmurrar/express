@@ -1,11 +1,11 @@
 'use strict'
 
 var assert = require('node:assert')
-var express = require('../');
-var request = require('supertest');
+var express = require('../')
+var request = require('supertest')
 
-describe('exports', function(){
-  it('should expose Router', function(){
+describe('exports', function () {
+  it('should expose Router', function () {
     assert.strictEqual(typeof express.Router, 'function')
   })
 
@@ -34,49 +34,51 @@ describe('exports', function(){
     assert.equal(express.urlencoded.length, 1)
   })
 
-  it('should expose the application prototype', function(){
+  it('should expose the application prototype', function () {
     assert.strictEqual(typeof express.application, 'object')
     assert.strictEqual(typeof express.application.set, 'function')
   })
 
-  it('should expose the request prototype', function(){
+  it('should expose the request prototype', function () {
     assert.strictEqual(typeof express.request, 'object')
     assert.strictEqual(typeof express.request.accepts, 'function')
   })
 
-  it('should expose the response prototype', function(){
+  it('should expose the response prototype', function () {
     assert.strictEqual(typeof express.response, 'object')
     assert.strictEqual(typeof express.response.send, 'function')
   })
 
-  it('should permit modifying the .application prototype', function(){
-    express.application.foo = function(){ return 'bar'; };
+  it('should permit modifying the .application prototype', function () {
+    express.application.foo = function () {
+      return 'bar'
+    }
     assert.strictEqual(express().foo(), 'bar')
   })
 
-  it('should permit modifying the .request prototype', function(done){
-    express.request.foo = function(){ return 'bar'; };
-    var app = express();
+  it('should permit modifying the .request prototype', function (done) {
+    express.request.foo = function () {
+      return 'bar'
+    }
+    var app = express()
 
-    app.use(function(req, res, next){
-      res.end(req.foo());
-    });
+    app.use(function (req, res, next) {
+      res.end(req.foo())
+    })
 
-    request(app)
-    .get('/')
-    .expect('bar', done);
+    request(app).get('/').expect('bar', done)
   })
 
-  it('should permit modifying the .response prototype', function(done){
-    express.response.foo = function(){ this.send('bar'); };
-    var app = express();
+  it('should permit modifying the .response prototype', function (done) {
+    express.response.foo = function () {
+      this.send('bar')
+    }
+    var app = express()
 
-    app.use(function(req, res, next){
-      res.foo();
-    });
+    app.use(function (req, res, next) {
+      res.foo()
+    })
 
-    request(app)
-    .get('/')
-    .expect('bar', done);
+    request(app).get('/').expect('bar', done)
   })
 })

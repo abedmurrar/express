@@ -11,14 +11,14 @@
  * Module dependencies.
  */
 
-var express = require('../..');
-var path = require('node:path');
-var redis = require('redis');
+var express = require('../..')
+var path = require('node:path')
+var redis = require('redis')
 
-var db = redis.createClient();
-var app = express();
+var db = redis.createClient()
+var app = express()
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public')))
 
 // npm install redis
 
@@ -30,18 +30,18 @@ async function initializeRedis() {
   try {
     // connect to Redis
 
-    await db.connect();
+    await db.connect()
 
     // populate search
 
-    await db.sAdd('ferret', 'tobi');
-    await db.sAdd('ferret', 'loki');
-    await db.sAdd('ferret', 'jane');
-    await db.sAdd('cat', 'manny');
-    await db.sAdd('cat', 'luna');
+    await db.sAdd('ferret', 'tobi')
+    await db.sAdd('ferret', 'loki')
+    await db.sAdd('ferret', 'jane')
+    await db.sAdd('cat', 'manny')
+    await db.sAdd('cat', 'luna')
   } catch (err) {
-    console.error('Error initializing Redis:', err);
-    process.exit(1);
+    console.error('Error initializing Redis:', err)
+    process.exit(1)
   }
 }
 
@@ -50,14 +50,14 @@ async function initializeRedis() {
  */
 
 app.get('/search/{:query}', function (req, res, next) {
-  var query = req.params.query || '';
+  var query = req.params.query || ''
   db.sMembers(query)
     .then((vals) => res.send(vals))
     .catch((err) => {
-      console.error(`Redis error for query "${query}":`, err);
-      next(err);
-    });
-});
+      console.error(`Redis error for query "${query}":`, err)
+      next(err)
+    })
+})
 
 /**
  * GET client javascript. Here we use sendFile()
@@ -66,18 +66,17 @@ app.get('/search/{:query}', function (req, res, next) {
  * template.
  */
 
-app.get('/client.js', function(req, res){
-  res.sendFile(path.join(__dirname, 'client.js'));
-});
+app.get('/client.js', function (req, res) {
+  res.sendFile(path.join(__dirname, 'client.js'))
+})
 
 /**
  * Start the Server
  */
-
-(async () => {
-  await initializeRedis();
+;(async () => {
+  await initializeRedis()
   if (!module.parent) {
-    app.listen(3000);
-    console.log('Express started on port 3000');
+    app.listen(3000)
+    console.log('Express started on port 3000')
   }
-})();
+})()

@@ -2,7 +2,7 @@
 
 var assert = require('node:assert')
 var AsyncLocalStorage = require('node:async_hooks').AsyncLocalStorage
-const { Buffer } = require('node:buffer');
+const { Buffer } = require('node:buffer')
 var express = require('..')
 var request = require('supertest')
 
@@ -67,11 +67,7 @@ describe('express.text()', function () {
       res.json(req.body)
     })
 
-    request(app)
-      .post('/')
-      .set('Content-Type', 'text/plain')
-      .send('user is tobi')
-      .expect(200, '"user is tobi"', done)
+    request(app).post('/').set('Content-Type', 'text/plain').send('user is tobi').expect(200, '"user is tobi"', done)
   })
 
   describe('with defaultCharset option', function () {
@@ -138,11 +134,7 @@ describe('express.text()', function () {
 
       options.limit = '100kb'
 
-      request(app)
-        .post('/')
-        .set('Content-Type', 'text/plain')
-        .send(buf.toString())
-        .expect(413, done)
+      request(app).post('/').set('Content-Type', 'text/plain').send(buf.toString()).expect(413, done)
     })
 
     it('should not hang response', function (done) {
@@ -213,11 +205,7 @@ describe('express.text()', function () {
       })
 
       it('should ignore standard type', function (done) {
-        request(this.app)
-          .post('/')
-          .set('Content-Type', 'text/plain')
-          .send('user is tobi')
-          .expect(200, '', done)
+        request(this.app).post('/').set('Content-Type', 'text/plain').send('user is tobi').expect(200, '', done)
       })
     })
 
@@ -235,19 +223,11 @@ describe('express.text()', function () {
       })
 
       it('should parse "text/plain"', function (done) {
-        request(this.app)
-          .post('/')
-          .set('Content-Type', 'text/plain')
-          .send('tobi')
-          .expect(200, '"tobi"', done)
+        request(this.app).post('/').set('Content-Type', 'text/plain').send('tobi').expect(200, '"tobi"', done)
       })
 
       it('should ignore "text/xml"', function (done) {
-        request(this.app)
-          .post('/')
-          .set('Content-Type', 'text/xml')
-          .send('<user>tobi</user>')
-          .expect(200, '', done)
+        request(this.app).post('/').set('Content-Type', 'text/xml').send('<user>tobi</user>').expect(200, '', done)
       })
     })
 
@@ -255,7 +235,7 @@ describe('express.text()', function () {
       it('should parse when truthy value returned', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return req.headers['content-type'] === 'text/vnd.something'
         }
 
@@ -269,7 +249,7 @@ describe('express.text()', function () {
       it('should work without content-type', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           return true
         }
 
@@ -281,21 +261,18 @@ describe('express.text()', function () {
       it('should not invoke without a body', function (done) {
         var app = createApp({ type: accept })
 
-        function accept (req) {
+        function accept(req) {
           throw new Error('oops!')
         }
 
-        request(app)
-          .get('/')
-          .expect(404, done)
+        request(app).get('/').expect(404, done)
       })
     })
   })
 
   describe('with verify option', function () {
     it('should assert value is function', function () {
-      assert.throws(createApp.bind(null, { verify: 'lol' }),
-        /TypeError: option verify must be function/)
+      assert.throws(createApp.bind(null, { verify: 'lol' }), /TypeError: option verify must be function/)
     })
 
     it('should error from verify', function (done) {
@@ -336,11 +313,7 @@ describe('express.text()', function () {
         }
       })
 
-      request(app)
-        .post('/')
-        .set('Content-Type', 'text/plain')
-        .send('user is tobi')
-        .expect(200, '"user is tobi"', done)
+      request(app).post('/').set('Content-Type', 'text/plain').send('user is tobi').expect(200, '"user is tobi"', done)
     })
 
     it('should 415 on unknown charset prior to verify', function (done) {
@@ -546,16 +519,18 @@ describe('express.text()', function () {
   })
 })
 
-function createApp (options) {
+function createApp(options) {
   var app = express()
 
   app.use(express.text(options))
 
   app.use(function (err, req, res, next) {
     res.status(err.status || 500)
-    res.send(String(req.headers['x-error-property']
-      ? err[req.headers['x-error-property']]
-      : ('[' + err.type + '] ' + err.message)))
+    res.send(
+      String(
+        req.headers['x-error-property'] ? err[req.headers['x-error-property']] : '[' + err.type + '] ' + err.message
+      )
+    )
   })
 
   app.post('/', function (req, res) {

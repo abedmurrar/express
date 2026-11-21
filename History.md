@@ -1,3 +1,10 @@
+Unreleased (fork)
+=================
+
+## 🚀 Improvements
+
+* Add a differential test harness (`test/differential/`). It runs 143 scenarios on Express 5.3.0 and on this repository and requires byte-identical responses, except for differences listed on purpose. The method comes from [ultimate-express](https://github.com/dimdenGD/ultimate-express)'s test runner.
+
 5.3.0
 =====
 

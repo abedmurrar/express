@@ -68,6 +68,7 @@
     "cookie-session": "2.1.1",
     "ejs": "^3.1.10",
     "eslint": "8.47.0",
+    "express-baseline": "npm:express@5.3.0",
     "express-session": "^1.18.1",
     "hbs": "4.4.0",
     "marked": "^15.0.3",
@@ -91,9 +92,9 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/",
+    "test": "mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/ test/differential/",
     "test-ci": "nyc --exclude examples --exclude test --exclude benchmarks --reporter=lcovonly --reporter=text npm test",
     "test-cov": "nyc --exclude examples --exclude test --exclude benchmarks --reporter=html --reporter=text npm test",
-    "test-tap": "mocha --require test/support/env --reporter tap --check-leaks test/ test/acceptance/"
+    "test-tap": "mocha --require test/support/env --reporter tap --check-leaks test/ test/acceptance/ test/differential/"
   }
 }

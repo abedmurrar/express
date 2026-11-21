@@ -14,7 +14,7 @@ var assert = require('node:assert')
 var baseline = require('express-baseline')
 var ours = require('../..')
 var { scenarios, allowed } = require('./scenarios')
-var { serve, sequence, close } = require('./support')
+var { serve, sequence, close, normaliseCookieExpires } = require('./support')
 
 describe('differential: responses match Express 5.3.0', function () {
   var modes = [
@@ -28,8 +28,8 @@ describe('differential: responses match Express 5.3.0', function () {
         var a = await serve(baseline, scenario.setup, mode.listen)
         var b = await serve(ours, scenario.setup, mode.listen)
         try {
-          var expected = (await sequence(a, [scenario.req]))[0]
-          var actual = (await sequence(b, [scenario.req]))[0]
+          var expected = (await sequence(a, [scenario.req], normaliseCookieExpires))[0]
+          var actual = (await sequence(b, [scenario.req], normaliseCookieExpires))[0]
         } finally {
           await close(a)
           await close(b)

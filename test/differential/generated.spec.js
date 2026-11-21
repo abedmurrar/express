@@ -12,21 +12,7 @@ var http = require('node:http')
 var baseline = require('express-baseline')
 var ours = require('../..')
 var { scenarios, groups } = require('./generated')
-var { sequence, close } = require('./support')
-
-// res.cookie({ maxAge }) sets Expires to "now + maxAge", so the two servers
-// stamp it a few milliseconds apart and it can fall on different seconds.
-// Max-Age is still compared exactly, and Expires is only replaced when it is
-// within two seconds of now + Max-Age. Any other value is kept, so a wrong
-// Expires still shows up as a difference.
-function normalise(name, value) {
-  if (name !== 'set-cookie') return value
-  var maxAge = /Max-Age=(-?\d+)/.exec(value)
-  var expires = /Expires=([^;]+)/.exec(value)
-  if (!maxAge || !expires) return value
-  var drift = Date.parse(expires[1]) - (Date.now() + maxAge[1] * 1000)
-  return Math.abs(drift) <= 2000 ? value.replace(expires[0], 'Expires=<now + Max-Age>') : value
-}
+var { sequence, close, normaliseCookieExpires } = require('./support')
 
 function listen() {
   var side = { app: null }
@@ -63,7 +49,7 @@ async function respond(side, express, scenario) {
   try {
     side.app = express()
     scenario.setup(side.app, express)
-    var response = (await sequence(side.server, [scenario.req], normalise))[0]
+    var response = (await sequence(side.server, [scenario.req], normaliseCookieExpires))[0]
     await new Promise(setImmediate)
   } finally {
     console.error = log

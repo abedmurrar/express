@@ -172,17 +172,19 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 
 Each dependency is moved to its latest release once it is outside the 7-day npm release-age window, or replaced, or vendored. Any change in behaviour found by the harness sends that upgrade to 6.x.
 
+**ES-module-only releases stay off the compatible line.** Jest (and other CommonJS module loaders) can't `require()` an ES module, so an ESM-only dependency makes Express fail to load under Jest. The middleware suites check found this when content-type 3, encodeurl 3 and content-disposition 3 were tried (closed PR #21): 206 of express-rate-limit's 245 tests stopped passing. These packages stay on their last CommonJS release until our forks of them ship CommonJS builds (Forks section), or until 6.x.
+
 | Status | Package | Now | Latest (published) | Plan | Line |
 |---|---|---|---|---|---|
 | [ ] | `accepts` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `body-parser` | ^2.4.0 | 2.4.0 (2026-10-22) | Keep; vendor on 6.x for the JSON `__proto__` check | 6.x |
-| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Update after the window, harness-checked | master |
-| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Update, harness-checked | master |
+| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
+| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
 | [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
 | [ ] | `cookie-signature` | ^1.2.1 | 1.2.2 | Update | master |
 | [ ] | `debug` | ^4.4.0 | 4.4.3 | Replace with `util.debuglog` (the `DEBUG=express:*` switch changes, so 6.x) | 6.x |
 | [ ] | `depd` | ^2.0.0 | 2.0.0 | Replace with `util.deprecate` | 6.x |
-| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Update, harness-checked | master |
+| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
 | [ ] | `escape-html` | ^1.0.3 | 1.0.3 | Keep (Node has no built-in) | master |
 | [ ] | `etag` | ^1.8.1 | 2.0.0 (2026-11-21, inside the window until 2026-11-28) | Update after the window, harness-checked | master |
 | [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
@@ -200,7 +202,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `send` | vendored 1.2.1 | 1.2.1 | Vendored | master |
 | [ ] | `serve-static` | ^2.2.0 | 2.2.1 | Update; vendor if `express.static` needs the `send` fixes | master |
 | [ ] | `statuses` | ^2.0.1 | 2.0.2 | Update; check whether `http.STATUS_CODES` can replace it on 6.x | both |
-| [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
+| [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Stays on 2.x: 3.x is ESM-only (breaks Jest users, #21) and changes what `req.is()` returns. Our fork, or 6.x | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
 | [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9; replaced by Biome, #13), `c8` instead of `nyc` (done, #10), TypeScript 7, and mocha 12 on master (done, #12) | | | Update | both |

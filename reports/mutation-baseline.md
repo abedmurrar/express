@@ -91,9 +91,19 @@ Why it is slower: for every mutant, Vitest imports every test file that holds a 
 
 ### TypeScript sources
 
-After `src/` became TypeScript, one local run on `src/utils.ts` (`--concurrency 2`, load average 7 to 11): **89.31%**, 159 mutants (132 killed, 10 timed out, 17 survived), 8 minutes 16 seconds.
+After `src/` became TypeScript, `src/utils.ts` was run locally twice with `--concurrency 2`:
 
-The move itself doesn't change the result for the code that was already there. The 3 survivors on the old code are the same equivalent mutants as before (`utils.ts:115`, `:122` and `:60`, which were `utils.js:93`, `:100` and `:39`). The other 14 survivors are new: they're in the UTF-8 fast path and the empty-body shortcut that the ETag change (PR #46) added after the JavaScript runs. Both paths give the same ETag by design, so these mutants are equivalent (listed below). The first full CI run on `src/` is the number to compare with the threshold.
+| `src/utils.ts` at | Mutants | Score | Killed | Timed out | Survived | Time |
+|---|---:|---:|---:|---:|---:|---:|
+| `9f3bda11` (after the ETag change, PR #46) | 159 | 89.31% | 132 | 10 | 17 | 8 min 16 s, load 7 to 11 |
+| `0be908a1` (after the content-type cache, PR #47, and the trust cache, PR #50) | 203 | 85.22% | 153 | 20 | 30 | 10 min 10 s, load 3 to 6 |
+
+The TypeScript move itself doesn't change the result for code that already existed: the survivors on that code are the same equivalent mutants as in the JavaScript runs (`utils.ts:115` and `:122` were `utils.js:93` and `:100`). The drop comes from the performance work that landed on `master` after the JavaScript runs:
+
+- the UTF-8 fast path and empty-body shortcut in the ETag generator (PR #46): 11 survivors, all equivalent (below);
+- the `setCharset` and content-type caches (PR #47) and the per-address trust cache (PR #50): 17 survivors, including `subnets.length > 0` to `<= 0`, which only decides whether an empty trust list is wrapped in the cache. Turning a cache off, never filling it, or never clearing it gives the same answers, so no test through the public API can tell. The cache-size limits (`>= CACHE_LIMIT`, `>= TRUST_CACHE_LIMIT`) do bound memory, which a test could pin only by reading the cache's size. They stay open as follow-ups.
+
+On this one file the score is below the threshold of 92. The threshold applies to the whole of `src/`, and the first full CI run on `src/` shows whether the total stays above it; it was 94.13% on `lib/` before these changes.
 
 ## Tests added for survivors
 
@@ -137,8 +147,8 @@ These can't change what Express does, so they get a reason instead of a test.
 | `lib/utils.js:254` | `!Buffer.isBuffer(body)` to `Buffer.isBuffer(body)` | `res.send` passes either a string with `utf8` or a Buffer with no encoding, and `etag` hashes a string as UTF-8, so the ETag is the same. |
 | `lib/request.js:308` (second `trim()`) | `header.trim()` to `header` | Node strips the whitespace around a header value, so a single `X-Forwarded-Proto` value never has any. |
 | `lib/request.js:442` | `host[0] === '['` to `true` | For a host without `[`, `indexOf(']') + 1` is 0, the same offset. |
-| `src/utils.ts:283` and `:284` (13 mutants) | the UTF-8 string fast path in `generateETag` turned off, always on, or its encoding check changed | Both paths hash the same UTF-8 bytes (`crypto.hash` on the string, or on `Buffer.from(string)`) and use the same byte length, so the ETag is the same either way. `Buffer.byteLength(body, '')` falls back to UTF-8 too. |
-| `src/utils.ts:305` (2 mutants) | the empty-body shortcut in `entityTag` removed | The shortcut returns the SHA-1 of an empty body, which the hash computes anyway. |
+| `src/utils.ts:391` and `:392` at `0be908a1` (`:283` and `:284` at `9f3bda11`), 10 to 13 mutants depending on timeouts | the UTF-8 string fast path in `generateETag` turned off, always on, or its encoding check changed | Both paths hash the same UTF-8 bytes (`crypto.hash` on the string, or on `Buffer.from(string)`) and use the same byte length, so the ETag is the same either way. `Buffer.byteLength(body, '')` falls back to UTF-8 too. |
+| `src/utils.ts:413` at `0be908a1` (`:305` before), 1 or 2 mutants | the empty-body shortcut in `entityTag` removed | The shortcut returns the SHA-1 of an empty body, which the hash computes anyway. |
 | `lib/express.js:92` | `!Object.hasOwn(destination, name)` to `true` | A new app function, `EventEmitter.prototype` and the application prototype share no property names today, so overwriting never happens. |
 
 ## Follow-up work
@@ -150,6 +160,7 @@ The roadmap row stays in progress until every survivor has a test or a reason. S
 - `lib/response.js` (about 23): `res.send` ETag and length branches (163, 180, 213), JSONP (295, 305), `sendFile` and `download` argument handling and aborts (421, 461, 938 to 990), `res.type` fallback (513), `res.format` key list (580), cookie `maxAge` (764, 766), `res.location` (824).
 - `lib/application.js` (4): `app.listen` callback wrapping (600) and `logerror` (613, 615), which only logs outside the `test` environment.
 - `lib/router/lib/layer.js` (5), `lib/router/lib/route.js` (2), `lib/view.js` (4), `lib/request.js` (2): mostly decode-error paths and `req.xhr`'s empty default.
+- The cache-size limits in `src/utils.ts` (`remember` and `rememberTrust`): pin that each cache stays bounded, or accept them as memory-only behaviour with a reason.
 - `lib/view.js` lost 10 kills under the Vitest runner (93.42% to 80.26%); check which ones the mocha runner only killed through shared state.
 - Decide on `ignoreStatic`: under Vitest, a third of the mutants are static (they run at module load) and take most of the run time, because each one reruns the whole suite.
 - Raise `thresholds.break` as survivors are closed.
@@ -162,6 +173,6 @@ The full run belongs in CI (Actions, "mutation", Run workflow). Locally, on one 
 npx stryker run --mutate src/utils.ts --concurrency 2
 ```
 
-That takes about 8 minutes on this machine under load, most of it the dry run of the whole suite.
+That takes about 10 minutes on this machine, most of it the dry run of the whole suite.
 
 Reports land in `reports/mutation/` (ignored by git); `reports/stryker-incremental.json` makes the next run skip unchanged mutants.

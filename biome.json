@@ -1,0 +1,43 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": ["**/*.js", "!coverage", "!research", "!benchmarks/compare/node_modules", "!benchmarks/compare/.refs"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "asNeeded",
+      "trailingCommas": "none",
+      "arrowParentheses": "always",
+      "bracketSpacing": true
+    }
+  },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "none",
+      "correctness": {
+        "noUnusedVariables": { "level": "error", "options": { "ignoreRestSiblings": true } }
+      },
+      "suspicious": {
+        "noDoubleEquals": { "level": "error", "options": { "ignoreNull": true } }
+      },
+      "style": {
+        "noRestrictedGlobals": {
+          "level": "error",
+          "options": {
+            "deniedGlobals": { "Buffer": "Use `import { Buffer } from \"node:buffer\"` instead of the global Buffer." }
+          }
+        }
+      }
+    }
+  }
+}

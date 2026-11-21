@@ -20,6 +20,7 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 ### router
 
 - `lib/router/index.js`: added `const { Buffer } = require('node:buffer')` to match Express's lint rule against the global `Buffer`. No behaviour change.
+- `lib/router/index.js`: renamed two function names so no file has two functions with the same name, which the coverage merge (`lcov` 2) rejects. `Router.prototype.handle` is now `function handleRequest`, and the inner `param` helper in `processParams` is now `nextParam`. Property names are unchanged; only stack-trace frame names differ. The route layer's handler keeps the name `handle`, because tools read it through `layer.name`.
 
 ### router tests
 
@@ -29,6 +30,7 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 ### send
 
 - `lib/send/index.js`: added `var Buffer = require('node:buffer').Buffer`, for the same lint rule. No behaviour change.
+- `lib/send/index.js`: renamed function names for the same coverage reason. `SendStream.prototype.send` is now `function sendPath`, and the two inner `next` helpers in `sendFile` and `sendIndex` are now `nextExtension` and `nextIndex`. The exported `send` function keeps its name.
 
 ### send tests
 

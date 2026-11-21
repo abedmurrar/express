@@ -34,7 +34,7 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 
 **Credit:** a cherry-picked upstream PR keeps its original author. Ported ideas name their source in the commit message and in `History.md`.
 
-**Commits:** only the GitHub noreply email, and no `Co-Authored-By` lines. The `commit-msg` hook enforces this. When an upstream PR is ported by hand instead of cherry-picked, its author is credited by name in the commit message.
+**Commits:** only the GitHub noreply email, and no `Co-Authored-By` lines. The versioned hooks in `.githooks/` enforce this and lint staged files; enable them once per clone with `git config core.hooksPath .githooks`. When an upstream PR is ported by hand instead of cherry-picked, its author is credited by name in the commit message.
 
 ## Order of work
 
@@ -61,7 +61,7 @@ Docs ride along with each item.
 | [ ] | Re-sync the vendored router to 2.3.0 once it is 7 days old (from 2026-11-24) | #4059, router#206, router#174, router#196 | master | Small | router tests, harness, repro 4059 | |
 | [x] | Update mocha and supertest | #7547, PR #7600 | master | Small | the same tests as master run and pass (2,273 passing, 19 skipped regression tests); mocha 11.8.0 here, mocha 12 (Node 20.19+) on 6.x | [#7](https://github.com/abedmurrar/express/pull/7) |
 | [ ] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | tests pass | |
-| [ ] | ESLint 9 and a pre-commit lint hook | PRs #6118, #6480, #6912 | master | Small | lint passes | |
+| [x] | ESLint 9 and a pre-commit lint hook | PRs #6118, #6480, #6912 | master | Small | ESLint 10 flat config gives the same findings as the old setup on a file with every rule's violation, and 0 on the repo; git's own hooks (`.githooks/`), no extra package | [#9](https://github.com/abedmurrar/express/pull/9) |
 
 ## Forks of the dependencies
 
@@ -191,7 +191,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Update, harness-checked | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |
-| [ ] | Dev dependencies: supertest 7.3, ESLint 10 flat config, `c8` instead of `nyc`, TypeScript 7 on master; mocha 12 on 6.x (it needs Node 20.19+, and master still tests Node 16 to 19) | | | Update | both |
+| [~] | Dev dependencies: supertest 7.3 (done, #7), ESLint 10 flat config (done, #9), `c8` instead of `nyc`, TypeScript 7 on master; mocha 12 on 6.x (it needs Node 20.19+, and master still tests Node 16 to 19). ESLint's `indent`, `eol-last` and `no-trailing-spaces` are deprecated: move to `@stylistic/eslint-plugin` when ESLint removes them | | | Update | both |
 
 ## Bug fixes on the compatible line
 

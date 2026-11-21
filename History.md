@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Move to ESLint 10 with a flat `eslint.config.js` that keeps the old rules exactly, including ESLint 8's `caughtErrors: 'none'`. It gives the same findings as the old setup. Git hooks now live in `.githooks/` (enable with `git config core.hooksPath .githooks`): `pre-commit` lints the staged files, and `commit-msg` enforces the fork's commit rules.
 * Add regression tests (`test/regressions/`) for the 19 confirmed bugs that the compatible line will fix. Each asserts the correct behaviour and stays skipped until its fix lands; `REGRESSIONS_ALL=1` runs them all, and all 19 fail today. Six more tests pin behaviour this line keeps on purpose.
 * Update the test tooling: supertest 7.3.2 (upstream PR #7600 by krzysdz, cherry-picked) and mocha 11.8.0. Test files are now found by `.mocharc.yml` globs, so new test folders need no script change. mocha 12 needs Node 20.19 or later, so it waits for the 6.x line, whose minimum is Node 24.
 * Add a benchmark comparison (`benchmarks/compare`, `npm run bench`). It measures this repository at the branch head and at a base ref against the original Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`, across 7 scenarios, after checking that each server returns the same response. Results go to `benchmarks/results/`. Written in strict TypeScript that Node 24 runs directly.

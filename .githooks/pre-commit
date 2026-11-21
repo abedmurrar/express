@@ -1,0 +1,11 @@
+#!/bin/sh
+# Lint the staged JavaScript files before each commit.
+# Enable once per clone: git config core.hooksPath .githooks
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.js')
+[ -z "$files" ] && exit 0
+if [ ! -x ./node_modules/.bin/eslint ]; then
+  echo "pre-commit: run npm install first (eslint not found)" >&2
+  exit 1
+fi
+# shellcheck disable=SC2086
+./node_modules/.bin/eslint --no-warn-ignored $files

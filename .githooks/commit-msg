@@ -1,0 +1,12 @@
+#!/bin/sh
+# Fork rule: no Co-Authored-By trailers, and no email other than the GitHub noreply address.
+msg="$1"
+if grep -qiE '^co-authored-by:' "$msg"; then
+  echo "commit-msg: Co-Authored-By trailers are not allowed in this fork" >&2; exit 1
+fi
+bad=$(grep -v '^#' "$msg" | grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' | grep -v '^37074425+abedmurrar@users.noreply.github.com$' | grep -v '@users.noreply.github.com$' | head -1)
+if [ -n "$bad" ]; then
+  echo "commit-msg: email address in message is not allowed: $bad" >&2; exit 1
+fi
+email=$(git config user.email)
+case "$email" in *@users.noreply.github.com) ;; *) echo "commit-msg: user.email must be a GitHub noreply address (got $email)" >&2; exit 1;; esac

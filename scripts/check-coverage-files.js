@@ -36,6 +36,26 @@ var missing = sources.filter(function (file) {
   return !covered.has(file)
 })
 
+// lcov (used by CI to merge the per-platform reports) rejects a file that
+// lists two functions under the same name, which happens when V8 infers the
+// same name for two anonymous functions.
+var duplicates = []
+lcov.split('end_of_record').forEach(function (record) {
+  var file = /^SF:(.*)$/m.exec(record)
+  var seen = new Set()
+  record.split('\n').forEach(function (line) {
+    var m = /^FN:\d+,(.*)$/.exec(line)
+    if (!m) return
+    if (seen.has(m[1])) duplicates.push(file[1] + ' ' + m[1])
+    seen.add(m[1])
+  })
+})
+
+if (duplicates.length) {
+  console.error('Duplicate function names in the coverage report (lcov rejects these): ' + duplicates.join(', '))
+  process.exit(1)
+}
+
 if (missing.length) {
   console.error('Missing from the coverage report: ' + missing.join(', '))
   process.exit(1)

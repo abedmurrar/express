@@ -1,7 +1,9 @@
 name: ecosystem
 
 # Runs the own test suites of community middleware that test against Express
-# (cors, express-session, multer, express-rate-limit) on Express 5.3.0 and on
+# (cors, express-session, multer, express-rate-limit, http-proxy-middleware,
+# express-openapi-validator, express-fileupload, express-basic-auth, hpp,
+# express-mongo-sanitize) on Express 5.3.0 and on
 # this repository, and fails if any test that passes on 5.3.0 fails here.
 
 on:

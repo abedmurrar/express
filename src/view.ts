@@ -10,12 +10,50 @@
 
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-var debug = require('debug')('express:view')
-var path = require('node:path')
-var fs = require('node:fs')
+const debug = (require('debug') as typeof import('debug'))('express:view')
+const path = require('node:path') as typeof import('node:path')
+const fs = require('node:fs') as typeof import('node:fs')
+
+/** The callback a template engine calls when it has rendered: an error, or the output. */
+export type RenderCallback = (err: Error | null | undefined, str?: string) => void
+
+/** A template engine, as registered with `app.engine()`: renders the file at `path`. */
+export type Engine = (path: string, options: object, callback: RenderCallback) => void
+
+/** The options `app.render()` creates a `View` with. */
+export interface ViewOptions {
+  /** the default template engine name */
+  defaultEngine?: string | undefined
+  /** template engine require() cache */
+  engines: Record<string, Engine>
+  /** root path for view lookup */
+  root: string | string[]
+}
+
+/** A view: a template file found under the view roots, and the engine that renders it. */
+export interface View {
+  defaultEngine: string | undefined
+  ext: string
+  name: string
+  root: string | string[]
+  engine: Engine
+  path: string | undefined
+  lookup(name: string): string | undefined
+  render(options: object, callback: RenderCallback): void
+  resolve(dir: string, file: string): string | undefined
+}
+
+/** The `View` constructor, the default "view" setting. */
+export interface ViewConstructor {
+  new (name: string, options: ViewOptions): View
+  prototype: View
+}
 
 /**
  * Module variables.
@@ -49,7 +87,7 @@ module.exports = View
  * @public
  */
 
-function View(name, options) {
+function View(this: View, name: string, options: ViewOptions) {
   var opts = options || {}
 
   this.defaultEngine = opts.defaultEngine
@@ -64,8 +102,9 @@ function View(name, options) {
   var fileName = name
 
   if (!this.ext) {
-    // get extension from default engine name
-    this.ext = this.defaultEngine[0] !== '.' ? '.' + this.defaultEngine : this.defaultEngine
+    // get extension from default engine name (set, as checked above)
+    var defaultEngine = this.defaultEngine as string
+    this.ext = defaultEngine[0] !== '.' ? '.' + defaultEngine : defaultEngine
 
     fileName += this.ext
   }
@@ -76,21 +115,28 @@ function View(name, options) {
     debug('require "%s"', mod)
 
     // default engine export
-    var fn = require(mod).__express
+    var fn: unknown = (require(mod) as { __express?: unknown }).__express
 
     if (typeof fn !== 'function') {
       throw new Error('Module "' + mod + '" does not provide a view engine.')
     }
 
-    opts.engines[this.ext] = fn
+    opts.engines[this.ext] = fn as Engine
   }
 
-  // store loaded engine
-  this.engine = opts.engines[this.ext]
+  // store loaded engine (loaded above when it was missing)
+  this.engine = opts.engines[this.ext] as Engine
 
   // lookup path
   this.path = this.lookup(fileName)
 }
+
+/**
+ * The prototype, typed (a function declaration's `prototype` is untyped).
+ * @private
+ */
+
+const proto = View.prototype as View
 
 /**
  * Lookup view by the given `name`
@@ -99,14 +145,14 @@ function View(name, options) {
  * @private
  */
 
-View.prototype.lookup = function lookup(name) {
-  var path
-  var roots = [].concat(this.root)
+proto.lookup = function lookup(name) {
+  var path: string | undefined
+  var roots = ([] as string[]).concat(this.root)
 
   debug('lookup "%s"', name)
 
   for (var i = 0; i < roots.length && !path; i++) {
-    var root = roots[i]
+    var root = roots[i] as string
 
     // resolve the path
     var loc = resolve(root, name)
@@ -128,24 +174,19 @@ View.prototype.lookup = function lookup(name) {
  * @private
  */
 
-View.prototype.render = function render(options, callback) {
+proto.render = function render(options, callback) {
   var sync = true
 
   debug('render "%s"', this.path)
 
   // render, normalizing sync callbacks
-  this.engine(this.path, options, function onRender() {
+  this.engine(this.path as string, options, function onRender(this: unknown, ...args) {
     if (!sync) {
-      return callback.apply(this, arguments)
+      return callback.apply(this, args)
     }
 
-    // copy arguments
-    var args = new Array(arguments.length)
+    // keep the context, for the callback below
     var cntx = this
-
-    for (var i = 0; i < arguments.length; i++) {
-      args[i] = arguments[i]
-    }
 
     // force callback to be async
     return process.nextTick(function renderTick() {
@@ -164,7 +205,7 @@ View.prototype.render = function render(options, callback) {
  * @private
  */
 
-View.prototype.resolve = function resolve(dir, file) {
+proto.resolve = function resolve(dir, file) {
   var ext = this.ext
 
   // <path>.<ext>
@@ -182,6 +223,8 @@ View.prototype.resolve = function resolve(dir, file) {
   if (stat && stat.isFile()) {
     return path
   }
+
+  return undefined
 }
 
 /**
@@ -192,7 +235,7 @@ View.prototype.resolve = function resolve(dir, file) {
  * @private
  */
 
-function tryStat(path) {
+function tryStat(path: string): import('node:fs').Stats | undefined {
   debug('stat "%s"', path)
 
   try {

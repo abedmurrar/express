@@ -9,13 +9,67 @@
 
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-const isPromise = require('is-promise')
-const pathRegexp = require('path-to-regexp')
-const debug = require('debug')('router:layer')
-const deprecate = require('depd')('router')
+const isPromise = require('is-promise') as typeof import('is-promise').default
+const pathRegexp = require('path-to-regexp') as typeof import('path-to-regexp')
+const debug = (require('debug') as typeof import('debug'))('router:layer')
+const deprecate = (require('depd') as typeof import('depd'))('router')
+
+import type { MatchFunction, MatchOptions, ParamData } from 'path-to-regexp'
+import type { Request } from '../../request'
+import type { ExpressResponse } from '../../response'
+import type { Route } from './route'
+
+/** Call it to pass control on, or with an error (or `'route'`, `'router'`) to skip ahead. */
+export type NextFunction = (err?: unknown) => void
+export type Params = ParamData
+export type PathParams = string | RegExp | Array<string | RegExp>
+
+/**
+ * The request: the Express request, which declares what the router reads and
+ * sets on it (`url`, `baseUrl`, `originalUrl`, `params`, `route`, `next`).
+ */
+export type RouterRequest = Request
+
+/** The response, which the router writes to only for the automatic OPTIONS response. */
+export type RouterResponse = ExpressResponse
+
+export type RequestHandler = (req: RouterRequest, res: RouterResponse, next: NextFunction) => unknown
+/** Told apart from a request handler by taking four arguments. */
+export type ErrorRequestHandler = (err: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction) => unknown
+export type LayerHandler = RequestHandler | ErrorRequestHandler
+
+export interface LayerOptions {
+  sensitive?: boolean | undefined
+  strict?: boolean | undefined
+  end?: boolean | undefined
+}
+
+export interface Layer {
+  handle: LayerHandler
+  keys: string[]
+  name: string
+  params: Params | undefined
+  path: string | undefined
+  slash: boolean
+  matchers: Array<MatchFunction<Params>>
+  method?: string | undefined // set by the route
+  route?: Route | undefined // set by the router
+  handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  match(path: string | null | undefined): boolean
+}
+
+export interface LayerConstructor {
+  new (path: PathParams, options: LayerOptions | undefined, fn: LayerHandler): Layer
+  (path: PathParams, options: LayerOptions | undefined, fn: LayerHandler): Layer
+  prototype: Layer
+}
 
 /**
  * Module variables.
@@ -31,9 +85,9 @@ const MATCHING_GROUP_REGEXP = /\((?:\?<(.*?)>)?(?!\?)/g
 
 module.exports = Layer
 
-function Layer(path, options, fn) {
+function Layer(this: Layer, path: PathParams, options: LayerOptions | undefined, fn: LayerHandler): Layer | void {
   if (!(this instanceof Layer)) {
-    return new Layer(path, options, fn)
+    return new (Layer as LayerConstructor)(path, options, fn)
   }
 
   debug('new %o', path)
@@ -46,11 +100,11 @@ function Layer(path, options, fn) {
   this.path = undefined
   this.slash = path === '/' && opts.end === false
 
-  function matcher(_path) {
+  function matcher(_path: string | RegExp): MatchFunction<Params> {
     if (_path instanceof RegExp) {
-      const keys = []
+      const keys: Array<{ name: string | number; offset: number }> = []
       let name = 0
-      let m
+      let m: RegExpExecArray | null
       // eslint-disable-next-line no-cond-assign
       while ((m = MATCHING_GROUP_REGEXP.exec(_path.source))) {
         keys.push({
@@ -65,9 +119,9 @@ function Layer(path, options, fn) {
           return false
         }
 
-        const params = {}
+        const params: Params = {}
         for (let i = 1; i < match.length; i++) {
-          const key = keys[i - 1]
+          const key = keys[i - 1] as { name: string | number }
           const prop = key.name
           const val = decodeParam(match[i])
 
@@ -88,10 +142,17 @@ function Layer(path, options, fn) {
       end: opts.end,
       trailing: !opts.strict,
       decode: decodeParam
-    })
+    } as MatchOptions)
   }
   this.matchers = Array.isArray(path) ? path.map(matcher) : [matcher(path)]
 }
+
+/**
+ * The prototype, typed (a function declaration's `prototype` is untyped).
+ * @private
+ */
+
+const proto = Layer.prototype as Layer
 
 /**
  * Handle the error for the layer.
@@ -103,8 +164,8 @@ function Layer(path, options, fn) {
  * @api private
  */
 
-Layer.prototype.handleError = function handleError(error, req, res, next) {
-  const fn = this.handle
+proto.handleError = function handleError(error, req, res, next) {
+  const fn = this.handle as ErrorRequestHandler
 
   if (fn.length !== 4) {
     // not a standard error handler
@@ -121,7 +182,7 @@ Layer.prototype.handleError = function handleError(error, req, res, next) {
         deprecate('handlers that are Promise-like are deprecated, use a native Promise instead')
       }
 
-      ret.then(null, function (error) {
+      ret.then(null, function (error: unknown) {
         next(error || new Error('Rejected promise'))
       })
     }
@@ -139,8 +200,8 @@ Layer.prototype.handleError = function handleError(error, req, res, next) {
  * @api private
  */
 
-Layer.prototype.handleRequest = function handleRequest(req, res, next) {
-  const fn = this.handle
+proto.handleRequest = function handleRequest(req, res, next) {
+  const fn = this.handle as RequestHandler
 
   if (fn.length > 3) {
     // not a standard request handler
@@ -157,7 +218,7 @@ Layer.prototype.handleRequest = function handleRequest(req, res, next) {
         deprecate('handlers that are Promise-like are deprecated, use a native Promise instead')
       }
 
-      ret.then(null, function (error) {
+      ret.then(null, function (error: unknown) {
         next(error || new Error('Rejected promise'))
       })
     }
@@ -175,8 +236,8 @@ Layer.prototype.handleRequest = function handleRequest(req, res, next) {
  * @api private
  */
 
-Layer.prototype.match = function match(path) {
-  let match
+proto.match = function match(path) {
+  let match: ReturnType<MatchFunction<Params>> | undefined
 
   if (path != null) {
     // fast path non-ending match for / (any path matches)
@@ -189,7 +250,7 @@ Layer.prototype.match = function match(path) {
     let i = 0
     while (!match && i < this.matchers.length) {
       // match the path
-      match = this.matchers[i](path)
+      match = (this.matchers[i] as MatchFunction<Params>)(path)
       i++
     }
   }
@@ -216,7 +277,9 @@ Layer.prototype.match = function match(path) {
  * @private
  */
 
-function decodeParam(val) {
+function decodeParam(val: string): string
+function decodeParam(val: string | undefined): string | undefined
+function decodeParam(val: string | undefined): string | undefined {
   if (typeof val !== 'string' || val.length === 0) {
     return val
   }
@@ -226,7 +289,7 @@ function decodeParam(val) {
   } catch (err) {
     if (err instanceof URIError) {
       err.message = "Failed to decode param '" + val + "'"
-      err.status = 400
+      ;(err as URIError & { status: number }).status = 400
     }
 
     throw err
@@ -236,7 +299,9 @@ function decodeParam(val) {
 /**
  * Loosens the given path for path-to-regexp matching.
  */
-function loosen(path) {
+function loosen(path: string): string
+function loosen(path: string | RegExp): string | RegExp
+function loosen(path: PathParams): PathParams {
   if (path instanceof RegExp || path === '/') {
     return path
   }

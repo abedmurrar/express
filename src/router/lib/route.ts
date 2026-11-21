@@ -9,12 +9,87 @@
 
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-const debug = require('debug')('router:route')
-const Layer = require('./layer')
-const { METHODS } = require('node:http')
+const debug = (require('debug') as typeof import('debug'))('router:route')
+const Layer = require('./layer') as LayerConstructor
+const { METHODS } = require('node:http') as typeof import('node:http')
+
+import type {
+  Layer as LayerInstance,
+  LayerConstructor,
+  LayerHandler,
+  NextFunction,
+  PathParams,
+  RouterRequest,
+  RouterResponse
+} from './layer'
+
+/** The HTTP methods, in lower case, as Node lists them. */
+export type HttpMethod =
+  | 'acl'
+  | 'bind'
+  | 'checkout'
+  | 'connect'
+  | 'copy'
+  | 'delete'
+  | 'get'
+  | 'head'
+  | 'link'
+  | 'lock'
+  | 'm-search'
+  | 'merge'
+  | 'mkactivity'
+  | 'mkcalendar'
+  | 'mkcol'
+  | 'move'
+  | 'notify'
+  | 'options'
+  | 'patch'
+  | 'post'
+  | 'propfind'
+  | 'proppatch'
+  | 'purge'
+  | 'put'
+  | 'query'
+  | 'rebind'
+  | 'report'
+  | 'search'
+  | 'source'
+  | 'subscribe'
+  | 'trace'
+  | 'unbind'
+  | 'unlink'
+  | 'unlock'
+  | 'unsubscribe'
+
+/** One property per HTTP method, each of type `M`. */
+export type HttpMethods<M> = { [method in HttpMethod]: M }
+
+/** Handlers, or arrays of them nested to any depth. */
+export type HandlerList = LayerHandler | HandlerList[]
+
+/** `route.get(handlers...)` and the other methods: adds handlers, returns the route. */
+export type RouteMethod = (...handlers: HandlerList[]) => Route
+
+export interface Route extends HttpMethods<RouteMethod> {
+  path: PathParams
+  stack: LayerInstance[]
+  methods: Record<string, boolean> // route handlers for various http methods
+  _handlesMethod(method: string | undefined): boolean
+  _methods(): string[]
+  dispatch(req: RouterRequest, res: RouterResponse, done: NextFunction): void
+  all: RouteMethod
+}
+
+export interface RouteConstructor {
+  new (path: PathParams): Route
+  prototype: Route
+}
 
 /**
  * Module variables.
@@ -23,7 +98,7 @@ const { METHODS } = require('node:http')
 
 const slice = Array.prototype.slice
 const flatten = Array.prototype.flat
-const methods = METHODS.map((method) => method.toLowerCase())
+const methods = METHODS.map((method) => method.toLowerCase()) as HttpMethod[]
 
 /**
  * Expose `Route`.
@@ -38,7 +113,7 @@ module.exports = Route
  * @api private
  */
 
-function Route(path) {
+function Route(this: Route, path: PathParams) {
   debug('new %o', path)
   this.path = path
   this.stack = []
@@ -48,10 +123,17 @@ function Route(path) {
 }
 
 /**
+ * The prototype, typed (a function declaration's `prototype` is untyped).
  * @private
  */
 
-Route.prototype._handlesMethod = function _handlesMethod(method) {
+const proto = Route.prototype as Route
+
+/**
+ * @private
+ */
+
+proto._handlesMethod = function _handlesMethod(method) {
   if (this.methods._all) {
     return true
   }
@@ -63,7 +145,7 @@ Route.prototype._handlesMethod = function _handlesMethod(method) {
     name = 'get'
   }
 
-  return Boolean(this.methods[name])
+  return Boolean(this.methods[name as string])
 }
 
 /**
@@ -71,7 +153,7 @@ Route.prototype._handlesMethod = function _handlesMethod(method) {
  * @private
  */
 
-Route.prototype._methods = function _methods() {
+proto._methods = function _methods() {
   const methods = Object.keys(this.methods)
 
   // append automatic head
@@ -81,7 +163,7 @@ Route.prototype._methods = function _methods() {
 
   for (let i = 0; i < methods.length; i++) {
     // make upper case
-    methods[i] = methods[i].toUpperCase()
+    methods[i] = (methods[i] as string).toUpperCase()
   }
 
   return methods
@@ -93,7 +175,7 @@ Route.prototype._methods = function _methods() {
  * @private
  */
 
-Route.prototype.dispatch = function dispatch(req, res, done) {
+proto.dispatch = function dispatch(req, res, done) {
   let idx = 0
   const stack = this.stack
   let sync = 0
@@ -112,7 +194,7 @@ Route.prototype.dispatch = function dispatch(req, res, done) {
 
   next()
 
-  function next(err) {
+  function next(err?: unknown): void | NodeJS.Immediate {
     // signal to exit route
     if (err && err === 'route') {
       return done()
@@ -133,12 +215,12 @@ Route.prototype.dispatch = function dispatch(req, res, done) {
       return setImmediate(next, err)
     }
 
-    let layer
-    let match
+    let layer!: LayerInstance
+    let match: boolean | undefined
 
     // find next matching layer
     while (match !== true && idx < stack.length) {
-      layer = stack[idx++]
+      layer = stack[idx++] as LayerInstance
       match = !layer.method || layer.method === method
     }
 
@@ -185,8 +267,8 @@ Route.prototype.dispatch = function dispatch(req, res, done) {
  * @api public
  */
 
-Route.prototype.all = function all(handler) {
-  const callbacks = flatten.call(slice.call(arguments), Infinity)
+proto.all = function all(handler) {
+  const callbacks: unknown[] = flatten.call(slice.call(arguments), Infinity)
 
   if (callbacks.length === 0) {
     throw new TypeError('argument handler is required')
@@ -199,7 +281,7 @@ Route.prototype.all = function all(handler) {
       throw new TypeError('argument handler must be a function')
     }
 
-    const layer = Layer('/', {}, fn)
+    const layer = Layer('/', {}, fn as LayerHandler)
     layer.method = undefined
 
     this.methods._all = true
@@ -210,8 +292,8 @@ Route.prototype.all = function all(handler) {
 }
 
 methods.forEach(function (method) {
-  Route.prototype[method] = function (handler) {
-    const callbacks = flatten.call(slice.call(arguments), Infinity)
+  proto[method] = function (handler) {
+    const callbacks: unknown[] = flatten.call(slice.call(arguments), Infinity)
 
     if (callbacks.length === 0) {
       throw new TypeError('argument handler is required')
@@ -226,7 +308,7 @@ methods.forEach(function (method) {
 
       debug('%s %s', method, this.path)
 
-      const layer = Layer('/', {}, fn)
+      const layer = Layer('/', {}, fn as LayerHandler)
       layer.method = method
 
       this.methods[method] = true

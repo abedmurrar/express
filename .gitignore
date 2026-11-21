@@ -36,3 +36,6 @@ reports/*
 # docs site build output and cache (docs/node_modules is covered above)
 docs/.vitepress/cache/
 docs/.vitepress/dist/
+
+# built from src/ by `npm run build`
+/lib/

@@ -16,6 +16,8 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 
 **Tooling:** Biome is the only linter and formatter (no ESLint, no Prettier).
 
+**Module format:** never ES-module-only. Express and every fork ship CommonJS, or CommonJS plus an ESM entry that is a thin wrapper over the CommonJS build (one copy of the code, so no dual-package hazard). A dependency whose new release is ESM-only stays on its last CommonJS release, or our fork of it ships a CommonJS build. This holds on both lines, 6.x included.
+
 **Merging:** PRs that change code merge once CI is green. PRs that only change docs or the roadmap merge without waiting for the test matrix (the same rule as the objection fork).
 
 **Status:** `[ ]` to do, `[~]` in progress, `[x]` done (link the PR), `won't do` (with the reason).
@@ -27,7 +29,7 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 
 **Middleware compatibility comes first, on both lines:** community middleware written for Express keeps working unchanged. `req` and `res` stay Node's `IncomingMessage` and `ServerResponse` with the Express helpers on them, the `(req, res, next)` and `(err, req, res, next)` signatures stay, `app.use`, `Router` and sub-app mounting behave the same, and the published package still loads with `require('express')` and exposes the same properties. The ecosystem suite (Tests section) runs on every PR. Any change that fails it is dropped or made opt-in, including the breaking changes in our 6.0.
 
-**TypeScript:** the fork is written in strict TypeScript (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, no `any`), using only syntax that Node 24 can run directly. Development and tests run on the `.ts` sources with no build step. The published package is compiled JavaScript plus `.d.ts` types, because Node won't run `.ts` files from `node_modules`. Users no longer need `@types/express`.
+**TypeScript:** the fork is written in strict TypeScript (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, no `any`), using only syntax that Node 24 can run directly. The sources live in `src/` and `tsc` compiles them into `lib/`. The tests, the differential and middleware checks and the benchmarks all run against `lib/`, which is exactly what's published, as in the objection fork. Node won't run `.ts` files from `node_modules`, so testing the build is testing the real artifact. Types ship as `.d.ts`. Users no longer need `@types/express`.
 
 **Definition of done for every PR:**
 1. New tests for the change, plus a regression test that fails before and passes after for any bug.
@@ -75,7 +77,7 @@ Docs ride along with each item.
 
 ## Forks of the dependencies
 
-Every package Express depends on that does real work gets its own fork under `abedmurrar/<repo>`, held to the same rules as this repo: middleware compatibility, strict TypeScript, tests, the differential harness against its upstream release, and a benchmark run per PR. Each fork keeps its upstream history and licence, and syncs from upstream the same way this repo does.
+Every package Express depends on that does real work gets its own fork under `abedmurrar/<repo>`, held to the same rules as this repo (CommonJS, or CommonJS plus a thin ESM wrapper; never ESM-only): middleware compatibility, strict TypeScript, tests, the differential harness against its upstream release, and a benchmark run per PR. Each fork keeps its upstream history and licence, and syncs from upstream the same way this repo does.
 
 Express uses the forks as vendored copies (as with `router` and `send` today), synced from each fork, until publishing is approved. After that it uses them as `@abedmurrar/*` packages.
 
@@ -150,7 +152,7 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 | [x] | Security suite: authorization-bypass cases (case, trailing slash, encoded paths, path arrays, stateful regex), header injection, response splitting, open redirects, prototype pollution, path traversal in `sendFile` and static | | master | Large | 1,125 tests in `test/security/` (18 of them skipped bug tests for 3 bug-fix rows). Each group fails on a deliberately broken build, one guard at a time: a router fast path that skips middleware (49 failures), case-sensitive middleware (31), routes matching decoded paths (82), header writes that skip Node's checks (15), unencoded `res.location` (4 and 27), no backslash handling in redirects (12), a naive query parser (9) or JSON merge (5), and no `..` check in either `send` (46 and 45) | [#23](https://github.com/abedmurrar/express/pull/23) |
 | [ ] | Robustness: client aborts, slow clients, pipelining, keep-alive reuse, large bodies, many concurrent requests | | master | Medium | new tests | |
 | [ ] | Memory-leak check: heap stays flat over a long request run for each scenario | | master | Small | heap snapshot comparison | |
-| [~] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | first 10 packages (11 scenarios incl. session, upload, auth, rate limiting) give byte-identical responses and morgan log lines on Express 5.3.0 and the fork (#14). The own suites of cors, express-session, multer and express-rate-limit (625 tests) pass on the fork exactly as on 5.3.0, in a CI workflow (#18). Still to do: growing to 25 packages | [#14](https://github.com/abedmurrar/express/pull/14), [#18](https://github.com/abedmurrar/express/pull/18) |
+| [~] | Ecosystem suite: run the own test suites of the 25 most-downloaded Express middleware against the fork, on both lines (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit, express-validator, http-proxy-middleware, serve-favicon, method-override, connect-redis, express-fileupload, swagger-ui-express and others) | | both | Large | first 10 packages (11 scenarios incl. session, upload, auth, rate limiting) give byte-identical responses and morgan log lines on Express 5.3.0 and the fork (#14). The own suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests that pass on 5.3.0) pass on the fork exactly as on 5.3.0, in a CI workflow (#18 and this PR). Most of the 25 most-downloaded middleware can't be added: the expressjs/* packages (serve-static, body-parser, compression, morgan, cookie-parser, errorhandler, serve-favicon, method-override, response-time, connect-timeout, vhost, csurf) and helmet, passport, express-validator, express-winston, express-jwt and connect-flash test with plain `http`, connect or mock objects, not Express; connect-redis needs Redis. Still to do: swagger-ui-express (tests drive headless Chrome), then other popular packages whose suites use Express | [#14](https://github.com/abedmurrar/express/pull/14), [#18](https://github.com/abedmurrar/express/pull/18) |
 | [ ] | Type tests for the whole public API, including route-parameter types from path strings | | master | Medium | type tests in CI | |
 | [ ] | Instruction-count benchmark gate on every PR, as in the objection fork: count CPU instructions with valgrind (cachegrind, pinned and checksum-verified) under deterministic-GC Node flags, against the merge-base, and fail when any scenario is more than 1% worse | | master | Medium | the gate fails on a deliberately slowed build | |
 | [ ] | Node version matrix for the published JavaScript (22, 24, 26, Linux and Windows) | | master | Small | CI matrix | |
@@ -160,10 +162,10 @@ The goal is that nothing slips: every behaviour Express has is pinned by a test,
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | Strict TypeScript 7 setup: tests run on `.ts` with Node 24, build to JavaScript and `.d.ts` for publishing | | master | Medium | `tsc` clean; tests pass on sources and on the built output | |
+| [~] | Strict TypeScript 7 setup: tests run on `.ts` with Node 24, build to JavaScript and `.d.ts` for publishing | | master | Medium | done: `src/` built by TypeScript 7.0.2 (strict options, `allowJs` while files are converted) into `lib/`, with tests on the built output at 100% coverage mapped back to `src/`, a type check in CI, and the same published file list. Still to do: `.d.ts` output (public types row) | [#30](https://github.com/abedmurrar/express/pull/30) |
 | [ ] | The built package keeps the CommonJS entry and export shape of Express 5.3.0 (`require('express')`, `express.Router`, `express.json` and the rest), plus an ESM entry | | master | Small | an export-shape test against 5.3.0; middleware that requires `express` still works | |
-| [ ] | Convert `lib/` to TypeScript, one file per PR (`utils`, `view`, `request`, `response`, `application`, `express`) | | master | Large | harness 0 diffs, benchmark no slower | |
-| [ ] | Convert the vendored router and send to TypeScript | | master | Large | their suites and the harness pass | |
+| [x] | Convert `lib/` to TypeScript, one file per PR (`utils`, `view`, `request`, `response`, `application`, `express`) | | master | Large | all six done: `utils` (#31), `view` and `request` (#32), `response` (#33), `application` and `express` (#43). Strict, no `any`, the same exported names (and for `request`, `response` and `application`, the same prototype objects with the same properties in the same order), 100% coverage, the differential and middleware checks unchanged. The local request, response and app interfaces are replaced by the shared `Request`, `ExpressResponse` and `Application` types, which the router's request and response types now alias. `index.js` stays JavaScript (the package entry, outside `src/`) | [#31](https://github.com/abedmurrar/express/pull/31), [#32](https://github.com/abedmurrar/express/pull/32), [#33](https://github.com/abedmurrar/express/pull/33), [#43](https://github.com/abedmurrar/express/pull/43) |
+| [x] | Convert the vendored router and send to TypeScript | | master | Large | their suites and the harness pass. Router done (#36), `send` done (#44): strict, no `any`, the same export shape, prototype chain, function names and lengths, 100% coverage | [#36](https://github.com/abedmurrar/express/pull/36), [#44](https://github.com/abedmurrar/express/pull/44) |
 | [ ] | Public types in our source, ported from `@types/express` and `@types/express-serve-static-core` (MIT, credited), so `@types/express` users can switch without changes | #2818, #6370, #6385, #7231 | master | Large | type tests, plus typing real apps written against `@types/express` | |
 | [ ] | Typed route parameters from path strings, typed `req.body`/`req.query` through generics, and typed `res.locals` | | master | Medium | type tests | |
 | [ ] | Type tests run with `tsc` (strict and loose configs, plus expected-error tests), `attw --pack` to check the published types and exports, and a type-size budget; `@types/node` pinned to Node 22 so the compiler rejects newer Node APIs | | master | Medium | the type tests and `attw` run in CI | |
@@ -179,13 +181,13 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 |---|---|---|---|---|---|
 | [ ] | `accepts` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `body-parser` | ^2.4.0 | 2.4.0 (2026-10-22) | Keep; vendor on 6.x for the JSON `__proto__` check | 6.x |
-| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
-| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
+| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
+| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
 | [ ] | `cookie-signature` | ^1.2.1 | 1.2.2 | Update | master |
 | [ ] | `debug` | ^4.4.0 | 4.4.3 | Replace with `util.debuglog` (the `DEBUG=express:*` switch changes, so 6.x) | 6.x |
 | [ ] | `depd` | ^2.0.0 | 2.0.0 | Replace with `util.deprecate` | 6.x |
-| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
+| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `escape-html` | ^1.0.3 | 1.0.3 | Keep (Node has no built-in) | master |
 | [ ] | `etag` | ^1.8.1 | 2.0.0 (2026-11-21, inside the window until 2026-11-28) | Update after the window, harness-checked | master |
 | [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
@@ -212,6 +214,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
+| [x] | A bad value in `res.sendFile`'s or `res.download`'s `headers` option (a CR or LF, or an invalid name) crashes the process: it throws inside `send`'s file-stat callback. Any throw from a `headers` listener now becomes an error for the callback or `next(err)`. `express.static` still uses serve-static's own `send`, so a throwing `setHeaders` there still crashes until serve-static uses our `send` | | master | Small | 4 security tests that fail with an uncaught error before the fix | |
 | [ ] | `res.send` corrupts ArrayBuffer, DataView and typed-array bodies | #7362, #7510, #7538, PRs #7574, #7363, #7511, #7542, #7410 | master | Small | repros 7362, 7510, 7538 | |
 | [ ] | `res.redirect` sends Content-Length with Transfer-Encoding | #7506, PR #7508 | master | Small | repro 7506 | |
 | [ ] | `res.set` sends `Content-Type: false` for unknown types | #7034, PR #7035 | master | Small | repro 7034 | |
@@ -245,11 +248,17 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 
 Baseline on this machine (Node 24.17.0, requests per second): Hello World 33,776, JSON 30,503, 10 middleware 30,395, 100 routes 24,654. Fastify 5.12.8 does about 1.8x these numbers.
 
+**Built-ins first.** We support Node 22.13 and later only, so code written for old Node versions can go, as it did in the objection fork, which dropped lodash and bluebird for what Node has built in. Node's own versions are usually faster than the old workarounds. Each change keeps the same results (the differential harness checks this) and is measured by the benchmark in its PR. This applies to our code and to every fork of a dependency below.
+
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | measured +11–14% | |
+| [x] | Skip the per-request prototype swap when `app.listen()` made the server | PR #7555 | master | Small | CI benchmark against `master`: hello +11.7%, json +8.3%, params +7.7%, mw10 +9.3%, routes100 +5.2%, post-json +4.1%, not-found +11.4%; differential scenarios also run on `app.listen()` | [#38](https://github.com/abedmurrar/express/pull/38) |
+| [ ] | Use Node's built-ins instead of old workarounds in our own code: rest parameters and spread instead of copying `arguments` by hand (32 places in application, request, response, view and the router), `Object.hasOwn`, and similar. Functions keep their `name` and `length` | | master | Medium | bench and harness | |
+| [x] | ETags through the one-shot `crypto.hash()` instead of the `createHash().update().digest()` chain, with the same output. UTF-8 strings are hashed without first being copied into a Buffer. Identical to `etag` 1.8.1 on 40,160 random bodies and every encoding (now a property test). An in-process timing on a loaded machine shows 1.11x for an 11-byte string and 0.97x to 1.03x for 2 KB and 16 KB bodies, so the gain is small; the CI benchmark and the instruction-count tool give the real number | | master | Small | bench and harness | |
+| [ ] | The same built-ins pass in every fork of a dependency, measured in each fork's own benchmark | | master | Large | each fork's bench and harness | |
 | [ ] | Cache the trust-proxy getters (`req.ip`, `protocol`, `host`, `hostname`), keyed on their inputs | PR #7519 | master | Small | bench and harness | |
-| [ ] | Cache the `accepts` instance per request | PR #7008 | master | Small | bench and harness | |
+| won't do | Cache the `accepts` instance per request | PR #7008 | master | Small | measured: building an `accepts` instance costs about 200 ns and a per-request cache adds about 200 ns to the first call, while `req.accepts()` itself takes about 4.4 µs, which a cached instance doesn't save (negotiator parses the header again on every call). See the negotiator row below | |
+| [ ] | Remember parsed `Accept`, `Accept-Language`, `Accept-Encoding` and `Accept-Charset` headers in our negotiator fork (a capped map by header string), so `req.accepts*` and `res.format` skip re-parsing them | | master | Small | negotiator's own tests, the harness, and per-call timing | |
 | [ ] | Memoise content-type lookups | PR #7481 | master | Small | bench and harness | |
 | [ ] | Write the default HTML and JSON content types directly | PR #7516 | master | Small | bench and harness | |
 | [ ] | Router: check the method before running the path regex | | master | Small | bench and harness | |

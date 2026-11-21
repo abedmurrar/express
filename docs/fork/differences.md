@@ -16,6 +16,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **No per-request prototype swap on `app.listen()` servers.** The server makes `req` and `res` with the app's prototypes already set, so `app.handle()` has nothing to swap. Apps see the same objects as before. The only visible difference: code that runs before the app on that server, such as an `upgrade`, `connect` or `checkContinue` listener, now gets `req` and `res` that already have the app's prototypes.
 - **Fewer dependencies.** The `merge-descriptors`, `once` and `wrappy` packages are gone, replaced by short built-in equivalents with the same behaviour.
 - **Project links** in `package.json` point to the fork, and upstream's `funding` entry is removed.
+- **Built-in TypeScript types.** The package ships types ported from `@types/express` 5.0.6 and `@types/express-serve-static-core` 5.1.3, so `@types/express` is no longer needed and code written for it compiles unchanged. See [Install the fork](./install#typescript).
 
 ## Tests that guard the drop-in promise
 

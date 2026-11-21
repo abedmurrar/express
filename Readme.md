@@ -34,6 +34,7 @@ The full plan, with a decision for every open upstream issue and pull request, i
 * **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
 * **Our own copies of `router` and `send`** (see [VENDORED.md](VENDORED.md)), so routing and file-sending bugs can be fixed here.
 * **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.
+* **Built-in TypeScript types** (see [TypeScript](#typescript)).
 
 Coming next: bug fixes, speed-ups and strict TypeScript, all on the drop-in line. See [ROADMAP.md](ROADMAP.md).
 
@@ -48,6 +49,43 @@ npm install github:abedmurrar/express
 ```
 
 It installs under the name `express`, so `require('express')` keeps working.
+
+## TypeScript
+
+The package ships its own TypeScript types, so you don't need `@types/express`:
+
+```bash
+npm uninstall @types/express @types/express-serve-static-core
+npm install --save-dev typescript @types/node
+```
+
+The types are ported from `@types/express` 5.0.6 and `@types/express-serve-static-core` 5.1.3, so code written for them compiles unchanged: the same names (`Request<P, ResBody, ReqBody, ReqQuery, Locals>`, `Response`, `NextFunction`, `RequestHandler`, `ErrorRequestHandler`, `Router`, `Application`, `Express` and the rest), route parameters inferred from the path, and the global `Express` namespace that middleware such as passport (`req.user`) and multer (`req.file`) add to.
+
+```ts
+import express, { type Request, type Response } from 'express'
+
+const app = express()
+
+app.get('/users/:id', (req, res) => {
+  res.json({ id: req.params.id }) // req.params.id is a string
+})
+
+app.use((err: Error, req: Request, res: Response, next: express.NextFunction) => {
+  res.status(500).json({ error: err.message })
+})
+```
+
+Imports from `express-serve-static-core` keep working while another `@types` package still installs it, and its types mix with these. To use these types everywhere instead, map the module in `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "paths": { "express-serve-static-core": ["./node_modules/express/typings/core.d.ts"] }
+  }
+}
+```
+
+The names apps import from there (`ParamsDictionary`, `Query`, `RouteParameters`, `PathParams` and the like) can also come from `express` itself.
 
 ## Documentation
 
@@ -82,6 +120,8 @@ To report a security problem in this fork, see [SECURITY.md](SECURITY.md).
 Express was created by [TJ Holowaychuk](https://github.com/tj) and is maintained by the [Express team and its contributors](https://github.com/expressjs/express/graphs/contributors). Everything here builds on their work. Upstream pull requests taken into this fork keep their authors.
 
 The vendored copies of [`router`](https://github.com/pillarjs/router) and [`send`](https://github.com/pillarjs/send) keep their original licences, in `src/router/LICENSE` and `src/send/LICENSE` (copied into `lib/` when built).
+
+The TypeScript types in `typings/` are ported from [`@types/express`](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express) (by Boris Yankov, Puneet Arora, Dylan Frankland and Sebastian Beltran) and [`@types/express-serve-static-core`](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express-serve-static-core) (by Boris Yankov, Satana Charuwichitratana, Jose Luis Leon, David Stephens and Shin Ando), with the other DefinitelyTyped contributors. They are MIT licensed; each file keeps the licence header and lists what changed.
 
 ## License
 

@@ -46,14 +46,15 @@ npm install express --no-save
 
 ## TypeScript
 
-Express is written in JavaScript and does not bundle its own type definitions. To use it with
-TypeScript, install TypeScript together with the community-maintained types for Express and Node.js
-(from [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped)) as development
-dependencies:
+This fork bundles its own type definitions, ported from the community-maintained `@types/express`
+(from [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped)), so you don't need
+`@types/express`. Install TypeScript and the Node.js types as development dependencies:
 
 ```bash
-npm install --save-dev typescript @types/express @types/node
+npm install --save-dev typescript @types/node
 ```
+
+See [Install the fork](/fork/install#typescript) for moving an existing project off `@types/express`.
 
 ::: warning
 

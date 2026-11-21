@@ -96,6 +96,8 @@
     "test": "mocha --require test/support/env --reporter spec --check-leaks test/ test/acceptance/ test/router/ test/send/",
     "test-ci": "nyc --exclude examples --exclude test --exclude benchmarks --reporter=lcovonly --reporter=text npm test",
     "test-cov": "nyc --exclude examples --exclude test --exclude benchmarks --reporter=html --reporter=text npm test",
-    "test-tap": "mocha --require test/support/env --reporter tap --check-leaks test/ test/acceptance/ test/router/ test/send/"
+    "test-tap": "mocha --require test/support/env --reporter tap --check-leaks test/ test/acceptance/ test/router/ test/send/",
+    "bench:install": "npm --prefix benchmarks/compare install",
+    "bench": "node benchmarks/compare/run.ts"
   }
 }

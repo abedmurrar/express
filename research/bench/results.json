@@ -1,0 +1,184 @@
+{
+  "node": "v24.17.0",
+  "rounds": 3,
+  "duration_s": 10,
+  "connections": 50,
+  "results": [
+    {
+      "scenario": "hello",
+      "target": "e530",
+      "rps_median": 35175,
+      "p99_median_ms": 2,
+      "runs": [
+        37191,
+        35175,
+        31273
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "master",
+      "rps_median": 33776,
+      "p99_median_ms": 2,
+      "runs": [
+        33776,
+        34443,
+        30676
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "pr7555",
+      "rps_median": 38419,
+      "p99_median_ms": 2,
+      "runs": [
+        37540,
+        39001,
+        38419
+      ]
+    },
+    {
+      "scenario": "hello",
+      "target": "fastify",
+      "rps_median": 61660,
+      "p99_median_ms": 1,
+      "runs": [
+        60737,
+        62084,
+        61660
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "e530",
+      "rps_median": 30674,
+      "p99_median_ms": 2,
+      "runs": [
+        30674,
+        31807,
+        27675
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "master",
+      "rps_median": 30503,
+      "p99_median_ms": 2,
+      "runs": [
+        30503,
+        31116,
+        28913
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "pr7555",
+      "rps_median": 34297,
+      "p99_median_ms": 2,
+      "runs": [
+        34297,
+        34402,
+        30937
+      ]
+    },
+    {
+      "scenario": "json",
+      "target": "fastify",
+      "rps_median": 54832,
+      "p99_median_ms": 1,
+      "runs": [
+        56406,
+        54832,
+        52505
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "e530",
+      "rps_median": 29687,
+      "p99_median_ms": 3,
+      "runs": [
+        30613,
+        29687,
+        27404
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "master",
+      "rps_median": 30395,
+      "p99_median_ms": 2,
+      "runs": [
+        31131,
+        30395,
+        28873
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "pr7555",
+      "rps_median": 34185,
+      "p99_median_ms": 2,
+      "runs": [
+        34185,
+        34409,
+        30923
+      ]
+    },
+    {
+      "scenario": "mw10",
+      "target": "fastify",
+      "rps_median": 54969,
+      "p99_median_ms": 1,
+      "runs": [
+        55763,
+        54969,
+        51937
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "e530",
+      "rps_median": 24753,
+      "p99_median_ms": 3,
+      "runs": [
+        26011,
+        24668,
+        24753
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "master",
+      "rps_median": 24654,
+      "p99_median_ms": 3,
+      "runs": [
+        25113,
+        24654,
+        23384
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "pr7555",
+      "rps_median": 27329,
+      "p99_median_ms": 3,
+      "runs": [
+        26716,
+        27329,
+        27742
+      ]
+    },
+    {
+      "scenario": "routes100",
+      "target": "fastify",
+      "rps_median": 43516,
+      "p99_median_ms": 1,
+      "runs": [
+        43428,
+        58733,
+        43516
+      ]
+    }
+  ]
+}

@@ -13,12 +13,8 @@
     "Young Jae Sim <hanul@hanul.me>"
   ],
   "license": "MIT",
-  "repository": "expressjs/express",
-  "homepage": "https://expressjs.com/",
-  "funding": {
-    "type": "opencollective",
-    "url": "https://opencollective.com/express"
-  },
+  "repository": "abedmurrar/express",
+  "homepage": "https://github.com/abedmurrar/express#readme",
   "keywords": [
     "express",
     "framework",
@@ -107,5 +103,8 @@
     "test-tap": "mocha --reporter tap",
     "bench:install": "npm --prefix benchmarks/compare install",
     "bench": "node benchmarks/compare/run.ts"
+  },
+  "bugs": {
+    "url": "https://github.com/abedmurrar/express/issues"
   }
 }

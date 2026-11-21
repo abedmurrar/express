@@ -91,6 +91,7 @@ Unreleased (fork)
 
 ## ⚡ Performance
 
+* `res.type`, `res.set` and `res.send` remember content-type results (`mime.contentType` and the charset rewrite) in maps capped at 100 entries, instead of looking them up on every response. A `res.json` or string `res.send` saves about 1–2 µs. Ported from upstream PR #7481 by Nigro Simone.
 * Avoid duplicate Content-Type header processing in `res.send()` when sending string responses without an explicit Content-Type header - by [@bjohansebas](https://github.com/bjohansebas) in [#6991](https://github.com/expressjs/express/pull/6991)
 
 5.2.1

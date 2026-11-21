@@ -259,8 +259,8 @@ Baseline on this machine (Node 24.17.0, requests per second): Hello World 33,776
 | [ ] | Cache the trust-proxy getters (`req.ip`, `protocol`, `host`, `hostname`), keyed on their inputs | PR #7519 | master | Small | bench and harness | |
 | won't do | Cache the `accepts` instance per request | PR #7008 | master | Small | measured: building an `accepts` instance costs about 200 ns and a per-request cache adds about 200 ns to the first call, while `req.accepts()` itself takes about 4.4 µs, which a cached instance doesn't save (negotiator parses the header again on every call). See the negotiator row below | |
 | [ ] | Remember parsed `Accept`, `Accept-Language`, `Accept-Encoding` and `Accept-Charset` headers in our negotiator fork (a capped map by header string), so `req.accepts*` and `res.format` skip re-parsing them | | master | Small | negotiator's own tests, the harness, and per-call timing | |
-| [ ] | Memoise content-type lookups | PR #7481 | master | Small | bench and harness | |
-| [ ] | Write the default HTML and JSON content types directly | PR #7516 | master | Small | bench and harness | |
+| [x] | Memoise content-type lookups: `mime.contentType` in `res.set` and `res.type`, and `setCharset` in `res.send`, in maps capped at 100 entries (emptied when full) | PR #7481 | master | Small | property tests against the uncached functions (and a planted cache bug fails them); per call 656→67 ns (`setCharset` json), 1,057→91 ns (html), 815→42 ns (`mime.contentType('html')`) | |
+| won't do | Write the default HTML and JSON content types directly | PR #7516 | master | Small | it skips `res.type`/`res.set`, so an app or middleware that overrides them would no longer see those calls; the memoised lookups above already remove the cost | |
 | [ ] | Router: check the method before running the path regex | | master | Small | bench and harness | |
 | [ ] | Router: a literal-prefix check before each regex, keeping the order | | master | Medium | bench, harness, auth-bypass tests | |
 | [ ] | Extended query parser fast path through `node:querystring` | | master | Medium | differential fuzz against qs | |

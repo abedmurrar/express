@@ -33,4 +33,4 @@ docs/.vitepress/cache/
 docs/.vitepress/dist/
 
 # built from src/ by `npm run build`
-lib/
+/lib/

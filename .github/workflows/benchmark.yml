@@ -8,10 +8,13 @@ name: benchmark
 on:
   pull_request:
     paths:
-      - 'lib/**'
+      - 'src/**'
       - 'index.js'
       - 'package.json'
+      - 'tsconfig.build.json'
+      - 'scripts/build.js'
       - 'benchmarks/**'
+      - '.github/workflows/benchmark.yml'
   workflow_dispatch:
     inputs:
       against:

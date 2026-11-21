@@ -9,10 +9,13 @@ name: ecosystem
 on:
   pull_request:
     paths:
-      - 'lib/**'
+      - 'src/**'
       - 'index.js'
       - 'package.json'
+      - 'tsconfig.build.json'
+      - 'scripts/build.js'
       - 'scripts/ecosystem-suites.js'
+      - '.github/workflows/ecosystem.yml'
   schedule:
     - cron: '0 4 * * 1'
   workflow_dispatch:

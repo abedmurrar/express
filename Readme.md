@@ -50,7 +50,7 @@ It installs under the name `express`, so `require('express')` keeps working.
 
 ## Documentation
 
-The Express 5 documentation at https://expressjs.com applies to this fork, apart from the changes listed in [History.md](History.md). A docs site for the fork is on the roadmap.
+The fork's docs site is https://abedmurrar.github.io/express/. It has the Express 5 documentation from [expressjs.com](https://expressjs.com) (used under CC BY 4.0, with credit), plus a Fork section on what this fork changes, its compatibility promise, benchmarks and roadmap. The source is in [docs/](docs/).
 
 ## Development
 
@@ -65,6 +65,7 @@ npm run lint                          # Biome
 REGRESSIONS_ALL=1 npm test            # also run the skipped bug tests (they fail until fixed)
 
 npm run bench:install && npm run bench   # the benchmark comparison (about 25 minutes)
+npm --prefix docs install && npm --prefix docs run docs:dev   # the docs site, on http://localhost:5173/express/
 ```
 
 Each change is one pull request in this repository, following the "Definition of done" in [ROADMAP.md](ROADMAP.md). Commits use the GitHub noreply address and carry no `Co-Authored-By` lines.

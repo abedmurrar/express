@@ -1,0 +1,202 @@
+---
+title: Database integration
+description: Learn how to connect databases to Express.js applications, when to use an ORM, and best practices for connection pooling, security, and error handling.
+---
+
+# Database integration
+
+To connect a database to an Express app simply load the desired Node.js driver or ORM in your app. The general pattern is shown below using SQLite as an example.
+
+There are also a few [best practices](#best-practices) to follow, regardless of the database you're using.
+
+## SQLite
+
+Node.js includes a built-in SQLite client, [node:sqlite](https://nodejs.org/api/sqlite.html), available without a flag since Node.js 22.13.0. No installation is required. For older Node.js versions, [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) offers a similar synchronous API.
+
+### Example
+
+This example creates a sample user that you can retrieve at `http://localhost:3000/users/1`. It uses a synchronous SQLite API for simplicity: long-running queries block the thread handling requests. For workloads with long-running queries, consider moving database work to a worker thread or using an asynchronous database driver.
+
+::: code-group
+
+```js [index.cjs]
+const express = require('express');
+const { DatabaseSync } = require('node:sqlite');
+
+const app = express();
+const db = new DatabaseSync('app.db');
+
+db.exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+db.prepare('INSERT INTO users (id, name) VALUES (?, ?) ON CONFLICT(id) DO NOTHING').run(1, 'Alice');
+const findUser = db.prepare('SELECT id, name FROM users WHERE id = ?');
+
+app.get('/users/:id', (req, res) => {
+  const user = findUser.get(req.params.id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  res.json(user);
+});
+
+app.listen(3000);
+```
+
+```js [index.mjs]
+import express from 'express';
+import { DatabaseSync } from 'node:sqlite';
+
+const app = express();
+const db = new DatabaseSync('app.db');
+
+db.exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+db.prepare('INSERT INTO users (id, name) VALUES (?, ?) ON CONFLICT(id) DO NOTHING').run(1, 'Alice');
+const findUser = db.prepare('SELECT id, name FROM users WHERE id = ?');
+
+app.get('/users/:id', (req, res) => {
+  const user = findUser.get(req.params.id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  res.json(user);
+});
+
+app.listen(3000);
+```
+
+```ts [index.ts]
+import express from 'express';
+import { DatabaseSync } from 'node:sqlite';
+
+interface User {
+  id: number;
+  name: string;
+}
+
+const app = express();
+const db = new DatabaseSync('app.db');
+
+db.exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)');
+db.prepare('INSERT INTO users (id, name) VALUES (?, ?) ON CONFLICT(id) DO NOTHING').run(1, 'Alice');
+const findUser = db.prepare('SELECT id, name FROM users WHERE id = ?');
+
+app.get('/users/:id', (req, res) => {
+  const user = findUser.get(req.params.id) as User | undefined;
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  res.json(user);
+});
+
+app.listen(3000);
+```
+
+:::
+
+## Other databases
+
+Every other database follows the same pattern: install the Node.js driver from npm, create a client or connection pool once when the app starts, and use it in your route handlers. Refer to the official documentation of each driver for connection options and API details:
+
+- PostgreSQL: [pg](https://node-postgres.com/) or [postgres](https://github.com/porsager/postgres)
+- MySQL and MariaDB: [mysql2](https://sidorares.github.io/node-mysql2/docs) or [mariadb](https://mariadb.com/docs/connectors/mariadb-connector-nodejs)
+- MongoDB: [mongodb](https://www.mongodb.com/docs/drivers/node/current/)
+- Redis: [redis](https://redis.io/docs/latest/develop/clients/nodejs/) or [ioredis](https://github.com/redis/ioredis)
+- SQL Server: [mssql](https://github.com/tediousjs/node-mssql)
+- Oracle: [oracledb](https://www.npmjs.com/package/oracledb)
+- Cassandra: [cassandra-driver](https://docs.datastax.com/en/developer/nodejs-driver/latest/)
+- Elasticsearch: [@elastic/elasticsearch](https://www.elastic.co/docs/reference/elasticsearch/clients/javascript)
+
+For any database not listed here, search for its driver on the [npm](https://www.npmjs.com/) site.
+
+## ORMs and query builders
+
+The example above uses a database driver directly, which is a good fit for small apps and for learning how things work. As an application grows, an ORM (object-relational mapper) or a query builder can take over concerns such as schema definitions, migrations, relations between tables, and input mapping, while reducing boilerplate. Many of them also provide type safety when used with TypeScript.
+
+Popular options in the Node.js ecosystem include:
+
+- [Prisma](https://www.prisma.io/): a type-safe ORM with a schema-first workflow and built-in migrations. Supports PostgreSQL, MySQL, SQLite, SQL Server, MongoDB, and CockroachDB.
+- [Drizzle ORM](https://orm.drizzle.team/): a lightweight, TypeScript-first ORM with a SQL-like query API and a migrations toolkit.
+- [Sequelize](https://sequelize.org/): a mature, promise-based ORM for PostgreSQL, MySQL, MariaDB, SQLite, and SQL Server.
+- [TypeORM](https://typeorm.io/): an ORM built around decorators and entities, supporting many SQL databases and MongoDB.
+- [Mongoose](https://mongoosejs.com/): an ODM (object document mapper) for MongoDB.
+- [Knex.js](https://knexjs.org/): a flexible SQL query builder with migrations support, useful when you want control over your queries without writing raw strings.
+- [Kysely](https://kysely.dev/): a type-safe SQL query builder for TypeScript.
+
+Each ORM has its own API, supported databases, and approach to schemas, migrations, and queries. Features and setup requirements vary, so consult each project's documentation before choosing one. Query builders keep you close to SQL, while full ORMs abstract more of it away. Pick the level of abstraction that matches your team and project, and prefer tools that are actively maintained.
+
+## Best practices
+
+Adapt these practices to the database and library you choose. The snippets below illustrate separate parts of an application. The PostgreSQL snippets assume you have installed the [pg](https://node-postgres.com/) driver and created a shared pool:
+
+```js
+import { Pool } from 'pg';
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+```
+
+### Create connections once and reuse them
+
+Opening a database connection is expensive. Many drivers provide a connection pool that creates connections as needed and reuses them across requests. Create the pool (or client) once when the app starts. Acquire connections from that shared pool as needed in your route handlers, for example for a transaction, and always release them in a `finally` block. For individual queries, `pool.query()` in `pg` handles acquiring and releasing a connection for you.
+
+### Use parameterized queries
+
+Never build SQL queries by concatenating or interpolating user input into the query string. Doing so exposes your app to SQL injection. Use your driver's parameterized queries or prepared statements to pass user input separately from the query itself.
+
+```js
+// Vulnerable: user input becomes part of the query
+const user = await pool.query(`SELECT * FROM users WHERE id = ${req.params.id}`);
+```
+
+```js
+// Safe: user input is passed as a parameter
+const user = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+```
+
+Also validate user input before it reaches your queries, both for security and for data integrity. For NoSQL databases, construct queries using the driver's API and validate the types, fields, and operators you accept. Do not pass user-supplied query objects directly to the database.
+
+### Keep credentials out of your code
+
+Never hardcode connection strings, usernames, or passwords in your source code, and never commit them to version control. Read them from environment variables or a secrets manager instead:
+
+```js
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+```
+
+During development, you can keep these values in a `.env` file and load it with Node.js's built-in support for environment files, with no extra dependencies:
+
+```bash
+node --env-file=.env index.js
+```
+
+Make sure `.env` is listed in your `.gitignore` file so it never gets committed.
+
+### Handle database errors
+
+Database calls fail: connections drop, queries time out, constraints are violated. In Express 5, errors thrown in async route handlers are passed to your [error-handling middleware](/guide/error-handling) automatically, so define one and decide there what to expose to clients. Avoid leaking internal error details, such as query text or stack traces, in API responses.
+
+### Cancel work when the client disconnects
+
+Since Node.js 24.20.0, every request exposes [req.signal](https://nodejs.org/api/http.html#messagesignal), an `AbortSignal` that is aborted when the client disconnects. Pass it to any cancellation-aware API, such as a database driver that supports abort signals, so your app stops doing work nobody is waiting for:
+
+```js
+app.get('/reports', async (req, res) => {
+  const report = await generateReport({ signal: req.signal });
+  res.json(report);
+});
+```
+
+### Close connections on shutdown
+
+When your app receives a termination signal, stop accepting new requests and close your database connections so in-flight queries can finish cleanly:
+
+```js
+const server = app.listen(3000);
+
+process.on('SIGTERM', () => {
+  server.close(async () => {
+    await pool.end();
+    process.exit(0);
+  });
+});
+```
+
+If you already use an [AbortSignal](https://nodejs.org/api/globals.html#class-abortsignal) to coordinate cancellation across your app, you can pass it to `app.listen` and abort it instead of calling `server.close()` directly.

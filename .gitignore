@@ -27,3 +27,7 @@ benchmarks/compare/.refs/
 research/raw/
 research/bench/node_modules/
 research/bench/express-*/
+
+# docs site build output and cache (docs/node_modules is covered above)
+docs/.vitepress/cache/
+docs/.vitepress/dist/

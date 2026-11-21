@@ -125,17 +125,15 @@
   "scripts": {
     "lint": "biome ci .",
     "lint:fix": "biome check --write .",
-    "test": "vitest run",
+    "test": "npm run build && vitest run",
     "test-ci": "npm run build && c8 --reporter=lcovonly --reporter=text vitest run && node scripts/check-coverage-files.js",
     "test-cov": "npm run build && c8 --reporter=html --reporter=text vitest run",
-    "test-tap": "vitest run --reporter=tap",
+    "test-tap": "npm run build && vitest run --reporter=tap",
     "bench:install": "npm --prefix benchmarks/compare install",
     "bench": "node benchmarks/compare/run.ts",
     "test:ecosystem-suites": "node scripts/ecosystem-suites.js",
     "release": "node scripts/release.js",
     "build": "node scripts/build.js",
-    "pretest": "npm run build",
-    "prepack": "npm run build",
     "typecheck": "tsc -p tsconfig.build.json --noEmit"
   },
   "bugs": {

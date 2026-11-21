@@ -32,6 +32,38 @@ describe('utils.normalizeType acceptParams method', () => {
     })
   })
 
+  it('should trim the type, parameter names and parameter values', () => {
+    assert.deepStrictEqual(utils.normalizeType('text/html ; charset = utf-8 '), {
+      value: 'text/html',
+      quality: 1,
+      params: { charset: 'utf-8' }
+    })
+  })
+
+  it('should read q as the quality and keep every other parameter', () => {
+    assert.deepStrictEqual(utils.normalizeType('text/html; q=0.5; level=1'), {
+      value: 'text/html',
+      quality: 0.5,
+      params: { level: '1' }
+    })
+  })
+
+  it('should skip a parameter with no "=" and keep the ones after it', () => {
+    assert.deepStrictEqual(utils.normalizeType('text/html;foo;bar=baz'), {
+      value: 'text/html',
+      quality: 1,
+      params: { bar: 'baz' }
+    })
+  })
+
+  it('should keep a parameter with an empty value and the ones after it', () => {
+    assert.deepStrictEqual(utils.normalizeType('text/html;foo=;bar=baz'), {
+      value: 'text/html',
+      quality: 1,
+      params: { foo: '', bar: 'baz' }
+    })
+  })
+
   it('should default to application/octet-stream when mime lookup fails', () => {
     const result = utils.normalizeType('unknown-extension-xyz')
     assert.deepEqual(result, {

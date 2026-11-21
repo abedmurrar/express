@@ -1,0 +1,84 @@
+name: mutation
+
+# Mutation testing of lib/ with Stryker (stryker.config.json).
+# Pull requests run incrementally: only mutants whose code or covering tests
+# changed since the last run are tested again. The weekly and manual runs test
+# every mutant and refresh the incremental file that pull requests start from.
+on:
+  pull_request:
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'package.json'
+      - '.mocharc.yml'
+      - 'stryker.config.json'
+      - '.github/workflows/mutation.yml'
+  schedule:
+    # Mondays at 03:00 UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }} ✨ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  stryker:
+    name: Stryker on lib/
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts --include=dev
+
+      # @stryker-mutator/mocha-runner 10.1.1 can't load mocha 12, which renamed
+      # its cli files to .cjs (stryker-mutator/stryker-js#6239, fix in #6205).
+      # Until a fixed release is out, Stryker runs the same tests on mocha 11.8.0.
+      - name: Use mocha 11 for Stryker
+        run: npm install --no-save --ignore-scripts mocha@11.8.0
+
+      - name: Restore the incremental file
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.run_id }}
+          restore-keys: stryker-incremental-
+
+      - name: Run Stryker
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            npx stryker run
+          else
+            npx stryker run --force
+          fi
+
+      - name: Save the incremental file
+        if: always() && hashFiles('reports/stryker-incremental.json') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ github.run_id }}
+
+      - name: Upload the mutation report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mutation-report
+          path: reports/
+          retention-days: 30

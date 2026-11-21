@@ -228,14 +228,68 @@ export function compileTrust(val: unknown): TrustFunction {
     }
   }
 
+  return compileTrustList(val)
+}
+
+/**
+ * Compile a trust list (a comma-separated string, an array, or nothing) with
+ * proxy-addr. A non-empty list is wrapped so each address's decision is
+ * remembered: proxy-addr's compiled function parses the address and matches
+ * it against every subnet on each call (several microseconds for a list like
+ * "loopback, 10.0.0.0/8"), and its result depends only on the address.
+ * Kept out of compileTrust so V8 names its anonymous functions as before.
+ *
+ * @param {String|Array} val
+ * @return {Function}
+ * @private
+ */
+
+function compileTrustList(val: unknown): TrustFunction {
   // Support comma-separated values
-  return proxyaddr.compile(
-    (typeof val === 'string'
+  var subnets = (
+    typeof val === 'string'
       ? val.split(',').map(function (v) {
           return v.trim()
         })
-      : val || []) as string | string[]
-  )
+      : val || []
+  ) as string | string[]
+  var compiled = proxyaddr.compile(subnets)
+
+  // @types/proxy-addr declares (addr, i), but the compiled function only
+  // reads the address (trustSingle and trustMulti take one parameter)
+  return subnets.length > 0 ? rememberTrust(compiled as (addr: string) => boolean) : compiled
+}
+
+/**
+ * Remember a compiled trust function's decisions by address, in a map of at
+ * most TRUST_CACHE_LIMIT entries that is emptied when full. One map per
+ * compiled function, so apps with different settings never share one. The
+ * limit is higher than the content-type caches because client addresses
+ * vary per request, while the proxies' own addresses repeat.
+ *
+ * @param {Function} compiled
+ * @return {Function}
+ * @private
+ */
+
+const TRUST_CACHE_LIMIT = 1000
+
+function rememberTrust(compiled: (addr: string) => boolean): TrustFunction {
+  var decisions = new Map<string, boolean>()
+
+  return function trust(addr: string): boolean {
+    var decision = decisions.get(addr)
+
+    if (decision === undefined) {
+      decision = compiled(addr)
+      if (decisions.size >= TRUST_CACHE_LIMIT) {
+        decisions.clear()
+      }
+      decisions.set(addr, decision)
+    }
+
+    return decision
+  }
 }
 
 /**
@@ -254,14 +308,68 @@ export function setCharset(type: string | undefined, charset: string | undefined
     return type
   }
 
-  // parse type
-  var parsed = contentType.parse(type)
+  var byType = setCharsetCache.get(charset)
+  var formatted = byType && byType.get(type)
 
-  // set charset
-  parsed.parameters.charset = charset
+  if (formatted === undefined) {
+    // parse type (throws on an invalid type, before anything is cached)
+    var parsed = contentType.parse(type)
 
-  // format type
-  return contentType.format(parsed)
+    // set charset
+    parsed.parameters.charset = charset
+
+    // format type
+    formatted = contentType.format(parsed)
+
+    if (byType === undefined) {
+      byType = new Map()
+      remember(setCharsetCache, charset, byType)
+    }
+    remember(byType, type, formatted)
+  }
+
+  return formatted
+}
+
+/**
+ * `mime.contentType`, remembered by its input: a response sets one of a
+ * handful of types, and each lookup through the mime database costs a few
+ * hundred nanoseconds. `false` (an unknown type) is remembered too.
+ *
+ * @param {String} value
+ * @return {String|false}
+ * @api private
+ */
+
+export function mimeContentType(value: string): string | false {
+  var resolved = mimeContentTypeCache.get(value)
+
+  if (resolved === undefined) {
+    resolved = remember(mimeContentTypeCache, value, mime.contentType(value))
+  }
+
+  return resolved
+}
+
+/**
+ * The memo caches for setCharset and mimeContentType, ported from upstream
+ * PR #7481 (Nigro Simone). setCharset keeps one map of type to result per
+ * charset, since a key joining the two strings would be hashed again on
+ * every call. Each map holds at most CACHE_LIMIT entries and is emptied when
+ * full, so types taken from requests can't grow them without bound.
+ * @private
+ */
+
+const CACHE_LIMIT = 100
+const setCharsetCache = new Map<string, Map<string, string>>()
+const mimeContentTypeCache = new Map<string, string | false>()
+
+function remember<V>(cache: Map<string, V>, key: string, value: V): V {
+  if (cache.size >= CACHE_LIMIT) {
+    cache.clear()
+  }
+  cache.set(key, value)
+  return value
 }
 
 /**

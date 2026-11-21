@@ -27,6 +27,23 @@
     "app",
     "api"
   ],
+  "main": "index.js",
+  "types": "typings/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./typings/index.d.mts",
+        "default": "./index.mjs"
+      },
+      "require": {
+        "types": "./typings/index.d.ts",
+        "default": "./index.js"
+      }
+    },
+    "./lib/*.js": "./lib/*.js",
+    "./lib/*": "./lib/*.js",
+    "./package.json": "./package.json"
+  },
   "dependencies": {
     "accepts": "^2.0.0",
     "body-parser": "^2.4.0",
@@ -57,6 +74,7 @@
     "vary": "^1.1.2"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
     "@biomejs/biome": "2.6.7",
     "@stryker-mutator/core": "^10.1.1",
     "@stryker-mutator/vitest-runner": "^10.1.1",
@@ -70,6 +88,8 @@
     "@types/encodeurl": "^1.0.3",
     "@types/escape-html": "^1.0.4",
     "@types/etag": "^1.8.4",
+    "@types/express": "5.0.6",
+    "@types/express-serve-static-core": "5.1.3",
     "@types/finalhandler": "^1.2.4",
     "@types/fresh": "^0.5.3",
     "@types/http-errors": "^2.0.5",
@@ -125,8 +145,11 @@
     "LICENSE",
     "Readme.md",
     "index.js",
+    "index.mjs",
     "lib/**/*.js",
-    "lib/**/LICENSE"
+    "lib/**/LICENSE",
+    "typings/*.d.ts",
+    "typings/*.d.mts"
   ],
   "scripts": {
     "lint": "biome ci .",
@@ -140,7 +163,9 @@
     "test:ecosystem-suites": "node scripts/ecosystem-suites.js",
     "release": "node scripts/release.js",
     "build": "node scripts/build.js",
-    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+    "typecheck": "tsc -p tsconfig.build.json --noEmit",
+    "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.loose.json && tsc -p test/types/tsconfig.dt.json && node scripts/check-type-size.js",
+    "attw": "attw --pack ."
   },
   "bugs": {
     "url": "https://github.com/abedmurrar/express/issues"

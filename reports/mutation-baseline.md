@@ -1,15 +1,18 @@
 # Mutation testing baseline
 
-Stryker changes `lib/` one small piece at a time (a mutant), for example `<` to `<=`, or a string to `""`, and runs the tests that cover that line. A mutant is **killed** when a test fails, **timed out** when it makes the code loop forever (that counts as caught too), and **survived** when every test still passes. A survivor is either a missing assertion or an **equivalent** mutant, which can't change behaviour.
+Stryker changes the TypeScript sources in `src/` one small piece at a time (a mutant), for example `<` to `<=`, or a string to `""`, and runs the tests that cover that line. A mutant is **killed** when a test fails, **timed out** when it makes the code loop forever (that counts as caught too), and **survived** when every test still passes. A survivor is either a missing assertion or an **equivalent** mutant, which can't change behaviour.
 
 Score = (killed + timed out) / (killed + timed out + survived + no coverage). Runtime errors (a mutant that breaks loading the module) are not counted.
 
 - Config: [`stryker.config.json`](../stryker.config.json). Workflow: [`.github/workflows/mutation.yml`](../.github/workflows/mutation.yml).
+- Stryker mutates `src/**/*.ts` and runs `buildCommand` (`tsc -p tsconfig.build.json`) in its sandbox, so the tests load a `lib/` compiled from the mutated sources. Stryker marks the files it changes with `// @ts-nocheck`, so a mutant that breaks a type still compiles and gets tested. The build command calls `tsc` directly, not `npm run build`: Stryker runs it before linking `node_modules` into the sandbox, and `scripts/build.js` looks for `tsc` under the sandbox's own `node_modules`. `tsc` comes from the project's `node_modules/.bin`, which Stryker puts on the `PATH`. The licence copies `scripts/build.js` makes aren't needed by any test.
+- No type checker plugin: `@stryker-mutator/typescript-checker` 10.1.1 drives the TypeScript compiler API, and TypeScript 7 (the native compiler this repo builds with) has no JavaScript API (`require('typescript')` exports 2 keys and no `createProgram`).
 - Versions: `@stryker-mutator/core` 10.1.1 and `@stryker-mutator/vitest-runner` 10.1.1, on Vitest 5.1 with `vitest.config.js` (thread pool, and the mocha-compatibility layer in `test/support/vitest-setup.js`).
 - `vitest.related` is off. Related mode finds a mutated file's tests through Vite's import graph, which doesn't see CommonJS `require()`, so it found no tests at all.
 - The baseline below was measured with `@stryker-mutator/mocha-runner` 10.1.1, before the suite moved to Vitest. That runner couldn't load mocha 12 (it requires mocha's cli files without the `.cjs` extension mocha 12 gave them: [stryker-js#6239](https://github.com/stryker-mutator/stryker-js/issues/6239), fix in [stryker-js#6205](https://github.com/stryker-mutator/stryker-js/pull/6205), not released), so those runs used mocha 11.8.0.
 - The sandbox folder is `stryker-tmp`, not Stryker's default `.stryker-tmp`: `send` treats any path segment starting with a dot as a dotfile, so every `res.sendFile` test answered 404 inside a dot folder.
-- Minimum score (`thresholds.break`): **92**, the mocha-runner baseline rounded down, kept for the Vitest runner. A run below it fails.
+- Minimum score (`thresholds.break`): **92**, the mocha-runner baseline rounded down, kept for the Vitest runner and the TypeScript sources. A run below it fails.
+- The line numbers in the sections below the "TypeScript sources" one refer to the JavaScript `lib/*.js` sources from before the TypeScript conversion.
 
 ## Baseline
 
@@ -67,6 +70,31 @@ The difference is the runners, not the tests:
 
 So Vitest's per-file isolation removes one false kill and turns runtime errors into kills. The threshold stays at 92; the first full Vitest run in CI is the number to compare against it.
 
+### First full run with the Vitest runner
+
+[Run 44945758230](https://github.com/abedmurrar/express/actions/runs/44945758230), commit `48abae63`, still mutating `lib/*.js`: **94.13%** on 2,701 mutants (2,398 killed, 136 timed out, 158 survived, 9 runtime errors), in **102 minutes** of Stryker time (the mocha runner took 12). 438 mutants (16%) were static and took an estimated 55% of the time.
+
+| File | Score | Killed | Timed out | Survived | Runtime errors | Total |
+|---|---:|---:|---:|---:|---:|---:|
+| `lib/application.js` | 98.53% | 241 | 28 | 4 | 0 | 273 |
+| `lib/express.js` | 100.00% | 16 | 7 | 0 | 0 | 23 |
+| `lib/request.js` | 98.41% | 180 | 6 | 3 | 0 | 189 |
+| `lib/response.js` | 95.59% | 537 | 5 | 25 | 7 | 574 |
+| `lib/router/index.js` | 94.14% | 402 | 48 | 28 | 1 | 479 |
+| `lib/router/lib/layer.js` | 94.19% | 140 | 6 | 9 | 1 | 156 |
+| `lib/router/lib/route.js` | 96.08% | 131 | 16 | 6 | 0 | 153 |
+| `lib/send/index.js` | 89.74% | 568 | 9 | 66 | 0 | 643 |
+| `lib/utils.js` | 98.52% | 123 | 10 | 2 | 0 | 135 |
+| `lib/view.js` | 80.26% | 60 | 1 | 15 | 0 | 76 |
+
+Why it is slower: for every mutant, Vitest imports every test file that holds a covering test again (about 119 tests per mutant, spread over the large differential, security and property files), and by default it imports Express and its dependencies again for each file. On one worker the whole suite takes 73 s with per-file isolation and 23 s without. Running Stryker without isolation brought the dry run from 82 s to 33 s locally but not the whole run, and it brings back the shared state that gave mocha a false kill, so isolation stays on. `lib/view.js` fell from 93.42% to 80.26%: 10 more survivors, which the follow-up list covers.
+
+### TypeScript sources
+
+After `src/` became TypeScript, one local run on `src/utils.ts` (`--concurrency 2`, load average 7 to 11): **89.31%**, 159 mutants (132 killed, 10 timed out, 17 survived), 8 minutes 16 seconds.
+
+The move itself doesn't change the result for the code that was already there. The 3 survivors on the old code are the same equivalent mutants as before (`utils.ts:115`, `:122` and `:60`, which were `utils.js:93`, `:100` and `:39`). The other 14 survivors are new: they're in the UTF-8 fast path and the empty-body shortcut that the ETag change (PR #46) added after the JavaScript runs. Both paths give the same ETag by design, so these mutants are equivalent (listed below). The first full CI run on `src/` is the number to compare with the threshold.
+
 ## Tests added for survivors
 
 Each kill below was confirmed in the CI runs that followed (mocha runner).
@@ -109,6 +137,8 @@ These can't change what Express does, so they get a reason instead of a test.
 | `lib/utils.js:254` | `!Buffer.isBuffer(body)` to `Buffer.isBuffer(body)` | `res.send` passes either a string with `utf8` or a Buffer with no encoding, and `etag` hashes a string as UTF-8, so the ETag is the same. |
 | `lib/request.js:308` (second `trim()`) | `header.trim()` to `header` | Node strips the whitespace around a header value, so a single `X-Forwarded-Proto` value never has any. |
 | `lib/request.js:442` | `host[0] === '['` to `true` | For a host without `[`, `indexOf(']') + 1` is 0, the same offset. |
+| `src/utils.ts:283` and `:284` (13 mutants) | the UTF-8 string fast path in `generateETag` turned off, always on, or its encoding check changed | Both paths hash the same UTF-8 bytes (`crypto.hash` on the string, or on `Buffer.from(string)`) and use the same byte length, so the ETag is the same either way. `Buffer.byteLength(body, '')` falls back to UTF-8 too. |
+| `src/utils.ts:305` (2 mutants) | the empty-body shortcut in `entityTag` removed | The shortcut returns the SHA-1 of an empty body, which the hash computes anyway. |
 | `lib/express.js:92` | `!Object.hasOwn(destination, name)` to `true` | A new app function, `EventEmitter.prototype` and the application prototype share no property names today, so overwriting never happens. |
 
 ## Follow-up work
@@ -120,6 +150,7 @@ The roadmap row stays in progress until every survivor has a test or a reason. S
 - `lib/response.js` (about 23): `res.send` ETag and length branches (163, 180, 213), JSONP (295, 305), `sendFile` and `download` argument handling and aborts (421, 461, 938 to 990), `res.type` fallback (513), `res.format` key list (580), cookie `maxAge` (764, 766), `res.location` (824).
 - `lib/application.js` (4): `app.listen` callback wrapping (600) and `logerror` (613, 615), which only logs outside the `test` environment.
 - `lib/router/lib/layer.js` (5), `lib/router/lib/route.js` (2), `lib/view.js` (4), `lib/request.js` (2): mostly decode-error paths and `req.xhr`'s empty default.
+- `lib/view.js` lost 10 kills under the Vitest runner (93.42% to 80.26%); check which ones the mocha runner only killed through shared state.
 - Decide on `ignoreStatic`: under Vitest, a third of the mutants are static (they run at module load) and take most of the run time, because each one reruns the whole suite.
 - Raise `thresholds.break` as survivors are closed.
 
@@ -128,9 +159,9 @@ The roadmap row stays in progress until every survivor has a test or a reason. S
 The full run belongs in CI (Actions, "mutation", Run workflow). Locally, on one file and with few workers:
 
 ```sh
-npx stryker run --mutate lib/utils.js --concurrency 2
+npx stryker run --mutate src/utils.ts --concurrency 2
 ```
 
-That takes about 3 minutes here, most of it the dry run of the whole suite.
+That takes about 8 minutes on this machine under load, most of it the dry run of the whole suite.
 
 Reports land in `reports/mutation/` (ignored by git); `reports/stryker-incremental.json` makes the next run skip unchanged mutants.

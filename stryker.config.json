@@ -6,7 +6,8 @@
     "configFile": "vitest.config.js",
     "related": false
   },
-  "mutate": ["lib/**/*.js"],
+  "mutate": ["src/**/*.ts"],
+  "buildCommand": "tsc -p tsconfig.build.json",
   "coverageAnalysis": "perTest",
   "tempDirName": "stryker-tmp",
   "incremental": true,

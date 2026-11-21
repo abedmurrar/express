@@ -1,15 +1,19 @@
 name: mutation
 
-# Mutation testing of lib/ with Stryker (stryker.config.json).
+# Mutation testing of the TypeScript sources in src/ with Stryker
+# (stryker.config.json). Stryker mutates src/ in its sandbox and runs
+# `npm run build` there, so the tests run against a lib/ built from the mutants.
 # Pull requests run incrementally: only mutants whose code or covering tests
 # changed since the last run are tested again. The weekly and manual runs test
 # every mutant and refresh the incremental file that pull requests start from.
 on:
   pull_request:
     paths:
-      - 'lib/**'
+      - 'src/**'
       - 'test/**'
       - 'package.json'
+      - 'tsconfig.build.json'
+      - 'scripts/build.js'
       - 'vitest.config.js'
       - 'stryker.config.json'
       - '.github/workflows/mutation.yml'
@@ -27,7 +31,7 @@ concurrency:
 
 jobs:
   stryker:
-    name: Stryker on lib/
+    name: Stryker on src/
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
@@ -43,13 +47,17 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --include=dev
 
+      # Fails fast on a type or build error before the long Stryker run.
+      - name: Build
+        run: npm run build
+
       - name: Restore the incremental file
         if: github.event_name == 'pull_request'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: reports/stryker-incremental.json
-          key: stryker-incremental-vitest-${{ github.run_id }}
-          restore-keys: stryker-incremental-vitest-
+          key: stryker-incremental-ts-${{ github.run_id }}
+          restore-keys: stryker-incremental-ts-
 
       - name: Run Stryker
         shell: bash
@@ -67,7 +75,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: reports/stryker-incremental.json
-          key: stryker-incremental-vitest-${{ github.run_id }}
+          key: stryker-incremental-ts-${{ github.run_id }}
 
       - name: Upload the mutation report
         if: always()

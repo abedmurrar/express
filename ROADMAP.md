@@ -16,6 +16,8 @@ Snapshot: upstream `master` at `43fca52d` (Express 5.3.0), 2026-11-21.
 
 **Tooling:** Biome is the only linter and formatter (no ESLint, no Prettier).
 
+**Module format:** never ES-module-only. Express and every fork ship CommonJS, or CommonJS plus an ESM entry that is a thin wrapper over the CommonJS build (one copy of the code, so no dual-package hazard). A dependency whose new release is ESM-only stays on its last CommonJS release, or our fork of it ships a CommonJS build. This holds on both lines, 6.x included.
+
 **Merging:** PRs that change code merge once CI is green. PRs that only change docs or the roadmap merge without waiting for the test matrix (the same rule as the objection fork).
 
 **Status:** `[ ]` to do, `[~]` in progress, `[x]` done (link the PR), `won't do` (with the reason).
@@ -75,7 +77,7 @@ Docs ride along with each item.
 
 ## Forks of the dependencies
 
-Every package Express depends on that does real work gets its own fork under `abedmurrar/<repo>`, held to the same rules as this repo: middleware compatibility, strict TypeScript, tests, the differential harness against its upstream release, and a benchmark run per PR. Each fork keeps its upstream history and licence, and syncs from upstream the same way this repo does.
+Every package Express depends on that does real work gets its own fork under `abedmurrar/<repo>`, held to the same rules as this repo (CommonJS, or CommonJS plus a thin ESM wrapper; never ESM-only): middleware compatibility, strict TypeScript, tests, the differential harness against its upstream release, and a benchmark run per PR. Each fork keeps its upstream history and licence, and syncs from upstream the same way this repo does.
 
 Express uses the forks as vendored copies (as with `router` and `send` today), synced from each fork, until publishing is approved. After that it uses them as `@abedmurrar/*` packages.
 
@@ -179,13 +181,13 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 |---|---|---|---|---|---|
 | [ ] | `accepts` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `body-parser` | ^2.4.0 | 2.4.0 (2026-10-22) | Keep; vendor on 6.x for the JSON `__proto__` check | 6.x |
-| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
-| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
+| [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
+| [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
 | [ ] | `cookie-signature` | ^1.2.1 | 1.2.2 | Update | master |
 | [ ] | `debug` | ^4.4.0 | 4.4.3 | Replace with `util.debuglog` (the `DEBUG=express:*` switch changes, so 6.x) | 6.x |
 | [ ] | `depd` | ^2.0.0 | 2.0.0 | Replace with `util.deprecate` | 6.x |
-| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build, or 6.x | master |
+| [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `escape-html` | ^1.0.3 | 1.0.3 | Keep (Node has no built-in) | master |
 | [ ] | `etag` | ^1.8.1 | 2.0.0 (2026-11-21, inside the window until 2026-11-28) | Update after the window, harness-checked | master |
 | [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |

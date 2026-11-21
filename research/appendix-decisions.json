@@ -850,10 +850,8 @@
       "note": "Fixes ReDoS-prone regexes in examples."
     },
     "6703": {
-      "decision": "new-item",
-      "proposed_item": "Port upstream test-coverage PRs",
-      "line": "master",
-      "milestone": "Foundation",
+      "decision": "already-fixed",
+      "evidence": "Every test it adds (15) is already in test/req.is.js on master (18 tests); checked 2026-11-21",
       "note": "More req.is() test cases."
     },
     "6742": {

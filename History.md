@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🚀 Improvements
 
+* Port 8 upstream test-coverage PRs, keeping their authors: #6892 and #6893 (Ayoub-Mabrouk), #7038 (tommyhgunz14), #7050 (RlxChap2), #7339 (Kaleru Pranav Kumar), #7423 (aoright), #7546 (Renan Pimentel) and #7572 (Saiyam Jain). This adds 35 tests. #6703's tests were already on master.
 * Add regression tests (`test/regressions/`) for the 19 confirmed bugs that the compatible line will fix. Each asserts the correct behaviour and stays skipped until its fix lands; `REGRESSIONS_ALL=1` runs them all, and all 19 fail today. Six more tests pin behaviour this line keeps on purpose.
 * Update the test tooling: supertest 7.3.2 (upstream PR #7600 by krzysdz, cherry-picked) and mocha 11.8.0. Test files are now found by `.mocharc.yml` globs, so new test folders need no script change. mocha 12 needs Node 20.19 or later, so it waits for the 6.x line, whose minimum is Node 24.
 * Add a benchmark comparison (`benchmarks/compare`, `npm run bench`). It measures this repository at the branch head and at a base ref against the original Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`, across 7 scenarios, after checking that each server returns the same response. Results go to `benchmarks/results/`. Written in strict TypeScript that Node 24 runs directly.

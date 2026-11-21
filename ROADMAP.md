@@ -60,7 +60,7 @@ Docs ride along with each item.
 | [x] | `VENDORED.md` with versions and changed commits | | master | Small | | [#1](https://github.com/abedmurrar/express/pull/1) |
 | [ ] | Re-sync the vendored router to 2.3.0 once it is 7 days old (from 2026-11-24) | #4059, router#206, router#174, router#196 | master | Small | router tests, harness, repro 4059 | |
 | [x] | Update mocha and supertest | #7547, PR #7600 | master | Small | the same tests as master run and pass (2,273 passing, 19 skipped regression tests); mocha 11.8.0 here, mocha 12 (Node 20.19+) on 6.x | [#7](https://github.com/abedmurrar/express/pull/7) |
-| [ ] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | tests pass | |
+| [x] | Port upstream test-coverage PRs | PRs #6703, #6892, #6893, #7038, #7050, #7339, #7423, #7546, #7572 | master | Small | 8 ported with their authors (35 more tests, all passing); #6703's tests were already on master | [#8](https://github.com/abedmurrar/express/pull/8) |
 | [ ] | ESLint 9 and a pre-commit lint hook | PRs #6118, #6480, #6912 | master | Small | lint passes | |
 
 ## Forks of the dependencies
@@ -477,7 +477,7 @@ Already fixed 2, Duplicate 1, Roadmap 56, Support question 7, Upstream process 3
 
 ### Pull requests (149)
 
-Already fixed 1, Cherry-pick 43, Duplicate 9, Roadmap 45, Upstream process 10, Won't do 41.
+Already fixed 2, Cherry-pick 43, Duplicate 9, Roadmap 44, Upstream process 10, Won't do 41.
 
 | PR | Title | Decision | Item or reason |
 |---|---|---|---|
@@ -532,7 +532,7 @@ Already fixed 1, Cherry-pick 43, Duplicate 9, Roadmap 45, Upstream process 10, W
 | [#6412](https://github.com/expressjs/express/pull/6412) | docs: include a dependencies navigator | Upstream process |  |
 | [#6480](https://github.com/expressjs/express/pull/6480) | add ESLint pre-commit hook to enforce code quality | Roadmap | ESLint 9 and a pre-commit lint hook |
 | [#6689](https://github.com/expressjs/express/pull/6689) | chore: improve regexes in examples | Roadmap | Examples: fix security bugs and outdated dependencies |
-| [#6703](https://github.com/expressjs/express/pull/6703) | test: enhance req.is() tests with additional cases | Roadmap | Port upstream test-coverage PRs |
+| [#6703](https://github.com/expressjs/express/pull/6703) | test: enhance req.is() tests with additional cases | Already fixed | Every test it adds (15) is already in test/req.is.js on master (18 tests); checked 2026-11-21 |
 | [#6742](https://github.com/expressjs/express/pull/6742) | feat: dump bodies of get/head reqs | Won't do | Node already dumps unread request bodies when the response ends; this pokes stream internals. |
 | [#6758](https://github.com/expressjs/express/pull/6758) | fix: display the correct message when passing a `bigint` to `res.status`. | Won't do | BigInt status codes are invalid input and should fail, not be supported (Won't do table). |
 | [#6786](https://github.com/expressjs/express/pull/6786) | Update in changelog (History.md) wrt pillarjs/send/HISTORY.md | Upstream process |  |

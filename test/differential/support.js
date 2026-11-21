@@ -29,20 +29,6 @@ function normaliseBody(text) {
   return text.replace(/<pre>([^\n<]*)[\s\S]*?<\/pre>/g, '<pre>$1</pre>')
 }
 
-// res.cookie({ maxAge }) sets Expires to "now + maxAge", so the two servers
-// stamp it a few milliseconds apart and it can fall on different seconds.
-// Max-Age is still compared exactly, and Expires is only replaced when it is
-// within two seconds of now + Max-Age. Any other value is kept, so a wrong
-// Expires still shows up as a difference.
-function normaliseCookieExpires(name, value) {
-  if (name !== 'set-cookie') return value
-  var maxAge = /Max-Age=(-?\d+)/.exec(value)
-  var expires = /Expires=([^;]+)/.exec(value)
-  if (!maxAge || !expires) return value
-  var drift = Date.parse(expires[1]) - (Date.now() + maxAge[1] * 1000)
-  return Math.abs(drift) <= 2000 ? value.replace(expires[0], 'Expires=<now + Max-Age>') : value
-}
-
 // Send one request. `normalise(name, value)` may rewrite a header value that
 // legitimately differs between runs (a random session id, a timestamp).
 function request(server, req, normalise) {
@@ -114,11 +100,4 @@ async function sequence(server, steps, normalise) {
   })
 }
 
-module.exports = {
-  serve: serve,
-  request: request,
-  close: close,
-  sequence: sequence,
-  normaliseBody: normaliseBody,
-  normaliseCookieExpires: normaliseCookieExpires
-}
+module.exports = { serve: serve, request: request, close: close, sequence: sequence, normaliseBody: normaliseBody }

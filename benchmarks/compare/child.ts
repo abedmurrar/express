@@ -6,11 +6,11 @@ import type { Framework, Scenario } from './servers.ts'
 
 const [framework, scenario, port, dir] = process.argv.slice(2)
 
-function isFramework (name: string | undefined): name is Framework {
+function isFramework(name: string | undefined): name is Framework {
   return name !== undefined && Object.hasOwn(FRAMEWORKS, name)
 }
 
-function isScenario (name: string | undefined): name is Scenario {
+function isScenario(name: string | undefined): name is Scenario {
   return name !== undefined && (SCENARIOS as readonly string[]).includes(name)
 }
 

@@ -7,8 +7,12 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "es2024",
-    "lib": ["es2024"],
-    "types": ["node"],
+    "lib": [
+      "es2024"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -17,11 +21,12 @@
     "noFallthroughCasesInSwitch": true,
     "erasableSyntaxOnly": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": true,
     "removeComments": false,
     "sourceMap": true,
     "declaration": false,
     "skipLibCheck": true
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }

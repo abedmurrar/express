@@ -1,9 +1,18 @@
 {
   "all": true,
-  "src": ["src"],
-  "include": ["index.js", "lib/**/*.js", "src/**/*.js"],
+  "src": [
+    "src"
+  ],
+  "include": [
+    "index.js",
+    "lib/**/*.js",
+    "src/**/*.js",
+    "src/**/*.ts"
+  ],
   "exclude-after-remap": true,
-  "reporter": ["text"],
+  "reporter": [
+    "text"
+  ],
   "check-coverage": true,
   "lines": 100,
   "branches": 100,

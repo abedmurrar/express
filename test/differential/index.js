@@ -14,9 +14,11 @@ var assert = require('node:assert')
 var baseline = require('express-baseline')
 var ours = require('../..')
 var { scenarios, allowed } = require('./scenarios')
-var { serve, sequence, close } = require('./support')
+var { serve, sequence, close, useFixedClock } = require('./support')
 
 describe('differential: responses match Express 5.3.0', function () {
+  useFixedClock()
+
   var modes = [
     { prefix: '', listen: false },
     { prefix: 'app.listen(): ', listen: true }

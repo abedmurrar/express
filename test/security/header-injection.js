@@ -330,6 +330,40 @@ describe('security: header injection and response splitting', function () {
     })
   })
 
+  // The headers option is applied from send's file-stat callback. A bad value
+  // used to throw there, outside any try/catch, and end the process.
+  it('res.sendFile with a bad headers value passes the error to the callback', async function () {
+    var r = await respond(function (req, res, next) {
+      res.sendFile(FILE, { headers: { 'X-A': CRLF } }, function (err) {
+        if (err) next(err)
+      })
+    })
+    await rejected('ERR_INVALID_CHAR')(r)
+  })
+
+  it('res.sendFile with a bad headers value and no callback goes to next(err)', async function () {
+    var r = await respond(function (req, res) {
+      res.sendFile(FILE, { headers: { 'X-A': CRLF } })
+    })
+    await rejected('ERR_INVALID_CHAR')(r)
+  })
+
+  it('res.download with a bad headers value passes the error to the callback', async function () {
+    var r = await respond(function (req, res, next) {
+      res.download(FILE, 'name.txt', { headers: { 'X-A': CRLF } }, function (err) {
+        if (err) next(err)
+      })
+    })
+    await rejected('ERR_INVALID_CHAR')(r)
+  })
+
+  it('res.sendFile with an invalid header name passes the error on', async function () {
+    var r = await respond(function (req, res) {
+      res.sendFile(FILE, { headers: { 'Bad Name': 'x' } })
+    })
+    await rejected('ERR_INVALID_HTTP_TOKEN')(r)
+  })
+
   it('a request header with a raw LF is rejected by Node before routing', async function () {
     var app = express()
     var ran = false

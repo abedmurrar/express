@@ -6,14 +6,17 @@ This fork keeps its own copies of the packages it needs to change. Each one keep
 |---|---|---|---|---|---|
 | `router` | https://github.com/pillarjs/router | 2.2.0 | `e6d6b60` | `src/router/` | `test/router/` |
 | `send` | https://github.com/pillarjs/send | 1.2.1 | `096a6148` | `src/send/` | `test/send/` (plus `test/send/fixtures/`) |
+| `serve-static` | https://github.com/abedmurrar/serve-static (our fork of https://github.com/expressjs/serve-static) | 2.2.1 | `76312e12` | `src/serve-static/` | `test/serve-static/` (plus `test/serve-static/fixtures/`) |
 
-Why these two: most of the routing bugs and routing performance work are in `router`. The empty-body bug for `/proc` files (#4944) is in `send`.
+Why these three: most of the routing bugs and routing performance work are in `router`. The empty-body bug for `/proc` files (#4944) is in `send`. `serve-static` is vendored so that `express.static` uses our `send` and gets its fixes: with the `send` that the npm package installs, a `setHeaders` function that throws crashes the process.
 
-Both copies are the same versions Express 5.3.0 installs here, and match the installed packages line for line except for the edits listed below.
+All three copies are the same versions Express 5.3.0 installs here, and match the installed packages line for line except for the edits listed below.
+
+`serve-static`'s source is our fork, https://github.com/abedmurrar/serve-static, created from expressjs/serve-static with only its default branch. Nothing is pushed to it yet: its `master` is upstream's, and the vendored code is upstream's tag `v2.2.1` (commit `76312e12c2754c226a685201ff43d785455d0590`, which the fork's `master` contains; the fork has no tags). Upstream's `master` has one later change to `index.js`, a comment typo fix (`fall-though` to `fall-through`, expressjs/serve-static#246), which is not released and not in our copy.
 
 `router` 2.3.0 (published 2026-11-17) is not vendored yet. This machine's npm config only accepts releases at least 7 days old, so it waits until 2026-11-24 and goes in as a re-sync. It fixes a rewritten `req.url` losing a slash in a mounted router (upstream issue #4059, pillarjs/router#206), and adds `router.listRoutes()` (pillarjs/router#174) and request tracing channels (pillarjs/router#196).
 
-`express.static` still uses the `serve-static` package, which brings its own copy of `send`. Our `lib/send` is used only by `res.sendFile` and `res.download`.
+`express.static` is our `lib/serve-static`, which loads our `lib/send`, so `express.static`, `res.sendFile` and `res.download` all use the same `send`. The `serve-static` package (and the npm `send` it brings) is no longer a dependency; npm still installs both for the development-only `express-baseline` (Express 5.3.0, the differential harness's baseline).
 
 ## Changes from upstream
 
@@ -60,6 +63,26 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
   - `parseTokenList`: `var list: string[] = []`.
   - Every other line gained parameter and return types only.
 
+### serve-static
+
+- `src/serve-static/index.ts`: `require('send')` changed to `require('../send')`, so `express.static` uses our `send`. This is the point of vendoring it: our `send` catches a throw from a `headers` listener (see the `send` edits above), which is how `setHeaders` runs.
+- `src/serve-static/index.ts`: added `var Buffer = require('node:buffer').Buffer`, for the same lint rule as in `send`. No behaviour change.
+- `src/serve-static/index.ts`: the exported function is declared as `function createServeStatic` instead of `function serveStatic`, for the same coverage reason as in `router` and `send`: the middleware it returns is also called `serveStatic`, and lcov rejects a file with two functions of the same name. Right after `module.exports = createServeStatic` comes `Object.defineProperty(createServeStatic, 'name', { value: 'serveStatic' })`, so `express.static.name` is still `serveStatic`, with the same descriptor, the same length (2) and the same own property names (`length`, `name`, `prototype`), and stack traces still show `serveStatic` (V8 reads the `name` property for them). Only the coverage report sees `createServeStatic`. The middleware keeps its name, `serveStatic`, which tools read through `layer.name`.
+- The file is strict TypeScript: `src/serve-static/index.ts`. Only types were added: the statements, their order, the `var` declarations, the other function names and the comments are upstream's (with the edits above). When re-syncing, apply upstream's JavaScript changes to this file and type the new lines the same way. Dependencies are loaded with `require` and typed with `typeof import(...)` (`send` with the `SendFunction` type that `src/send` exports), and the types the file exports (`ServeStaticOptions`, which extends `SendOptions` with `fallthrough`, `redirect` and `setHeaders`, `ServeStaticHandler` and `ServeStaticFunction`) are declared after the `require` lines. The compiled `lib/serve-static/index.js` differs from the JavaScript build only in the lines above and in TypeScript's `__esModule` marker, which lands on the `exports` object that `module.exports = createServeStatic` replaces. The lines that read differently from upstream:
+  - The `require` lines: `Buffer` is `(require('node:buffer') as typeof import('node:buffer')).Buffer`, `resolve` is `(require('path') as typeof import('path')).resolve` and `send` is `require('../send') as SendFunction`.
+  - `serveStatic` (`createServeStatic`): `var opts = Object.create(options || null) as ServeStaticOptions`.
+  - The middleware: `var originalUrl = parseUrl.original(req) as Url`, `var path = (parseUrl(req) as Url).pathname as string` and `(originalUrl.pathname as string).substr(-1)`. `parseurl` is typed as returning `undefined` for a request without a URL, which a request handled by a server always has.
+  - The `error` listener: `function error(err: HttpError)`. `send` only emits `http-errors` errors, whose `statusCode` is always a number.
+  - The directory listeners: `function notFound(this: SendStream)` and `function redirect(this: SendStream, res: ServerResponse)`, because `send` calls them with the stream as `this`. `redirect` reads `parseUrl.original(this.req) as Url`.
+  - Every other line gained parameter and return types only.
+  - Comments that are ours: the note under "Module dependencies" on how they are loaded (the same as in `send`), the one above the `Object.defineProperty` line, and the doc comments on the exported types. The compiled file otherwise matches upstream's `index.js` statement for statement (checked by diffing both after formatting them with Biome).
+
+### serve-static tests
+
+- `test/serve-static/test.js` is upstream's `test/test.js`. `require('..')` changed to `require('../../lib/serve-static')`, and `var { Buffer } = require('node:buffer')` is added, for the same lint rule.
+- The fixtures are copied unchanged into `test/serve-static/fixtures/`, including `.hidden` and `snow ☃/.gitkeep`. Upstream's `test/.eslintrc` (which only sets mocha's environment) is not copied.
+- The same 92 tests pass against the vendored copy and against the npm `serve-static` 2.2.1.
+
 ### send tests
 
 - `require('..')` changed to `require('../../lib/send')`.
@@ -67,11 +90,11 @@ Both copies are the same versions Express 5.3.0 installs here, and match the ins
 
 ## Formatting
 
-Our copies of `router` and `send` live in `src/` and are compiled into `lib/` with the rest of the code. They, and their tests, are formatted with Biome like the rest of the repo (the commit listed in `.git-blame-ignore-revs`), and their unused catch bindings are written as `catch {}`. When re-syncing, diff upstream's changes between versions and apply them by hand; don't copy upstream files over ours. The `eslint-disable` comments in the copied tests are left as they are. They do nothing now.
+Our copies of `router`, `send` and `serve-static` live in `src/` and are compiled into `lib/` with the rest of the code. They, and their tests, are formatted with Biome like the rest of the repo (the commit listed in `.git-blame-ignore-revs`), and their unused catch bindings are written as `catch {}`. When re-syncing, diff upstream's changes between versions and apply them by hand; don't copy upstream files over ours. The `eslint-disable` comments in the copied tests are left as they are. They do nothing now. `serve-static` came in after that commit and was formatted in the commit that vendored it, so Biome's layout (the `onDirectory` and `collapseLeadingSlashes` ternaries on one line, `createHtmlDocument`'s return in parentheses, and the chained supertest calls in its tests joined up) is part of that diff.
 
 ## Dependencies
 
-These were moved from the vendored packages to Express's own `dependencies`: `is-promise` and `path-to-regexp` (router), and `ms` (send). `run-series` was added to `devDependencies` for the router tests.
+These were moved from the vendored packages to Express's own `dependencies`: `is-promise` and `path-to-regexp` (router), and `ms` (send). `run-series` was added to `devDependencies` for the router tests. `serve-static`'s own dependencies (`encodeurl`, `escape-html`, `parseurl` and `send`) were already Express dependencies or are vendored, so it needed nothing new; `serve-static` itself and `@types/serve-static` (used only by the old `require('serve-static')` in `src/express.ts`) were removed.
 
 ## Re-syncing
 

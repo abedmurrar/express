@@ -12,6 +12,7 @@ import type { Application } from './application'
 import type { Request } from './request'
 import type { ExpressResponse } from './response'
 import type { NextFunction, RouterConstructor } from './router'
+import type { ServeStaticFunction } from './serve-static'
 
 /**
  * Module dependencies.
@@ -84,7 +85,7 @@ exports.Router = Router
 
 exports.json = bodyParser.json
 exports.raw = bodyParser.raw
-exports.static = require('serve-static') as typeof import('serve-static')
+exports.static = require('./serve-static') as ServeStaticFunction
 exports.text = bodyParser.text
 exports.urlencoded = bodyParser.urlencoded
 

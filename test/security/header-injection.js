@@ -17,10 +17,12 @@ var CRLF = 'x\r\nX-Injected: 1\r\n\r\n<script>alert(1)</script>'
 var FILE = path.join(__dirname, '..', 'fixtures', 'name.txt')
 
 // Run `handler` and return the raw response, after checking that nothing
-// injected reached the client.
-async function respond(handler, reqPath) {
+// injected reached the client. `handler` answers GET / unless `mount` is set,
+// in which case it is mounted with app.use and sees every path.
+async function respond(handler, reqPath, mount) {
   var app = express()
-  app.get('/', handler)
+  if (mount) app.use(handler)
+  else app.get('/', handler)
   app.use(function (err, req, res, next) {
     res.status(500).send('rejected: ' + (err.code || err.name))
   })
@@ -362,6 +364,35 @@ describe('security: header injection and response splitting', function () {
       res.sendFile(FILE, { headers: { 'Bad Name': 'x' } })
     })
     await rejected('ERR_INVALID_HTTP_TOKEN')(r)
+  })
+
+  // express.static runs setHeaders from the same file-stat callback, through
+  // the `headers` event of our send (it used serve-static's own copy of send,
+  // which had no try/catch there).
+  it('express.static with a throwing setHeaders passes the error to the error handler', async function () {
+    var r = await respond(
+      express.static(path.dirname(FILE), {
+        setHeaders() {
+          throw Object.assign(new Error('boom'), { code: 'EBOOM' })
+        }
+      }),
+      '/name.txt',
+      true
+    )
+    await rejected('EBOOM')(r)
+  })
+
+  it('express.static with a CR LF value set in setHeaders passes the error to the error handler', async function () {
+    var r = await respond(
+      express.static(path.dirname(FILE), {
+        setHeaders(res) {
+          res.setHeader('X-A', CRLF)
+        }
+      }),
+      '/name.txt',
+      true
+    )
+    await rejected('ERR_INVALID_CHAR')(r)
   })
 
   it('a request header with a raw LF is rejected by Node before routing', async function () {

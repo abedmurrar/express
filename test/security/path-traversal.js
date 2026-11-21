@@ -5,8 +5,8 @@
 // however the path is spelled. The status of every case is pinned, for each
 // way of passing the path in.
 //
-// express.static uses the `send` that `serve-static` installs, and
-// res.sendFile and res.download use our copy in lib/send, so both are covered.
+// express.static (our copy of serve-static, in lib/serve-static), res.sendFile
+// and res.download all use our copy of send in lib/send.
 //
 // Dangerous today, by design: res.sendFile(path.join(dir, input)) without the
 // `root` option is not protected, because path.join resolves ".." before

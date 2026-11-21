@@ -93,7 +93,7 @@ Of the 64 packages Express installs today, 33 are forked (below), 30 are shims a
 | [ ] | `parseurl` | pillarjs/parseurl | Fork |
 | [ ] | `iconv-lite` | pillarjs/iconv-lite | Fork; drop `safer-buffer` (Node's `Buffer` is safe) |
 | [ ] | `body-parser` | expressjs/body-parser | Fork |
-| [ ] | `serve-static` | expressjs/serve-static | Fork; uses our `send` |
+| [~] | `serve-static` | expressjs/serve-static | Fork; uses our `send`. Forked to https://github.com/abedmurrar/serve-static (no code pushed yet), and 2.2.1 (`76312e1`) is vendored into `src/serve-static` with `require('../send')`, so `express.static` uses our `send`: serve-static's 92 tests pass on the copy, and 24 `express.static` differential scenarios match 5.3.0 ([#54](https://github.com/abedmurrar/express/pull/54)). Still to do: push our copy to the fork so it becomes the source of `lib/serve-static` |
 | [ ] | `express-generator` | expressjs/generator | Fork; generates TypeScript apps and points at our package and docs |
 | [ ] | `accepts` | jshttp/accepts | Fork |
 | [ ] | `content-disposition` | jshttp/content-disposition | Fork |
@@ -205,7 +205,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `range-parser` | ^1.2.1 | 2.0.0 (2026-11-18, inside the window until 2026-11-25) | Update after the window, harness-checked | master |
 | [ ] | `router` | vendored 2.2.0 | 2.3.0 (2026-11-17) | Re-sync after the window (Foundation row) | master |
 | [ ] | `send` | vendored 1.2.1 | 1.2.1 | Vendored | master |
-| [ ] | `serve-static` | ^2.2.0 | 2.2.1 | Update; vendor if `express.static` needs the `send` fixes | master |
+| [x] | `serve-static` | vendored 2.2.1 | 2.2.1 | Vendored ([#54](https://github.com/abedmurrar/express/pull/54)): `express.static` needed the `send` fixes (a throwing `setHeaders` crashed the process). The dependency is removed; 2 security tests fail with an uncaught error on the npm package and pass on the copy | master |
 | [ ] | `statuses` | ^2.0.1 | 2.0.2 | Update; check whether `http.STATUS_CODES` can replace it on 6.x | both |
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Stays on 2.x: 3.x is ESM-only (breaks Jest users, #21) and changes what `req.is()` returns. Our fork, or 6.x | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
@@ -216,7 +216,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [x] | A bad value in `res.sendFile`'s or `res.download`'s `headers` option (a CR or LF, or an invalid name) crashes the process: it throws inside `send`'s file-stat callback. Any throw from a `headers` listener now becomes an error for the callback or `next(err)`. `express.static` still uses serve-static's own `send`, so a throwing `setHeaders` there still crashes until serve-static uses our `send` | | master | Small | 4 security tests that fail with an uncaught error before the fix | |
+| [x] | A bad value in `res.sendFile`'s or `res.download`'s `headers` option (a CR or LF, or an invalid name) crashes the process: it throws inside `send`'s file-stat callback. Any throw from a `headers` listener now becomes an error for the callback or `next(err)`. `express.static` is covered too: it uses our vendored serve-static, so a throwing `setHeaders` (or a CR or LF set through `res.setHeader` in it) goes to the error handler | | master | Small | 6 security tests that fail with an uncaught error before the fix (4 for `res.sendFile` and `res.download`, 2 for `express.static`) | [#39](https://github.com/abedmurrar/express/pull/39), [#54](https://github.com/abedmurrar/express/pull/54) |
 | [ ] | `res.send` corrupts ArrayBuffer, DataView and typed-array bodies | #7362, #7510, #7538, PRs #7574, #7363, #7511, #7542, #7410 | master | Small | repros 7362, 7510, 7538 | |
 | [ ] | `res.redirect` sends Content-Length with Transfer-Encoding | #7506, PR #7508 | master | Small | repro 7506 | |
 | [ ] | `res.set` sends `Content-Type: false` for unknown types | #7034, PR #7035 | master | Small | repro 7034 | |

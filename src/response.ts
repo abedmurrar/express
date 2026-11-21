@@ -17,10 +17,10 @@
 
 import { Buffer } from 'node:buffer'
 import type { ServerResponse } from 'node:http'
-import type { Stream } from 'node:stream'
 import type { CookieSerializeOptions } from 'cookie'
 import type { Application } from './application'
 import type { Request } from './request'
+import type { SendFunction, SendStream } from './send'
 import type { ETagFunction } from './utils'
 
 const contentDisposition = require('content-disposition') as typeof import('content-disposition')
@@ -123,18 +123,6 @@ export interface ExpressResponse extends ServerResponse<Request> {
   vary(field: string | string[]): this
   render(view: string, options?: RenderOptions | RenderCallback, callback?: RenderCallback): void
 }
-
-/**
- * The vendored `send` stream, as response.ts uses it.
- *
- * TODO: use the types from `src/send` once it is converted to TypeScript.
- */
-interface SendStream extends Stream {
-  pipe<T extends NodeJS.WritableStream>(res: T): T
-}
-
-/** The vendored `send` function. */
-type SendFunction = (req: Request, path: string, options: SendFileOptions) => SendStream
 
 /**
  * Response prototype.

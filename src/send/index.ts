@@ -9,25 +9,140 @@
 
 /**
  * Module dependencies.
+ *
+ * Loaded with `require` and typed with `typeof import(...)`, so the compiled
+ * output calls them directly, with no interop helpers in between.
  * @private
  */
 
-var Buffer = require('node:buffer').Buffer
-var createError = require('http-errors')
-var debug = require('debug')('send')
-var encodeUrl = require('encodeurl')
-var escapeHtml = require('escape-html')
-var etag = require('etag')
-var fresh = require('fresh')
-var fs = require('fs')
-var mime = require('mime-types')
-var ms = require('ms')
-var onFinished = require('on-finished')
-var parseRange = require('range-parser')
-var path = require('path')
-var statuses = require('statuses')
-var Stream = require('stream')
-var util = require('util')
+var Buffer = (require('node:buffer') as typeof import('node:buffer')).Buffer
+var createError = require('http-errors') as typeof import('http-errors')
+var debug = (require('debug') as typeof import('debug'))('send')
+var encodeUrl = require('encodeurl') as typeof import('encodeurl')
+var escapeHtml = require('escape-html') as typeof import('escape-html')
+var etag = require('etag') as typeof import('etag')
+var fresh = require('fresh') as typeof import('fresh')
+var fs = require('fs') as typeof import('fs')
+var mime = require('mime-types') as typeof import('mime-types')
+var ms = require('ms') as typeof import('ms')
+var onFinished = require('on-finished') as typeof import('on-finished')
+var parseRange = require('range-parser') as typeof import('range-parser')
+var path = require('path') as typeof import('path')
+var statuses = require('statuses') as typeof import('statuses')
+var Stream = require('stream') as typeof import('stream')
+var util = require('util') as typeof import('util')
+
+import type { EventEmitter } from 'node:events'
+import type { Stats } from 'node:fs'
+import type { IncomingMessage, OutgoingHttpHeader, OutgoingHttpHeaders, ServerResponse } from 'node:http'
+import type { Stream as NodeStream } from 'node:stream'
+import type { Range, Ranges, Result as RangeResult } from 'range-parser'
+import type { StringValue } from 'ms'
+
+/** `fs.createReadStream()`'s options object (`@types/node` doesn't export its name). */
+type ReadStreamOptions = Exclude<Parameters<typeof fs.createReadStream>[1], BufferEncoding | undefined>
+
+/**
+ * `send()` options. Every option is also passed on to `fs.createReadStream()`
+ * (with `start` and `end` replaced by the range being sent), so its options
+ * are accepted too.
+ */
+export interface SendOptions extends ReadStreamOptions {
+  /** accept ranged requests and send Accept-Ranges, defaulting to true */
+  acceptRanges?: boolean | undefined
+  /** send Cache-Control, defaulting to true */
+  cacheControl?: boolean | undefined
+  /** how a path with a dotfile in it is treated, defaulting to "ignore" (a 404) */
+  dotfiles?: 'allow' | 'deny' | 'ignore' | undefined
+  /** the byte offset to stop at (inclusive) */
+  end?: number | undefined
+  /** send an ETag, defaulting to true */
+  etag?: boolean | undefined
+  /** extensions to try when a file without one is not found */
+  extensions?: string | string[] | false | undefined
+  /** add `immutable` to Cache-Control, defaulting to false */
+  immutable?: boolean | undefined
+  /** index files to try for a path ending in "/", defaulting to "index.html"; false turns it off */
+  index?: string | string[] | false | undefined
+  /** send Last-Modified, defaulting to true */
+  lastModified?: boolean | undefined
+  /** the Cache-Control max-age, in milliseconds or as an `ms` string, defaulting to 0 */
+  maxAge?: number | string | undefined
+  /** an alias of `maxAge` */
+  maxage?: number | string | undefined
+  /** the directory a relative path is served from */
+  root?: string | undefined
+  /** the byte offset to start at */
+  start?: number | undefined
+  [option: string]: unknown
+}
+
+/**
+ * What `error()` is given with the status: the error that caused it, or (for
+ * a 416) only the headers to send. An error's own `headers` are sent too.
+ */
+export type SendErrorDetails = { headers?: OutgoingHttpHeaders | undefined }
+
+/**
+ * The stream `send()` returns. Pipe it to the response; it emits `directory`,
+ * `end`, `error`, `file`, `headers` and `stream` as it goes.
+ */
+export interface SendStream extends NodeStream {
+  options: SendOptions
+  path: string
+  req: IncomingMessage
+  /** the response, set by `pipe()` */
+  res: ServerResponse
+  _acceptRanges: boolean
+  _cacheControl: boolean
+  _etag: boolean
+  _dotfiles: 'allow' | 'deny' | 'ignore'
+  _extensions: string[]
+  _immutable: boolean
+  _index: string[]
+  _lastModified: boolean
+  /** in milliseconds */
+  _maxage: number
+  _root: string | null
+  error(status: number, err?: (Error & SendErrorDetails) | SendErrorDetails): void
+  hasTrailingSlash(): boolean
+  isConditionalGET(): string | undefined
+  isPreconditionFailure(): boolean
+  removeContentHeaderFields(): void
+  notModified(): void
+  headersAlreadySent(): void
+  isCachable(): boolean
+  onStatError(error: NodeJS.ErrnoException): void
+  isFresh(): boolean
+  isRangeFresh(): boolean
+  redirect(path: string): void
+  /**
+   * Starts sending to `res` and returns it. Typed like `Stream`'s `pipe`, which
+   * it overrides; `res` must be an HTTP response (`ServerResponse`).
+   */
+  pipe<T extends NodeJS.WritableStream>(res: T): T
+  send(path: string, stat: Stats): void
+  sendFile(path: string): void
+  sendIndex(path: string): void
+  stream(path: string, options: SendOptions): void
+  type(path: string): void
+  setHeader(path: string, stat: Stats): void
+}
+
+/** `send` itself: returns a `SendStream` for `req` and `path`. */
+export type SendFunction = (req: IncomingMessage, path: string, options?: SendOptions) => SendStream
+
+/** The `SendStream` constructor, which `send()` calls with `new`. */
+interface SendStreamConstructor {
+  new (req: IncomingMessage, path: string, options?: SendOptions): SendStream
+  prototype: SendStream
+}
+
+/**
+ * The constructor's view of `this`: `_maxage` holds the raw option until the
+ * constructor converts it to milliseconds.
+ */
+type SendStreamInit = Omit<SendStream, '_maxage'> & { _maxage: number | string | undefined }
 
 /**
  * Path function references.
@@ -78,8 +193,8 @@ module.exports = send
  * @public
  */
 
-function send(req, path, options) {
-  return new SendStream(req, path, options)
+function send(req: IncomingMessage, path: string, options?: SendOptions): SendStream {
+  return new (SendStream as unknown as SendStreamConstructor)(req, path, options)
 }
 
 /**
@@ -91,7 +206,7 @@ function send(req, path, options) {
  * @private
  */
 
-function SendStream(req, path, options) {
+function SendStream(this: SendStreamInit, req: IncomingMessage, path: string, options?: SendOptions) {
   Stream.call(this)
 
   var opts = options || {}
@@ -121,7 +236,7 @@ function SendStream(req, path, options) {
   this._lastModified = opts.lastModified !== undefined ? Boolean(opts.lastModified) : true
 
   this._maxage = opts.maxAge || opts.maxage
-  this._maxage = typeof this._maxage === 'string' ? ms(this._maxage) : Number(this._maxage)
+  this._maxage = typeof this._maxage === 'string' ? ms(this._maxage as StringValue) : Number(this._maxage)
   this._maxage = !isNaN(this._maxage) ? Math.min(Math.max(0, this._maxage), MAX_MAXAGE) : 0
 
   this._root = opts.root ? resolve(opts.root) : null
@@ -134,6 +249,13 @@ function SendStream(req, path, options) {
 util.inherits(SendStream, Stream)
 
 /**
+ * The prototype, typed (a function declaration's `prototype` is untyped).
+ * @private
+ */
+
+const proto = SendStream.prototype as SendStream
+
+/**
  * Emit error with `status`.
  *
  * @param {number} status
@@ -141,7 +263,7 @@ util.inherits(SendStream, Stream)
  * @private
  */
 
-SendStream.prototype.error = function error(status, err) {
+proto.error = function error(status, err): boolean | void {
   // emit if listeners instead of responding
   if (hasListeners(this, 'error')) {
     return this.emit('error', createHttpError(status, err))
@@ -176,7 +298,7 @@ SendStream.prototype.error = function error(status, err) {
  * @private
  */
 
-SendStream.prototype.hasTrailingSlash = function hasTrailingSlash() {
+proto.hasTrailingSlash = function hasTrailingSlash() {
   return this.path[this.path.length - 1] === '/'
 }
 
@@ -187,7 +309,7 @@ SendStream.prototype.hasTrailingSlash = function hasTrailingSlash() {
  * @api private
  */
 
-SendStream.prototype.isConditionalGET = function isConditionalGET() {
+proto.isConditionalGET = function isConditionalGET() {
   return (
     this.req.headers['if-match'] ||
     this.req.headers['if-unmodified-since'] ||
@@ -203,7 +325,7 @@ SendStream.prototype.isConditionalGET = function isConditionalGET() {
  * @private
  */
 
-SendStream.prototype.isPreconditionFailure = function isPreconditionFailure() {
+proto.isPreconditionFailure = function isPreconditionFailure() {
   var req = this.req
   var res = this.res
 
@@ -236,7 +358,7 @@ SendStream.prototype.isPreconditionFailure = function isPreconditionFailure() {
  * @private
  */
 
-SendStream.prototype.removeContentHeaderFields = function removeContentHeaderFields() {
+proto.removeContentHeaderFields = function removeContentHeaderFields() {
   var res = this.res
 
   res.removeHeader('Content-Encoding')
@@ -252,7 +374,7 @@ SendStream.prototype.removeContentHeaderFields = function removeContentHeaderFie
  * @api private
  */
 
-SendStream.prototype.notModified = function notModified() {
+proto.notModified = function notModified() {
   var res = this.res
   debug('not modified')
   this.removeContentHeaderFields()
@@ -266,7 +388,7 @@ SendStream.prototype.notModified = function notModified() {
  * @api private
  */
 
-SendStream.prototype.headersAlreadySent = function headersAlreadySent() {
+proto.headersAlreadySent = function headersAlreadySent() {
   var err = new Error("Can't set headers after they are sent.")
   debug('headers already sent')
   this.error(500, err)
@@ -280,7 +402,7 @@ SendStream.prototype.headersAlreadySent = function headersAlreadySent() {
  * @api private
  */
 
-SendStream.prototype.isCachable = function isCachable() {
+proto.isCachable = function isCachable() {
   var statusCode = this.res.statusCode
   return (statusCode >= 200 && statusCode < 300) || statusCode === 304
 }
@@ -292,7 +414,7 @@ SendStream.prototype.isCachable = function isCachable() {
  * @private
  */
 
-SendStream.prototype.onStatError = function onStatError(error) {
+proto.onStatError = function onStatError(error) {
   switch (error.code) {
     case 'ENAMETOOLONG':
     case 'ENOENT':
@@ -312,7 +434,7 @@ SendStream.prototype.onStatError = function onStatError(error) {
  * @api private
  */
 
-SendStream.prototype.isFresh = function isFresh() {
+proto.isFresh = function isFresh() {
   return fresh(this.req.headers, {
     etag: this.res.getHeader('ETag'),
     'last-modified': this.res.getHeader('Last-Modified')
@@ -326,7 +448,7 @@ SendStream.prototype.isFresh = function isFresh() {
  * @api private
  */
 
-SendStream.prototype.isRangeFresh = function isRangeFresh() {
+proto.isRangeFresh = function isRangeFresh() {
   var ifRange = this.req.headers['if-range']
 
   if (!ifRange) {
@@ -336,7 +458,7 @@ SendStream.prototype.isRangeFresh = function isRangeFresh() {
   // if-range as etag
   if (ifRange.indexOf('"') !== -1) {
     var etag = this.res.getHeader('ETag')
-    return Boolean(etag && ifRange.indexOf(etag) !== -1)
+    return Boolean(etag && ifRange.indexOf(etag as string) !== -1)
   }
 
   // if-range as modified date
@@ -351,7 +473,7 @@ SendStream.prototype.isRangeFresh = function isRangeFresh() {
  * @private
  */
 
-SendStream.prototype.redirect = function redirect(path) {
+proto.redirect = function redirect(path) {
   var res = this.res
 
   if (hasListeners(this, 'directory')) {
@@ -385,12 +507,12 @@ SendStream.prototype.redirect = function redirect(path) {
  * @api public
  */
 
-SendStream.prototype.pipe = function pipe(res) {
+proto.pipe = function pipe(res) {
   // root path
   var root = this._root
 
   // references
-  this.res = res
+  this.res = res as unknown as ServerResponse
 
   // decode the path
   var path = decode(this.path)
@@ -405,7 +527,7 @@ SendStream.prototype.pipe = function pipe(res) {
     return res
   }
 
-  var parts
+  var parts: string[]
   if (root !== null) {
     // normalize
     if (path) {
@@ -472,13 +594,13 @@ SendStream.prototype.pipe = function pipe(res) {
  * @api public
  */
 
-SendStream.prototype.send = function sendPath(path, stat) {
+proto.send = function sendPath(path, stat) {
   var len = stat.size
   var options = this.options
-  var opts = {}
+  var opts: SendOptions = {}
   var res = this.res
   var req = this.req
-  var ranges = req.headers.range
+  var ranges: string | undefined | RangeResult | Ranges = req.headers.range
   var offset = options.start || 0
 
   if (res.headersSent) {
@@ -497,7 +619,7 @@ SendStream.prototype.send = function sendPath(path, stat) {
   try {
     this.setHeader(path, stat)
   } catch (err) {
-    this.error(500, err)
+    this.error(500, err as Error)
     return
   }
 
@@ -525,9 +647,9 @@ SendStream.prototype.send = function sendPath(path, stat) {
   }
 
   // Range support
-  if (this._acceptRanges && BYTES_RANGE_REGEXP.test(ranges)) {
+  if (this._acceptRanges && BYTES_RANGE_REGEXP.test(ranges as string)) {
     // parse
-    ranges = parseRange(len, ranges, {
+    ranges = parseRange(len, ranges as string, {
       combine: true
     })
 
@@ -559,8 +681,8 @@ SendStream.prototype.send = function sendPath(path, stat) {
       res.setHeader('Content-Range', contentRange('bytes', len, ranges[0]))
 
       // adjust for requested range
-      offset += ranges[0].start
-      len = ranges[0].end - ranges[0].start + 1
+      offset += (ranges[0] as Range).start
+      len = (ranges[0] as Range).end - (ranges[0] as Range).start + 1
     }
   }
 
@@ -591,7 +713,7 @@ SendStream.prototype.send = function sendPath(path, stat) {
  * @param {String} path
  * @api private
  */
-SendStream.prototype.sendFile = function sendFile(path) {
+proto.sendFile = function sendFile(path) {
   var i = 0
   var self = this
 
@@ -609,7 +731,7 @@ SendStream.prototype.sendFile = function sendFile(path) {
     self.send(path, stat)
   })
 
-  function nextExtension(err) {
+  function nextExtension(err?: NodeJS.ErrnoException) {
     if (self._extensions.length <= i) {
       return err ? self.onStatError(err) : self.error(404)
     }
@@ -632,17 +754,17 @@ SendStream.prototype.sendFile = function sendFile(path) {
  * @param {String} path
  * @api private
  */
-SendStream.prototype.sendIndex = function sendIndex(path) {
+proto.sendIndex = function sendIndex(path) {
   var i = -1
   var self = this
 
-  function nextIndex(err) {
+  function nextIndex(err?: NodeJS.ErrnoException) {
     if (++i >= self._index.length) {
       if (err) return self.onStatError(err)
       return self.error(404)
     }
 
-    var p = join(path, self._index[i])
+    var p = join(path, self._index[i] as string)
 
     debug('stat "%s"', p)
     fs.stat(p, function (err, stat) {
@@ -664,7 +786,7 @@ SendStream.prototype.sendIndex = function sendIndex(path) {
  * @api private
  */
 
-SendStream.prototype.stream = function stream(path, options) {
+proto.stream = function stream(path, options) {
   var self = this
   var res = this.res
 
@@ -704,7 +826,7 @@ SendStream.prototype.stream = function stream(path, options) {
  * @api private
  */
 
-SendStream.prototype.type = function type(path) {
+proto.type = function type(path) {
   var res = this.res
 
   if (res.getHeader('Content-Type')) return
@@ -725,7 +847,7 @@ SendStream.prototype.type = function type(path) {
  * @api private
  */
 
-SendStream.prototype.setHeader = function setHeader(path, stat) {
+proto.setHeader = function setHeader(path, stat) {
   var res = this.res
 
   this.emit('headers', res, path, stat)
@@ -766,7 +888,7 @@ SendStream.prototype.setHeader = function setHeader(path, stat) {
  * @private
  */
 
-function clearHeaders(res) {
+function clearHeaders(res: ServerResponse): void {
   for (const header of res.getHeaderNames()) {
     res.removeHeader(header)
   }
@@ -778,7 +900,7 @@ function clearHeaders(res) {
  * @param {string} str
  * @private
  */
-function collapseLeadingSlashes(str) {
+function collapseLeadingSlashes(str: string): string {
   for (var i = 0; i < str.length; i++) {
     if (str[i] !== '/') {
       break
@@ -794,9 +916,9 @@ function collapseLeadingSlashes(str) {
  * @api private
  */
 
-function containsDotFile(parts) {
+function containsDotFile(parts: string[]): boolean {
   for (var i = 0; i < parts.length; i++) {
-    var part = parts[i]
+    var part = parts[i] as string
     if (part.length > 1 && part[0] === '.') {
       return true
     }
@@ -813,7 +935,7 @@ function containsDotFile(parts) {
  * @param {array} [range]
  */
 
-function contentRange(type, size, range) {
+function contentRange(type: string, size: number, range?: Range): string {
   return type + ' ' + (range ? range.start + '-' + range.end : '*') + '/' + size
 }
 
@@ -825,7 +947,7 @@ function contentRange(type, size, range) {
  * @private
  */
 
-function createHtmlDocument(title, body) {
+function createHtmlDocument(title: string, body: string): string {
   return (
     '<!DOCTYPE html>\n' +
     '<html lang="en">\n' +
@@ -852,7 +974,7 @@ function createHtmlDocument(title, body) {
  * @private
  */
 
-function createHttpError(status, err) {
+function createHttpError(status: number, err?: (Error & SendErrorDetails) | SendErrorDetails) {
   if (!err) {
     return createError(status)
   }
@@ -870,7 +992,7 @@ function createHttpError(status, err) {
  * @api private
  */
 
-function decode(path) {
+function decode(path: string): string | -1 {
   try {
     return decodeURIComponent(path)
   } catch {
@@ -890,7 +1012,7 @@ function decode(path) {
  * @private
  */
 
-function hasListeners(emitter, type) {
+function hasListeners(emitter: EventEmitter, type: string): boolean {
   return emitter.listenerCount(type) > 0
 }
 
@@ -902,8 +1024,8 @@ function hasListeners(emitter, type) {
  * @private
  */
 
-function normalizeList(val, name) {
-  var list = [].concat(val || [])
+function normalizeList(val: string | string[] | false, name: string): string[] {
+  var list = ([] as string[]).concat(val || [])
 
   for (var i = 0; i < list.length; i++) {
     if (typeof list[i] !== 'string') {
@@ -921,8 +1043,8 @@ function normalizeList(val, name) {
  * @private
  */
 
-function parseHttpDate(date) {
-  var timestamp = date && Date.parse(date)
+function parseHttpDate(date: OutgoingHttpHeader | undefined): number {
+  var timestamp = date && Date.parse(date as string)
 
   return typeof timestamp === 'number' ? timestamp : NaN
 }
@@ -934,9 +1056,9 @@ function parseHttpDate(date) {
  * @private
  */
 
-function parseTokenList(str) {
+function parseTokenList(str: string): string[] {
   var end = 0
-  var list = []
+  var list: string[] = []
   var start = 0
 
   // gather tokens
@@ -975,11 +1097,11 @@ function parseTokenList(str) {
  * @private
  */
 
-function setHeaders(res, headers) {
+function setHeaders(res: ServerResponse, headers: OutgoingHttpHeaders): void {
   var keys = Object.keys(headers)
 
   for (var i = 0; i < keys.length; i++) {
-    var key = keys[i]
-    res.setHeader(key, headers[key])
+    var key = keys[i] as string
+    res.setHeader(key, headers[key] as OutgoingHttpHeader)
   }
 }

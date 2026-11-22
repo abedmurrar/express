@@ -12,7 +12,8 @@ var assert = require('node:assert')
 var fc = require('fast-check')
 var baseline = require('express-baseline')
 var ours = require('../..')
-var { serve, request, close } = require('../differential/support')
+var http = require('node:http')
+var { request, close } = require('../differential/support')
 var { FUZZ, URL_CHARS, queryString, timeout } = require('./support')
 
 // Route tables
@@ -27,13 +28,18 @@ var routeSegment = fc.oneof(
   { weight: 1, arbitrary: fc.constantFrom('(x)', 'a?', 'a+', '[b]', ':', '*', '\\(x\\)', '!', '{a', ':9') }
 )
 var routeSuffix = fc.constantFrom('', '', '', '{/:opt}', '{/b}', '{.:ext}', '{/*rest}', '/')
-var routeString = fc.oneof(
-  {
-    weight: 9,
-    arbitrary: fc.tuple(fc.array(routeSegment, { maxLength: 3 }), routeSuffix).map((t) => '/' + t[0].join('/') + t[1])
-  },
-  { weight: 1, arbitrary: fc.constantFrom('', '*splat', '/{*splat}', '//a', '/a//b') }
-)
+// A path made only of slashes ("//", from no segments and a "/" suffix) is
+// left out: Express 5.3.0 loosens it to "", which matches every request, and
+// the fork keeps it on purpose (#4557, test/router/fork-slash-mounts.js).
+var routeString = fc
+  .oneof(
+    {
+      weight: 9,
+      arbitrary: fc.tuple(fc.array(routeSegment, { maxLength: 3 }), routeSuffix).map((t) => '/' + t[0].join('/') + t[1])
+    },
+    { weight: 1, arbitrary: fc.constantFrom('', '*splat', '/{*splat}', '//a', '/a//b') }
+  )
+  .filter((p) => !/^\/\/+$/.test(p))
 var routeRegExp = fc.constantFrom(
   /^\/a\/(\d+)$/,
   /^\/([^/]+)\/b/i,
@@ -327,10 +333,28 @@ function build(app, express, c) {
   return errors
 }
 
-async function run(express, c) {
+// The fork drops a "#" fragment from req.url before it routes
+// (src/router/index.ts), so it must answer a target with a fragment exactly
+// as Express 5.3.0 does when the fragment is dropped as the request arrives.
+// (5.3.0 on its own routes some of them differently: url.parse reads
+// "//user@host" before a fragment as a host.) Both servers still get the
+// same bytes, so a target Node itself rejects is rejected by both.
+function droppingFragments(app) {
+  return function (req, res) {
+    var hash = req.url.indexOf('#')
+    if (hash !== -1) req.url = req.url.slice(0, hash)
+    app(req, res)
+  }
+}
+
+async function run(express, c, wrap) {
   var errors
-  var server = await serve(express, function (app) {
-    errors = build(app, express, c)
+  var app = express()
+  errors = build(app, express, c)
+  var server = await new Promise(function (resolve) {
+    var s = http.createServer(wrap ? wrap(app) : app).listen(0, '127.0.0.1', function () {
+      resolve(s)
+    })
   })
   try {
     var responses = []
@@ -351,7 +375,7 @@ describe('differential fuzz: random apps and requests match Express 5.3.0', func
   it('the same setup errors and the same responses, for ' + FUZZ.numRuns + ' random apps', async function () {
     await fc.assert(
       fc.asyncProperty(fuzzCase, async function (c) {
-        var expected = await run(baseline, c)
+        var expected = await run(baseline, c, droppingFragments)
         var actual = await run(ours, c)
         assert.deepStrictEqual(actual.errors, expected.errors)
         for (var i = 0; i < c.requests.length; i++) {

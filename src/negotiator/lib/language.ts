@@ -196,6 +196,8 @@ function preferredLanguages(accept: string | undefined, provided?: string[]): st
  */
 
 function compareSpecs(a: LanguagePriority, b: LanguagePriority): number {
+  // upstream's `|| 0` can't be reached: two specs always differ in `i`
+  /* c8 ignore next */
   return b.q - a.q || b.s - a.s || a.o - b.o || (a.i as number) - (b.i as number) || 0
 }
 

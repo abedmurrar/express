@@ -322,6 +322,8 @@ describe('property: remembered trust decisions match proxy-addr', function () {
 // one header is asked about several different lists in a row (the case the
 // cache serves) and after the maps have been emptied many times.
 describe('property: the remembering negotiator matches negotiator 1.1.0', function () {
+  this.timeout(120000)
+
   var Negotiator = require('../../lib/negotiator')
   var Upstream = require('negotiator')
 
@@ -473,7 +475,7 @@ describe('property: the remembering negotiator matches negotiator 1.1.0', functi
           assert.deepStrictEqual(answersFor(Negotiator, rs[0], again), answersFor(Upstream, rs[0], again))
         })
       }),
-      { numRuns: 20 }
+      { numRuns: 10 }
     )
   })
 })

@@ -23,6 +23,7 @@ It compares, under the same load and on the same machine:
 | `routes100` | `GET /r99/abc` | 100 parameter routes, hitting the last one |
 | `post-json` | `POST /echo` | Parse a JSON body and send it back |
 | `not-found` | `GET /nope` | No matching route: 404 |
+| `query` | `GET /search?q=express+router&page=2&sort=desc&limit=20&tag=a&tag=b` | Read a flat query string (Express with the extended parser) and send it as JSON |
 
 Before measuring each target and scenario, the harness checks the response (status and body). A framework that answers differently is reported as "check failed" and not measured, so every number compares the same work.
 

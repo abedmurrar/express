@@ -8,7 +8,7 @@ The method, the Node flags and the CI setup come from `bench/count.js` and the `
 
 ## Scenarios
 
-The same seven as `benchmarks/compare` (`scenarios.ts` builds the same Express apps as `servers.ts`): `hello`, `json`, `params`, `mw10`, `routes100`, `post-json` and `not-found`. The first response of every run is checked (status and body), so a scenario can't silently measure something else.
+The same eight as `benchmarks/compare` (`scenarios.ts` builds the same Express apps as `servers.ts`): `hello`, `json`, `params`, `mw10`, `routes100`, `post-json`, `not-found` and `query` (a flat query string read through `req.query` with the extended parser). The first response of every run is checked (status and body), so a scenario can't silently measure something else.
 
 ## How it counts
 

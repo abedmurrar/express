@@ -1052,9 +1052,9 @@
       "note": "Removes res.set Content-Type magic; same as 7146."
     },
     "7286": {
-      "decision": "cherry-pick",
+      "decision": "roadmap",
       "item": "A `//` mount also matches `/`",
-      "note": "Normalises all-slash mount paths to '/'."
+      "note": "Normalises all-slash mount paths to '/', which keeps a `//` mount answering `/`; the fork ports pillarjs/router#190 instead."
     },
     "7317": {
       "decision": "cherry-pick",

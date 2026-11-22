@@ -602,22 +602,18 @@ describe('security: authorization bypass', function () {
   })
 
   describe('mount paths and hosts', function () {
-    bug(
-      'a router mounted at "//" does not shadow a guarded route at "/"',
-      'A `//` mount also matches `/`',
-      async function () {
-        var app = express()
-        var open = express.Router()
-        open.get('/secret', function (req, res) {
-          res.send('open')
-        })
-        app.use('//', open)
-        app.use(auth)
-        app.get('/secret', secret)
-        var r = await request(app, '/secret')
-        assert.strictEqual(r.status + ' ' + r.body, '401 denied')
-      }
-    )
+    it('a router mounted at "//" does not shadow a guarded route at "/"', async function () {
+      var app = express()
+      var open = express.Router()
+      open.get('/secret', function (req, res) {
+        res.send('open')
+      })
+      app.use('//', open)
+      app.use(auth)
+      app.get('/secret', secret)
+      var r = await request(app, '/secret')
+      assert.strictEqual(r.status + ' ' + r.body, '401 denied')
+    })
 
     bug(
       'a Host header with userinfo cannot pass a host-based guard as another host',

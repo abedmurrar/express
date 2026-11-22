@@ -689,7 +689,7 @@ Object.defineProperty(req, 'signal', {
   },
   // Assigning sets an own property, as it did on Node 22 with Express 5.3.0
   // (a polyfill middleware, for example), where IncomingMessage has no signal
-  set: function signal(this: Request, value: unknown) {
+  set: function setSignal(this: Request, value: unknown) {
     Object.defineProperty(this, 'signal', { configurable: true, enumerable: true, writable: true, value: value })
   }
 })

@@ -144,11 +144,29 @@ describe('robustness: many concurrent requests', function () {
   it('answers ' + COUNT + ' requests held in the app at the same time, each on its own connection', async function () {
     server = await support.listen(build(holdUntil(COUNT)))
     var port = server.address().port
+    // Connect in waves of 50, each once the server has accepted the last:
+    // Windows caps the listen backlog well below 500, and connections over it
+    // are refused. Nothing is answered until all COUNT have arrived, so all
+    // COUNT requests are still held in the app at the same time.
+    var accepted = 0
+    var waiting = null
+    server.on('connection', function () {
+      accepted++
+      if (waiting && accepted >= waiting.count) waiting.resolve()
+    })
     var all = []
-    for (var i = 0; i < COUNT; i++) all.push(send(false, port, i))
+    for (var i = 0; i < COUNT; i++) {
+      all.push(send(false, port, i))
+      if ((i + 1) % 50 === 0 && accepted < i + 1) {
+        waiting = Promise.withResolvers()
+        waiting.count = i + 1
+        await waiting.promise
+      }
+    }
     var results = await Promise.all(all)
 
     assert.deepStrictEqual(check(results), [])
     assert.strictEqual(results.length, COUNT)
+    assert.strictEqual(accepted, COUNT, 'one connection per request')
   })
 })

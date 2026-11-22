@@ -289,7 +289,7 @@ These are opt-in, and nothing existing changes.
 | [ ] | Stable `code` on every error Express throws | #6951, PR #6982 | master | Medium | new tests | |
 | [ ] | Full matched route path on the request (`req.originalRoute`) | #2501 | master | Small | new tests | |
 | [ ] | Warn about route paths that can never match | #2511 | master | Small | new tests | |
-| [ ] | View lookup tries every registered engine for names without a known extension | #2708, #3485, PR #3569 | master | Medium | new tests | |
+| [x] | View lookup tries every registered engine for names without a known extension | #2708, #3485, PR #3569 | master | Medium | opt-in `view engines` setting (an ordered list of extensions), since an error becoming a render can change existing apps; unset, nothing changes. 31 new tests for the order between engines (`view engine` first), several `views` folders (each extension in every folder before the next), sub-apps inheriting the setting and engines, names with a dot that isn't a known extension, the lookup error listing the extensions tried, view caching and a custom `view` class getting the same options. No differential entry. Removing the core line fails 20 tests | [#72](https://github.com/abedmurrar/express/pull/72) |
 
 ## Our 6.0
 

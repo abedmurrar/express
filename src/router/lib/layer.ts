@@ -58,8 +58,6 @@ export interface Layer {
   path: string | undefined
   slash: boolean
   matchers: Array<MatchFunction<Params>>
-  prefix: string | undefined // not in upstream: the literal start of a string path, see literalPrefix
-  sensitive: boolean // not in upstream: whether `prefix` is compared with case
   method?: string | undefined // set by the route
   route?: Route | undefined // set by the router
   handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
@@ -79,7 +77,6 @@ export interface LayerConstructor {
  */
 
 const TRAILING_SLASH_REGEXP = /\/+$/
-const NON_ASCII_REGEXP = /[^\0-\x7f]/
 const MATCHING_GROUP_REGEXP = /\((?:\?<(.*?)>)?(?!\?)/g
 
 /**
@@ -148,11 +145,6 @@ function Layer(this: Layer, path: PathParams, options: LayerOptions | undefined,
     } as MatchOptions)
   }
   this.matchers = Array.isArray(path) ? path.map(matcher) : [matcher(path)]
-
-  // not in upstream: a path that doesn't start with the literal start of a
-  // string path can't match its regex, so match() checks that first
-  this.sensitive = Boolean(opts.sensitive)
-  this.prefix = typeof path === 'string' ? literalPrefix(opts.strict ? path : loosen(path), this.sensitive) : undefined
 }
 
 /**
@@ -255,14 +247,11 @@ proto.match = function match(path) {
       return true
     }
 
-    // not in upstream: skip the regex when the path lacks the literal start
-    if (this.prefix === undefined || hasPrefix(path, this.prefix, this.sensitive)) {
-      let i = 0
-      while (!match && i < this.matchers.length) {
-        // match the path
-        match = (this.matchers[i] as MatchFunction<Params>)(path)
-        i++
-      }
+    let i = 0
+    while (!match && i < this.matchers.length) {
+      // match the path
+      match = (this.matchers[i] as MatchFunction<Params>)(path)
+      i++
     }
   }
 
@@ -322,63 +311,4 @@ function loosen(path: PathParams): PathParams {
         return loosen(p)
       })
     : String(path).replace(TRAILING_SLASH_REGEXP, '')
-}
-
-/**
- * The literal text a string path starts with, as path-to-regexp parses it
- * (`/users/` for `/users/:id`, `/a:b` for `/a\\:b`), cut at the first
- * non-ASCII character and lower-cased unless `sensitive`. Every string the
- * path's regex matches starts with this text, ignoring ASCII case unless
- * `sensitive`: the regex is built with the `i` flag and without `u`, and
- * without `u` the `i` flag pairs an ASCII character only with its other
- * ASCII case. Undefined when the path starts with a parameter, a wildcard or
- * an optional group, or has no literal start.
- *
- * Not in upstream.
- * @private
- */
-function literalPrefix(path: string, sensitive: boolean): string | undefined {
-  const token = pathRegexp.parse(path).tokens[0]
-
-  if (token === undefined || token.type !== 'text') {
-    return undefined
-  }
-
-  const nonAscii = token.value.search(NON_ASCII_REGEXP)
-  const text = nonAscii === -1 ? token.value : token.value.slice(0, nonAscii)
-
-  if (text.length === 0) {
-    return undefined
-  }
-
-  return sensitive ? text : text.toLowerCase()
-}
-
-/**
- * Whether `path` starts with `prefix` (from literalPrefix), ignoring ASCII
- * case unless `sensitive`, which is how the layer's regex compares it.
- *
- * Not in upstream.
- * @private
- */
-function hasPrefix(path: string, prefix: string, sensitive: boolean): boolean {
-  if (sensitive) {
-    return path.startsWith(prefix)
-  }
-
-  if (path.length < prefix.length) {
-    return false
-  }
-
-  for (let i = 0; i < prefix.length; i++) {
-    const p = prefix.charCodeAt(i)
-    const c = path.charCodeAt(i)
-
-    // `p` is lower case, so an upper-case `c` is the same letter 0x20 lower
-    if (c !== p && (c + 0x20 !== p || p < 0x61 || p > 0x7a)) {
-      return false
-    }
-  }
-
-  return true
 }

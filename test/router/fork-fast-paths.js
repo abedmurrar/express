@@ -1,10 +1,9 @@
 'use strict'
 
-// Not from upstream. The router skips path matching that cannot succeed:
-// a route without a handler for the request method is skipped before its
-// path regex runs (src/router/index.ts, skippableMethod), and a string path
-// with a literal start is checked with that start before its regex
-// (src/router/lib/layer.ts, literalPrefix). Each case here runs on this
+// Not from upstream. These cases were written for a method check and a
+// literal-prefix check before each path regex (PR #51), removed again in
+// #59 because the instruction counts went up (V8's compiled regex already
+// fails fast). They stay as edge-case tests of routing: each runs on this
 // router and on upstream's (router 2.2.0) and expects the same handlers to
 // run in the same order with the same request state, and the same ending.
 
@@ -230,31 +229,6 @@ describe('fork: routing fast paths', function () {
   })
 
   describe('the literal-prefix check before the path regex', function () {
-    function prefixOf(path, options) {
-      return ForkLayer(path, options || { sensitive: false, strict: false, end: true }, function () {}).prefix
-    }
-
-    it('takes the literal start of a string path', function () {
-      assert.strictEqual(prefixOf('/users/:id'), '/users/')
-      assert.strictEqual(prefixOf('/Users/:id'), '/users/')
-      assert.strictEqual(prefixOf('/Users/:id', { sensitive: true }), '/Users/')
-      assert.strictEqual(prefixOf('/a\\:b/:c'), '/a:b/')
-      assert.strictEqual(prefixOf('/files{/:name}'), '/files')
-      assert.strictEqual(prefixOf('/assets/*path'), '/assets/')
-      assert.strictEqual(prefixOf('/a%2Fb'), '/a%2fb')
-      // trailing slashes are dropped unless strict, as the regex drops them
-      assert.strictEqual(prefixOf('/dir/'), '/dir')
-      assert.strictEqual(prefixOf('/dir/', { strict: true }), '/dir/')
-      // cut before the first non-ASCII character
-      assert.strictEqual(prefixOf('/café/:x'), '/caf')
-    })
-
-    it('has no prefix for paths without a literal start', function () {
-      for (const p of [':id', '{/:x}', '*splat', '', '///', /^\/a/, ['/a', '/b'], 'é/x']) {
-        assert.strictEqual(prefixOf(p), undefined, String(p))
-      }
-    })
-
     // The regex is built with the `i` flag and no `u`, so it pairs an ASCII
     // character only with its other ASCII case. Every UTF-16 code unit is
     // tried against every printable ASCII character a route can start with:
@@ -271,7 +245,6 @@ describe('fork: routing fast paths', function () {
           const fork = ForkLayer(route, options, function () {})
           const upstream = UpstreamLayer(route, options, function () {})
           const regexp = pathToRegexp(route, { sensitive: sensitive, end: false }).regexp
-          assert.strictEqual(fork.prefix, '/' + (sensitive ? literal : literal.toLowerCase()) + 'z')
           let matched = 0
           for (let c = 0; c <= 0xffff; c++) {
             const path = '/' + String.fromCharCode(c) + 'z'

@@ -6,6 +6,7 @@
 // step. `npm run typecheck` checks it with strict TypeScript.
 
 import http from 'node:http'
+import querystring from 'node:querystring'
 import { Buffer } from 'node:buffer'
 import { createRequire } from 'node:module'
 import type { Express, NextFunction, Request, Response } from 'express'
@@ -24,9 +25,18 @@ declare module 'fastify' {
   }
 }
 
-export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found'
+export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found' | 'query'
 
-export const SCENARIOS: readonly Scenario[] = ['hello', 'json', 'params', 'mw10', 'routes100', 'post-json', 'not-found']
+export const SCENARIOS: readonly Scenario[] = [
+  'hello',
+  'json',
+  'params',
+  'mw10',
+  'routes100',
+  'post-json',
+  'not-found',
+  'query'
+]
 
 export interface Check {
   path: string
@@ -40,6 +50,10 @@ export interface Check {
 
 export const PAYLOAD = { hello: 'world', n: 42, list: [1, 2, 3], nested: { a: true, b: 'x' } }
 const POST_BODY = JSON.stringify({ user: 'tobi', tags: ['a', 'b'], n: 7 })
+// A flat query string. Express reads it with the extended ("qs") parser; the
+// other frameworks with their own, which give the same object for it.
+const QUERY = 'q=express+router&page=2&sort=desc&limit=20&tag=a&tag=b'
+const QUERY_RESULT = { q: 'express router', page: '2', sort: 'desc', limit: '20', tag: ['a', 'b'] }
 
 export const CHECKS: Record<Scenario, Check> = {
   hello: { path: '/', method: 'GET', status: 200, text: 'Hello World!' },
@@ -48,7 +62,8 @@ export const CHECKS: Record<Scenario, Check> = {
   mw10: { path: '/', method: 'GET', status: 200, text: 'Hello World!' },
   routes100: { path: '/r99/abc', method: 'GET', status: 200, text: 'abc' },
   'post-json': { path: '/echo', method: 'POST', body: POST_BODY, status: 200, json: JSON.parse(POST_BODY) },
-  'not-found': { path: '/nope', method: 'GET', status: 404 }
+  'not-found': { path: '/nope', method: 'GET', status: 404 },
+  query: { path: `/search?${QUERY}`, method: 'GET', status: 200, json: QUERY_RESULT }
 }
 
 type ExpressModule = typeof expressOriginal
@@ -97,6 +112,12 @@ const express: Start = async (scenario, port, dir) => {
     app.post('/echo', createApp.json(), (req: Request, res: Response) => {
       res.json(req.body)
     })
+  if (scenario === 'query') {
+    app.set('query parser', 'extended')
+    app.get('/search', (req: Request, res: Response) => {
+      res.json(req.query)
+    })
+  }
   if (wantsHello(scenario))
     app.get('/', (req: Request, res: Response) => {
       res.send('Hello World!')
@@ -123,6 +144,7 @@ const fastify: Start = async (scenario, port) => {
   if (scenario === 'params') app.get<{ Params: { id: string } }>('/user/:id', async (req) => req.params.id)
   if (scenario === 'json') app.get('/', async () => PAYLOAD)
   if (scenario === 'post-json') app.post('/echo', async (req) => req.body)
+  if (scenario === 'query') app.get('/search', async (req) => req.query)
   if (wantsHello(scenario)) app.get('/', async () => 'Hello World!')
   await app.listen({ port, host: '127.0.0.1' })
 }
@@ -156,6 +178,10 @@ const koa: Start = async (scenario, port) => {
     router.post('/echo', bodyParser(), (ctx) => {
       ctx.body = ctx.request.body
     })
+  if (scenario === 'query')
+    router.get('/search', (ctx) => {
+      ctx.body = ctx.query
+    })
   if (wantsHello(scenario))
     router.get('/', (ctx) => {
       ctx.body = 'Hello World!'
@@ -180,6 +206,16 @@ const hono: Start = async (scenario, port) => {
   if (scenario === 'params') app.get('/user/:id', (c) => c.text(c.req.param('id')))
   if (scenario === 'json') app.get('/', (c) => c.json(PAYLOAD))
   if (scenario === 'post-json') app.post('/echo', async (c) => c.json(await c.req.json<unknown>()))
+  if (scenario === 'query') {
+    // c.req.query() keeps one value per key, and c.req.queries() makes every
+    // value an array, so take each key's values and unwrap the single ones
+    app.get('/search', (c) => {
+      const all = c.req.queries()
+      const query: Record<string, string | string[]> = {}
+      for (const [key, values] of Object.entries(all)) query[key] = values.length === 1 ? (values[0] as string) : values
+      return c.json(query)
+    })
+  }
   if (wantsHello(scenario)) app.get('/', (c) => c.text('Hello World!'))
   await new Promise<void>((resolve) => {
     serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, () => resolve())
@@ -218,6 +254,7 @@ const polka: Start = async (scenario, port) => {
       send(res, JSON.stringify((req as unknown as { body: unknown }).body), 'application/json')
     })
   }
+  if (scenario === 'query') app.get('/search', (req, res) => send(res, JSON.stringify(req.query), 'application/json'))
   if (wantsHello(scenario)) app.get('/', (req, res) => send(res, 'Hello World!'))
   await new Promise<void>((resolve) => {
     app.listen(port, '127.0.0.1', () => resolve())
@@ -252,6 +289,9 @@ const nodeHttp: Start = async (scenario, port) => {
     const param = scenario === 'params' ? /^\/user\/([^/]+)$/.exec(url) : null
     if (param?.[1] !== undefined) return text(res, param[1])
     if (url === '/' && scenario === 'json') return text(res, JSON.stringify(PAYLOAD), 'application/json')
+    if (scenario === 'query' && url.startsWith('/search?')) {
+      return text(res, JSON.stringify(querystring.parse(url.slice('/search?'.length))), 'application/json')
+    }
     if (url === '/' && wantsHello(scenario)) return text(res, 'Hello World!')
     res.writeHead(404, { 'Content-Type': 'text/plain' })
     res.end('Not Found')

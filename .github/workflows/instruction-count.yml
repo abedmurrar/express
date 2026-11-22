@@ -1,0 +1,85 @@
+name: instruction count
+
+# Reports, for a pull request, every benchmark scenario that runs more than 1%
+# more CPU instructions per request than the merge-base (report only for now,
+# see the last step). Instruction counts, unlike
+# times, don't depend on the runner's load. The setup follows the
+# compare-with-main job of the objection.js fork (abedmurrar/objection.js).
+# See benchmarks/count/README.md.
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'index.js'
+      - 'package.json'
+      - 'benchmarks/count/**'
+      - '.github/workflows/instruction-count.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }} ✨ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  count:
+    name: Instructions per request against the merge-base
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The branch itself, not its merge into the base: the baseline is the
+          # merge-base, so the two differ by exactly the branch's changes.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        # With dev dependencies: once the sources are in src/, the harness
+        # builds lib/ with them (`npm run build`) in both checkouts.
+        run: |
+          npm install --ignore-scripts --no-package-lock --no-audit --no-fund
+          npm --prefix benchmarks/count install --ignore-scripts --no-package-lock --no-audit --no-fund
+
+      - name: Type-check the harness
+        run: npm --prefix benchmarks/count run typecheck
+
+      - name: Install valgrind
+        # GitHub's runners don't expose the hardware counters that perf needs.
+        # valgrind comes from Debian's archive, pinned to one package and
+        # checked against its SHA-256 from Debian's package index, the same way
+        # as in the objection.js fork (apt couldn't reach ubuntu.com there for
+        # hours on 2026-11-11). The baseline and the branch are counted by the
+        # same valgrind, so which version it is doesn't matter.
+        env:
+          VALGRIND_DEB: https://deb.debian.org/debian/pool/main/v/valgrind/valgrind_3.19.0-1_amd64.deb
+          VALGRIND_SHA256: 324842f2308a1e42abf2d81ff5eb19a9475fc9db95647f4d9da71444eda4087f
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/valgrind.deb" "$VALGRIND_DEB"
+          echo "$VALGRIND_SHA256  $RUNNER_TEMP/valgrind.deb" | sha256sum -c -
+          dpkg -x "$RUNNER_TEMP/valgrind.deb" "$RUNNER_TEMP/valgrind"
+          echo "$RUNNER_TEMP/valgrind/usr/bin" >> "$GITHUB_PATH"
+          echo "VALGRIND_LIB=$RUNNER_TEMP/valgrind/usr/libexec/valgrind" >> "$GITHUB_ENV"
+          # $GITHUB_ENV applies from the next step on.
+          VALGRIND_LIB="$RUNNER_TEMP/valgrind/usr/libexec/valgrind" "$RUNNER_TEMP/valgrind/usr/bin/valgrind" --version
+
+      - name: Compare the instructions per request with the merge-base
+        # The table also goes to the job summary, with any scenario more than 1%
+        # worse listed. Report only for now: delete the --report-only line to
+        # make that fail the pull request.
+        env:
+          BASE_REF: ${{ github.base_ref || 'master' }}
+        run: >
+          node benchmarks/count/run.ts --against "origin/$BASE_REF" --max-change 1
+          --counter valgrind --runs 1 --jobs "$(nproc)"
+          --report-only

@@ -8,6 +8,7 @@
 // express.json(), express.Router() and the rest come from the matching side.
 
 var path = require('node:path')
+var util = require('node:util')
 var { Buffer } = require('node:buffer')
 var tmpl = require('../support/tmpl')
 
@@ -37,6 +38,37 @@ function echo(fn) {
   return route('get', '*splat', function (req, res) {
     res.json(fn(req))
   })
+}
+
+// The extended query parser (qs) on a query string. The response shows
+// req.query as JSON and through util.inspect, which also shows null
+// prototypes, array holes and own `__proto__` keys.
+function extendedQueryScenario(name, query) {
+  return {
+    name: 'req.query extended: ' + name,
+    setup: function (app) {
+      app.set('query parser', 'extended')
+      echo(function (req) {
+        return { json: req.query, inspect: util.inspect(req.query, { depth: 20 }) }
+      })(app)
+    },
+    req: get('/?' + query)
+  }
+}
+
+// express.static(FIXTURES, options), with an error handler that shows the
+// error's status and message (finalhandler's page would show its stack).
+function staticScenario(name, options, req) {
+  return {
+    name: name,
+    setup: function (app, express) {
+      app.use(express.static(FIXTURES, options))
+      app.use(function (err, req, res, next) {
+        res.status(err.status || 500).send(err.status + ' ' + err.message)
+      })
+    },
+    req: req
+  }
 }
 
 function views(app) {
@@ -495,6 +527,48 @@ var scenarios = [
     },
     req: get('/missing.txt')
   },
+  // express.static options and requests (our copy of serve-static and send)
+  staticScenario('express.static HEAD', {}, { method: 'HEAD', path: '/todo.txt', headers: {} }),
+  staticScenario('express.static POST falls through', {}, post('/todo.txt', '')),
+  staticScenario('express.static POST without fallthrough is 405', { fallthrough: false }, post('/todo.txt', '')),
+  staticScenario('express.static missing without fallthrough', { fallthrough: false }, get('/missing.txt')),
+  staticScenario('express.static directory without redirect', { redirect: false }, get('/users')),
+  staticScenario('express.static directory index', {}, get('/users/')),
+  staticScenario('express.static index off', { index: false }, get('/users/')),
+  staticScenario('express.static extensions', { extensions: ['html'] }, get('/todo')),
+  staticScenario('express.static maxAge string and immutable', { maxAge: '1d', immutable: true }, get('/todo.txt')),
+  staticScenario('express.static maxAge number', { maxAge: 5000 }, get('/todo.txt')),
+  staticScenario('express.static cacheControl off', { cacheControl: false }, get('/todo.txt')),
+  staticScenario('express.static etag and lastModified off', { etag: false, lastModified: false }, get('/todo.txt')),
+  staticScenario('express.static range', {}, get('/nums.txt', { range: 'bytes=0-3' })),
+  staticScenario('express.static unsatisfiable range', {}, get('/nums.txt', { range: 'bytes=100-200' })),
+  staticScenario('express.static acceptRanges off', { acceptRanges: false }, get('/nums.txt', { range: 'bytes=0-3' })),
+  staticScenario('express.static dotfiles deny', { dotfiles: 'deny', fallthrough: false }, get('/.hidden')),
+  staticScenario('express.static traversal', { fallthrough: false }, get('/../name.txt')),
+  staticScenario('express.static encoded path', {}, get('/snow%20%E2%98%83/')),
+  staticScenario(
+    'express.static setHeaders',
+    {
+      setHeaders: function (res, filePath, stat) {
+        res.setHeader('X-File', path.basename(filePath) + ' ' + stat.size)
+      }
+    },
+    get('/todo.txt')
+  ),
+  {
+    name: 'express.static mounted directory redirect',
+    setup: function (app, express) {
+      app.use('/static', express.static(FIXTURES))
+    },
+    req: get('/static/users?a=1')
+  },
+  {
+    name: 'express.static mounted at its root without a slash',
+    setup: function (app, express) {
+      app.use('/static', express.static(FIXTURES))
+    },
+    req: get('/static')
+  },
 
   // content negotiation and views
   {
@@ -597,6 +671,22 @@ var scenarios = [
     },
     req: get('/?a[b]=1&c[]=2&c[]=3')
   },
+  extendedQueryScenario('nested objects and arrays', 'a[b][c]=1&a[b][d][]=2&a[b][d][]=3&e[0]=x&e[1]=y'),
+  extendedQueryScenario('deeper than depth 5', 'a[b][c][d][e][f][g][h]=1'),
+  extendedQueryScenario('an index past arrayLimit', 'a[0]=x&a[25]=y&b[19]=p&b[20]=q&b[21]=r'),
+  extendedQueryScenario('more than 20 repeated keys', Array.from({ length: 25 }, (_, i) => 'a=' + i).join('&')),
+  extendedQueryScenario(
+    'prototype keys (allowPrototypes)',
+    '__proto__[x]=1&constructor[prototype][y]=2&toString=3&hasOwnProperty[a]=4&a[__proto__][b]=5&valueOf'
+  ),
+  extendedQueryScenario('dots, encoded brackets and plus signs', 'a.b=1&c%5Bd%5D=2&e%5b%5d=3&f+g=h+i&j%2Ek=l'),
+  extendedQueryScenario('mixed keys: scalar, index and brackets', 'a=1&a[0]=2&a[]=3&a[b]=4&c[]=1&c=2&c[x]=3'),
+  extendedQueryScenario('bad escapes and empty parts', '%=1&a=%E9&b=%ZZ&&=&c&d=&[]=e&[x]=f&g[=h&i]=j'),
+  extendedQueryScenario('utf8 sentinel and numeric entities', 'utf8=%26%2310003%3B&a=%E9&b=%26%239786%3B'),
+  extendedQueryScenario(
+    '1200 parameters (parameterLimit 1000)',
+    Array.from({ length: 1200 }, (_, i) => 'k[' + i + ']=1').join('&')
+  ),
   {
     name: 'req.query disabled',
     setup: function (app) {
@@ -1214,6 +1304,107 @@ var scenarios = [
     req: get('/x/y')
   }
 ]
+
+// Routing fast paths: the router skips a route that has no handler for the
+// method before matching its path, and checks a string path's literal start
+// before its regex. One app with routes that test where either could go
+// wrong (methods, HEAD and OPTIONS, all(), route chains, case, escapes,
+// which match raw with their hex digits in any case, trailing slashes,
+// segment-bounded middleware, a mounted router with mergeParams, a bad
+// escape in a route the method skips), and the requests that hit them, with
+// and without case-sensitive and strict routing. Non-ASCII paths are in
+// test/router/fork-fast-paths.js: Node's HTTP parser rejects them.
+function fastPathApp(settings) {
+  return function (app, express) {
+    Object.keys(settings).forEach(function (name) {
+      app.set(name, settings[name])
+    })
+    function reply(label) {
+      return function (req, res) {
+        res.json([label, req.method, req.params, req.baseUrl, req.url])
+      }
+    }
+    app.use('/api', function (req, res, next) {
+      res.append('x-seen', 'api ' + req.baseUrl + ' ' + req.url)
+      next()
+    })
+    app.param('id', function (req, res, next, id) {
+      res.append('x-param', id)
+      next()
+    })
+    app.get('/users/:id', reply('get user'))
+    app.post('/users/:id', reply('post user'))
+    app.all('/any/:id', reply('all'))
+    app.route('/chain').get(reply('chain get')).post(reply('chain post'))
+    app.put('/put', reply('put'))
+    app.get('/Mixed/Case', reply('mixed'))
+    app.get('/a%2Fb', reply('escaped'))
+    app.get('/caf%C3%A9/:x', reply('cafe'))
+    app.get('/dir/', reply('dir'))
+    app.get('/apix', reply('apix'))
+    app.get('/api/users/:id', reply('api user'))
+    var org = express.Router({ mergeParams: true })
+    org.get('/team/:team', reply('get team'))
+    org.delete('/team/:team', reply('delete team'))
+    app.use('/org/:org', org)
+    app.use(function (err, req, res, next) {
+      res.status(err.status || 500).send('error ' + err.message)
+    })
+  }
+}
+
+var FAST_PATH_REQUESTS = [
+  ['GET', '/users/1'],
+  ['POST', '/users/1'],
+  ['PUT', '/users/1'],
+  ['DELETE', '/USERS/1'],
+  ['HEAD', '/users/1'],
+  ['OPTIONS', '/users/1'],
+  ['OPTIONS', '/chain'],
+  ['OPTIONS', '/put'],
+  ['HEAD', '/put'],
+  ['POST', '/chain'],
+  ['PATCH', '/chain'],
+  ['PATCH', '/any/1'],
+  ['OPTIONS', '/any/1'],
+  ['HEAD', '/any/1'],
+  ['GET', '/MIXED/case'],
+  ['GET', '/Mixed/Case'],
+  ['GET', '/a%2fb'],
+  ['GET', '/a%2Fb'],
+  ['GET', '/a/b'],
+  ['GET', '/caf%C3%A9/1'],
+  ['GET', '/CAF%c3%a9/1'],
+  ['GET', '/caf%C3%89/1'],
+  ['GET', '/cafe/1'],
+  ['GET', '/dir'],
+  ['GET', '/dir/'],
+  ['GET', '/api'],
+  ['GET', '/apix'],
+  ['GET', '/API/users/1'],
+  ['POST', '/api/users/1'],
+  ['POST', '/users/%E0'],
+  ['GET', '/users/%E0'],
+  ['DELETE', '/org/acme/team/blue'],
+  ['GET', '/ORG/acme/TEAM/blue'],
+  ['POST', '/org/acme/team/blue'],
+  ['OPTIONS', '/org/acme/team/blue']
+]
+
+var FAST_PATH_SETTINGS = [
+  { label: '', settings: {} },
+  { label: ', case sensitive and strict', settings: { 'case sensitive routing': true, 'strict routing': true } }
+]
+
+FAST_PATH_SETTINGS.forEach(function (variant) {
+  FAST_PATH_REQUESTS.forEach(function (r) {
+    scenarios.push({
+      name: 'routing fast paths' + variant.label + ': ' + r[0] + ' ' + r[1],
+      setup: fastPathApp(variant.settings),
+      req: { method: r[0], path: r[1], headers: {} }
+    })
+  })
+})
 
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.

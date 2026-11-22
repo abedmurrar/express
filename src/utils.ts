@@ -23,7 +23,7 @@ import querystring from 'node:querystring'
 const contentType = require('content-type') as typeof import('content-type')
 const mime = require('mime-types') as typeof import('mime-types')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
-const qs = require('qs') as typeof import('qs')
+const qs = require('./qs') as import('./qs').Qs
 
 /** A body ETag generator: the body and, for strings, its encoding. */
 export type ETagFunction = (body: string | Buffer, encoding?: BufferEncoding) => string
@@ -421,13 +421,119 @@ function entityTag(entity: string | Buffer, length: number): string {
 /**
  * Parse an extended query string with qs.
  *
+ * A flat query string (no "[" or "]", and none of their escapes) is parsed
+ * by `parseFlatQueryString`, which gives exactly what qs gives; anything else
+ * goes to qs.
+ *
  * @param {String} str
  * @return {Object}
  * @private
  */
 
-function parseExtendedQueryString(str: string): object {
+function parseExtendedQueryString(str: string | null | undefined): object {
+  if (str === null || str === undefined) {
+    // parseurl gives null for a URL with no "?"; qs returns a new {} for it
+    return {}
+  }
+
+  if (typeof str === 'string' && !QS_NESTING.test(str)) {
+    var flat = parseFlatQueryString(str)
+    if (flat !== undefined) return flat
+  }
+
   return qs.parse(str, {
     allowPrototypes: true
   })
+}
+
+/**
+ * What makes qs read a query string as more than flat `key=value` pairs, with
+ * Express's options: a "[" or "]" (qs nests keys on brackets, and splits a
+ * pair at "]=" before its first "="), and "%5B" or "%5D" in either case,
+ * which qs turns into brackets before it splits or decodes anything. Dots
+ * only nest with `allowDots`, and commas with `comma`, which are both off.
+ */
+
+const QS_NESTING = /[[\]]|%5[bd]/i
+
+/** qs's default `parameterLimit` and `arrayLimit`. */
+const QS_PARAMETER_LIMIT = 1000
+const QS_ARRAY_LIMIT = 20
+
+/**
+ * Parse a flat query string the way `qs.parse(str, { allowPrototypes: true })`
+ * does, or return undefined when a key has more values than qs puts in an
+ * array (qs then gives an object with numeric keys, so qs parses it instead).
+ *
+ * As in qs 6.17.1 (lib/parse.js): only the first 1,000 "&"-separated parts
+ * count, including empty ones; a pair splits at its first "="; a part with
+ * no "=" has the value ""; keys and values are decoded the same way; an empty
+ * key and a `__proto__` key are dropped; a repeated key collects its values
+ * in an array; and the result is a plain object with keys in qs's order.
+ *
+ * @param {String} str
+ * @return {Object|undefined}
+ * @private
+ */
+
+function parseFlatQueryString(str: string): Record<string, string | string[]> | undefined {
+  var result: Record<string, string | string[]> = {}
+  var length = str.length
+  var start = 0
+  // the first "=" at or after `start`, or -1 when there is none; found again
+  // only once a part has gone past it, so the whole string is scanned once
+  var eq = str.indexOf('=')
+
+  // what str.split('&', QS_PARAMETER_LIMIT) gives, without making the parts
+  for (var parts = 0; parts < QS_PARAMETER_LIMIT; parts++) {
+    var end = str.indexOf('&', start)
+    if (end === -1) end = length
+    if (eq !== -1 && eq < start) eq = str.indexOf('=', start)
+
+    var pair = eq !== -1 && eq < end
+    var key = decodeQueryComponent(str.slice(start, pair ? eq : end))
+
+    if (key !== '' && key !== '__proto__') {
+      var value = pair ? decodeQueryComponent(str.slice(eq + 1, end)) : ''
+      var existing = Object.hasOwn(result, key) ? result[key] : undefined
+
+      if (existing === undefined) {
+        result[key] = value
+      } else if (typeof existing === 'string') {
+        result[key] = [existing, value]
+      } else if (existing.length < QS_ARRAY_LIMIT) {
+        existing.push(value)
+      } else {
+        return undefined
+      }
+    }
+
+    if (end === length) break
+    start = end + 1
+  }
+
+  return result
+}
+
+/**
+ * Decode a query string key or value as qs's default decoder does for UTF-8:
+ * "+" is a space, and the rest is decoded with `decodeURIComponent`, or left
+ * as it is (with "+" still a space) if that throws on a malformed escape.
+ *
+ * @param {String} str
+ * @return {String}
+ * @private
+ */
+
+function decodeQueryComponent(str: string): string {
+  if (str.indexOf('%') === -1) {
+    return str.indexOf('+') === -1 ? str : str.replace(/\+/g, ' ')
+  }
+
+  var spaced = str.replace(/\+/g, ' ')
+  try {
+    return decodeURIComponent(spaced)
+  } catch {
+    return spaced
+  }
 }

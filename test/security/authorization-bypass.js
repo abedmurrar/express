@@ -194,6 +194,49 @@ var SETUPS = [
       return app
     }
   },
+  // The router skips a route that has no handler for the method before
+  // matching its path, and checks a string path's literal start before its
+  // regex (lower-cased unless routing is case sensitive). These guards are
+  // spelled so that a wrong skip or a wrong prefix would let a request past.
+  {
+    name: 'an upper-case guard path: app.use("/ADMIN", auth)',
+    build: function () {
+      var app = express()
+      app.use('/ADMIN', auth)
+      app.get('/admin/secret', secret)
+      return app
+    }
+  },
+  {
+    name: 'an all() guard route next to a route for another method',
+    build: function () {
+      var app = express()
+      app.post('/admin/secret', function (req, res) {
+        res.send('post')
+      })
+      app.all('/Admin/Secret', auth)
+      app.get('/admin/secret', secret)
+      return app
+    }
+  },
+  {
+    name: 'a GET guard with a parameter: app.get("/admin/:page", auth)',
+    build: function () {
+      var app = express()
+      app.get('/admin/:page', auth)
+      app.get('/admin/secret', secret)
+      return app
+    }
+  },
+  {
+    name: 'a GET guard with a wildcard after a literal: app.get("/admin/*rest", auth)',
+    build: function () {
+      var app = express()
+      app.get('/admin/*rest', auth)
+      app.get('/admin/secret', secret)
+      return app
+    }
+  },
   {
     name: 'a non-stateful RegExp guard with the i flag',
     build: function () {

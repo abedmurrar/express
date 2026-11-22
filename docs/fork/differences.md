@@ -5,15 +5,17 @@ description: Everything abedmurrar/express has changed compared with Express 5.3
 
 # Differences from Express 5.3.0
 
-So far the fork changes **how Express is tested and built**, not how it behaves: an app gets the same responses as on Express 5.3.0. Bug fixes, speed-ups and strict TypeScript come next, on the same drop-in line (see the [roadmap](./roadmap)).
+So far the fork changes **how Express is tested and built**, not how it behaves: an app gets the same responses as on Express 5.3.0, except where 5.3.0 crashes the process (see below). Bug fixes, speed-ups and strict TypeScript come next, on the same drop-in line (see the [roadmap](./roadmap)).
 
 The full list is the "Unreleased (fork)" section of [History.md](https://github.com/abedmurrar/express/blob/master/History.md).
 
 ## Runtime
 
 - **Node.js 22, 24 and 26 only.** `engines` is `>= 22`. Express 5.3.0 supports Node.js 18 and later. CI runs the three supported versions on Linux and Windows.
-- **Our own copies of `router` and `send`.** `router` 2.2.0 and `send` 1.2.1 are vendored into `lib/router` and `lib/send`, with their licences and test suites, so routing and file-sending bugs can be fixed in the fork. They're the same versions Express 5.3.0 installs, so nothing changes. See [VENDORED.md](https://github.com/abedmurrar/express/blob/master/VENDORED.md).
+- **Our own copies of `router`, `send`, `serve-static` and `qs`.** `router` 2.2.0, `send` 1.2.1, `serve-static` 2.2.1 and `qs` 6.17.1 are vendored into `lib/router`, `lib/send`, `lib/serve-static` and `lib/qs`, with their licences and test suites, so routing, file-sending and query-parsing bugs can be fixed in the fork. They're the same versions Express 5.3.0 installs, and `express.static` now uses the same `send` as `res.sendFile` and `res.download`. The extended query parser uses our `qs`, which needs no dependencies (it uses `WeakMap` and `Map` in place of `side-channel`). See [VENDORED.md](https://github.com/abedmurrar/express/blob/master/VENDORED.md).
+- **A throwing `headers` listener no longer crashes the process.** A bad value in the `headers` option of `res.sendFile` or `res.download` (a CR or LF, or an invalid header name), or an `express.static` `setHeaders` function that throws, used to throw inside a file-stat callback and end the process on Express 5.3.0. The error now goes to the callback, or to `next(err)` and the app's error handler.
 - **No per-request prototype swap on `app.listen()` servers.** The server makes `req` and `res` with the app's prototypes already set, so `app.handle()` has nothing to swap. Apps see the same objects as before. The only visible difference: code that runs before the app on that server, such as an `upgrade`, `connect` or `checkContinue` listener, now gets `req` and `res` that already have the app's prototypes.
+- **Routing skips path matching that can't succeed.** A route with no handler for the request's method is passed over before its path regex runs (HEAD, OPTIONS and paths containing `%` still match every route as before), and a string path's literal start, such as `/users/` in `/users/:id`, is compared before its regex. The same handlers run in the same order, with the same `req.params`, `req.baseUrl` and `Allow` headers.
 - **Fewer dependencies.** The `merge-descriptors`, `once` and `wrappy` packages are gone, replaced by short built-in equivalents with the same behaviour.
 - **Project links** in `package.json` point to the fork, and upstream's `funding` entry is removed.
 - **Built-in TypeScript types.** The package ships types ported from `@types/express` 5.0.6 and `@types/express-serve-static-core` 5.1.3, so `@types/express` is no longer needed and code written for it compiles unchanged. See [Install the fork](./install#typescript).

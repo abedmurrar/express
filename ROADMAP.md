@@ -277,7 +277,7 @@ These are opt-in, and nothing existing changes.
 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
-| [ ] | `req.signal`, which aborts when the client disconnects | | master | Small | new tests | |
+| [x] | `req.signal`, which aborts when the client disconnects | | master | Small | Express's own lazy, non-enumerable accessor on the request prototype, the same on Node 22, 24 and 26: Node 22 has no `IncomingMessage#signal`, and 24.16 to 24.19 and 26.1 to 26.6 abort theirs after every response (nodejs/node#64390, fixed in 24.20 and 26.7). The reason is the default `AbortError` `DOMException`, as for Node and Fastify. 18 new tests (abort on disconnect, `res.destroy()`, a pipelined request, a POST after its body; no abort after a finish, keep-alive or `Connection: close`; read late; sub-apps; no leak over 200 keep-alive requests), passing on Node 22 and 24. 9 planted breaks each fail 1 to 6 of them. Instruction count within ±0.04%. A setter (assignment on Node 22) cost not-found +0.39% and was dropped, so it is read-only like Node's | [#75](https://github.com/abedmurrar/express/pull/75) |
 | [ ] | `diagnostics_channel` events | PR #6959 | master | Medium | new tests | |
 | [ ] | `app.listRoutes()` | PR #7531, router#174 | master | Medium | new tests; router part arrives with the 2.3.0 re-sync | |
 | [ ] | Explicit error-handler API (`app.error`, `router.error`); counting arguments still works | #2896, #3367, router#59 | master | Medium | new tests | |

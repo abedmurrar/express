@@ -3,6 +3,7 @@ Unreleased (fork)
 
 ## 🐞 Bug fixes
 
+* CI on Node 22 installed packages younger than the 7-day window: npm 10 reads `.npmrc`'s `min-release-age` but doesn't apply it. The Node 22 jobs now use a pinned npm 11. The comparisons with Express 5.3.0 and upstream `router` also pin the baseline's dependencies (`overrides` in `package.json`, checked by a test), so they don't change when a new release leaves the window. The leftover upstream `npm-publish.yml`, which would have published a second time on every release, is removed.
 * A `setHeaders` function given to `express.static` that throws, for example by setting a header value with a CR or LF in it through `res.setHeader`, no longer crashes the process. It runs as a `headers` listener inside `send`'s file-stat callback, and `express.static` used the npm `send`, which can't catch it there. `express.static` now uses our `send`, which already passes such a throw on (the `res.sendFile` and `res.download` fix, #39), so the error goes to `next(err)` and the app's error handler. Two new security tests fail with an uncaught error on the previous code.
 
 ## 🚀 Improvements

@@ -92,6 +92,21 @@ describe('regressions: request, app and routing', function () {
     )
   })
 
+  it('#3798 a strict router mounted at a path routes "/dir" to its "" route', async function () {
+    var app = express()
+    var router = express.Router({ strict: true })
+    router.get('', function (req, res) {
+      res.send('no slash')
+    })
+    router.get('/', function (req, res) {
+      res.send('slash')
+    })
+    app.use('/dir', router)
+    var bare = await request(app, { path: '/dir' })
+    var slash = await request(app, { path: '/dir/' })
+    assert.deepStrictEqual([bare.body.toString(), slash.body.toString()], ['no slash', 'slash'])
+  })
+
   // Found by the property tests (test/property/query.js). With a "#" in the
   // request target, parseurl falls back to Node's legacy url.parse, which
   // reads a leading "//" as the start of a host. Express 5.3.0 does the same.

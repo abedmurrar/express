@@ -2070,6 +2070,22 @@ scenarios.push({
   req: get('//x@evil.example/admin#z')
 })
 
+// A strict router mounted at "/dir" with a route for "": Express 5.3.0 only
+// ever shows that router "/" (the slash it adds so req.url is never empty),
+// so the route never matches and the request is a 404; the fork's strict
+// router tries "" for that slash (src/router/index.ts, addedSlashUrl).
+scenarios.push({
+  name: 'strict router at "/dir" with a "" route: GET /dir',
+  setup: function (app, express) {
+    var router = express.Router({ strict: true })
+    router.get('', function (req, res) {
+      res.send('no slash ' + req.url)
+    })
+    app.use('/dir', router)
+  },
+  req: get('/dir')
+})
+
 // The error listeners on the server at request time. app.listen(port, cb) in
 // Express 5.3.0 leaves its startup error listener attached; the fork removes
 // it once the server is listening (src/application.ts). On
@@ -2152,6 +2168,8 @@ var allowed = {
     'fixed in the fork: a router cycle gives a clear error instead of a stack overflow (#6809)',
   'GET //x@evil.example/admin#z':
     'fixed in the fork: a `#` fragment in the request target no longer changes the routed path',
+  'strict router at "/dir" with a "" route: GET /dir':
+    'fixed in the fork: mount-path edge case from #3798 (a strict router\'s "" route now answers "/dir")',
 
   'app.listen(): server error listeners after a successful start':
     'fixed in the fork: app.listen() removes its startup error listener once the server listens, so a later error is not swallowed (upstream PR #7501)'

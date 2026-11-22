@@ -106,6 +106,23 @@ const flatten = Array.prototype.flat
 const methods = METHODS.map((method) => method.toLowerCase()) as Array<HttpMethod | 'all'>
 
 /**
+ * Not in upstream (router 2.2.0, 2.3.0). When a mount path takes the whole
+ * pathname and the request has no slash after it (`GET /dir` on
+ * `use('/dir', router)`), `req.url` would be empty, so the router adds a
+ * leading slash. A strict router below then saw only "/", so a route for ""
+ * could never match (expressjs/express#3798). This maps the request to the
+ * exact `req.url` that adding the slash produced, while the mount is entered.
+ * For that `req.url`, a strict router tries each route on "" before "/", so
+ * `get('')` answers `/dir` and not `/dir/`. A route that matches "/" still
+ * answers both, as before (making it answer only `/dir/` is the opt-in for
+ * expressjs/express#2281). Once something rewrites `req.url`, it no longer
+ * equals the stored value and routes as it reads.
+ * @private
+ */
+
+const addedSlashUrl = new WeakMap<RouterRequest, string>()
+
+/**
  * Expose `Router`.
  */
 
@@ -256,6 +273,7 @@ proto.handle = function handleRequest(req, res, callback) {
   let removed = ''
   const self = this
   let slashAdded = false
+  let slashMarked = false
   let sync = 0
   const paramcalled: Record<string, ParamCalled> = {}
 
@@ -291,6 +309,12 @@ proto.handle = function handleRequest(req, res, callback) {
       slashAdded = false
     }
 
+    // forget the slash this router added (see addedSlashUrl)
+    if (slashMarked) {
+      addedSlashUrl.delete(req)
+      slashMarked = false
+    }
+
     // restore altered req.url
     if (removed.length !== 0) {
       req.baseUrl = parentUrl
@@ -322,6 +346,9 @@ proto.handle = function handleRequest(req, res, callback) {
       return done(layerError)
     }
 
+    // a strict router below a mount that had no slash after it (see addedSlashUrl)
+    const noSlash = self.strict && addedSlashUrl.get(req) === req.url
+
     // find next matching layer
     let layer!: LayerInstance
     let match: unknown
@@ -329,7 +356,7 @@ proto.handle = function handleRequest(req, res, callback) {
 
     while (match !== true && idx < stack.length) {
       layer = stack[idx++] as LayerInstance
-      match = matchLayer(layer, path)
+      match = (noSlash && layer.route !== undefined && matchLayer(layer, '') === true) || matchLayer(layer, path)
       route = layer.route
 
       if (typeof match !== 'boolean') {
@@ -419,6 +446,12 @@ proto.handle = function handleRequest(req, res, callback) {
       if (!protohost && req.url[0] !== '/') {
         req.url = '/' + req.url
         slashAdded = true
+
+        // the request had no slash after the mount path (see addedSlashUrl)
+        if (removed[removed.length - 1] !== '/') {
+          addedSlashUrl.set(req, req.url)
+          slashMarked = true
+        }
       }
 
       // Setup base URL (no trailing slash)

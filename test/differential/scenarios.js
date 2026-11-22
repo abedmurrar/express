@@ -1974,6 +1974,34 @@ scenarios.push({
   req: get('//x@evil.example/admin#z')
 })
 
+// The error listeners on the server at request time. app.listen(port, cb) in
+// Express 5.3.0 leaves its startup error listener attached; the fork removes
+// it once the server is listening (src/application.ts). On
+// http.createServer(app) both have none, so only the app.listen() mode is in
+// `allowed`.
+scenarios.push({
+  name: 'server error listeners after a successful start',
+  setup: echo(function (req) {
+    return req.socket.server.listenerCount('error')
+  }),
+  req: get('/')
+})
+
+// A regular file that stats as 0 bytes but has content: Express 5.3.0 sends
+// it empty with Content-Length 0; the fork streams it to EOF
+// (src/send/index.ts). Only where /proc exists.
+var PROC_FILE = '/proc/version'
+var HAS_PROC = require('node:fs').existsSync(PROC_FILE)
+if (HAS_PROC) {
+  scenarios.push({
+    name: 'res.sendFile /proc file (size 0 with content)',
+    setup: route('get', '/', function (req, res) {
+      res.sendFile(PROC_FILE)
+    }),
+    req: get('/')
+  })
+}
+
 var allowed = {
   'req.hostname userinfo':
     'fixed in the fork: userinfo before an "@" in the Host header is dropped, so req.hostname is good.example, not evil.example (upstream PR #7317)',
@@ -1995,7 +2023,15 @@ var allowed = {
   'router.use(router) on itself':
     'fixed in the fork: a router cycle gives a clear error instead of a stack overflow (#6809)',
   'GET //x@evil.example/admin#z':
-    'fixed in the fork: a `#` fragment in the request target no longer changes the routed path'
+    'fixed in the fork: a `#` fragment in the request target no longer changes the routed path',
+
+  'app.listen(): server error listeners after a successful start':
+    'fixed in the fork: app.listen() removes its startup error listener once the server listens, so a later error is not swallowed (upstream PR #7501)'
+}
+
+if (HAS_PROC) {
+  allowed['res.sendFile /proc file (size 0 with content)'] =
+    'fixed in the fork: a file that stats as 0 bytes but has content is streamed to EOF instead of sent empty (#4944)'
 }
 
 module.exports = { scenarios: scenarios, allowed: allowed }

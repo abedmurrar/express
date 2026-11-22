@@ -29,6 +29,7 @@ const deprecate = (require('depd') as typeof import('depd'))('express')
 const encodeUrl = require('encodeurl') as typeof import('encodeurl')
 const escapeHtml = require('escape-html') as typeof import('escape-html')
 const http = require('node:http') as typeof import('node:http')
+const isAnyArrayBuffer = (require('node:util') as typeof import('node:util')).types.isAnyArrayBuffer
 const onFinished = require('on-finished') as typeof import('on-finished')
 const path = require('node:path') as typeof import('node:path')
 const pathIsAbsolute = (require('node:path') as typeof import('node:path')).isAbsolute
@@ -236,8 +237,11 @@ res.send = function send(this: ExpressResponse, body?: unknown) {
       encoding = 'utf8'
       const type = this.get('Content-Type')
 
+      // a value with no "/" isn't a media type and has no charset to set:
+      // res.set keeps an unknown type such as "not-a-type" as given, and it
+      // is sent as it is (setCharset would throw on it)
       if (typeof type === 'string') {
-        this.set('Content-Type', setCharset(type, 'utf-8'))
+        if (type.indexOf('/') !== -1) this.set('Content-Type', setCharset(type, 'utf-8'))
       } else {
         this.type('html')
       }
@@ -251,6 +255,26 @@ res.send = function send(this: ExpressResponse, body?: unknown) {
         if (!this.get('Content-Type')) {
           this.type('bin')
         }
+
+        // send the view's own bytes: Buffer.from(view) copies one byte per
+        // element (so a Uint16Array loses its high bytes) and gives nothing
+        // for a DataView, and res.end() rejects views other than Uint8Array.
+        // A Buffer over the same memory gives the exact byteOffset and
+        // byteLength window, with or without an ETag. A view whose buffer was
+        // transferred (detached) has no bytes and sends none, as before;
+        // Buffer.from would throw on its buffer.
+        if (!Buffer.isBuffer(chunk)) {
+          chunk =
+            chunk.byteLength === 0 ? Buffer.alloc(0) : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+        }
+      } else if (isAnyArrayBuffer(chunk)) {
+        // an ArrayBuffer or SharedArrayBuffer is binary data too, not an
+        // object to send as JSON ({}). A detached one has no bytes.
+        if (!this.get('Content-Type')) {
+          this.type('bin')
+        }
+
+        chunk = chunk.byteLength === 0 ? Buffer.alloc(0) : Buffer.from(chunk)
       } else {
         return this.json(chunk)
       }
@@ -388,13 +412,16 @@ res.jsonp = function jsonp(this: ExpressResponse, obj?: unknown) {
     callback = callback[0]
   }
 
+  // restrict callback charset, before the check below, so a callback that
+  // has no allowed characters gets plain JSON instead of broken JavaScript
+  if (typeof callback === 'string') {
+    callback = callback.replace(/[^\[\]\w$.]/g, '')
+  }
+
   // jsonp
   if (typeof callback === 'string' && callback.length !== 0) {
     this.set('X-Content-Type-Options', 'nosniff')
     this.set('Content-Type', 'text/javascript')
-
-    // restrict callback charset
-    callback = callback.replace(/[^\[\]\w$.]/g, '')
 
     if (body === undefined) {
       // empty argument
@@ -790,18 +817,19 @@ res.set = res.header = function header(this: ExpressResponse, field: string | Re
   // casts below say which form each branch handles. A field of the other kind
   // behaves exactly as in Express (toLowerCase throws, or for-in walks it).
   if (arguments.length === 2) {
-    var value: string | string[] | false = Array.isArray(val) ? val.map(String) : String(val)
+    var value: string | string[] = Array.isArray(val) ? val.map(String) : String(val)
 
     // add charset to content-type
     if ((field as string).toLowerCase() === 'content-type') {
       if (Array.isArray(value)) {
         throw new TypeError('Content-Type cannot be set to an Array')
       }
-      value = mimeContentType(value)
+      // mime.contentType gives false for a type it doesn't know, which Node
+      // would write as "false"; keep the value as given instead
+      value = mimeContentType(value) || value
     }
 
-    // mime.contentType gives false for an unknown type, and Node writes it as "false"
-    this.setHeader(field as string, value as string | string[])
+    this.setHeader(field as string, value)
   } else {
     for (var key in field as Record<string, unknown>) {
       this.set(key, (field as Record<string, unknown>)[key])
@@ -884,7 +912,11 @@ res.cookie = function (this: ExpressResponse, name: string, value: unknown, opti
     var maxAge = opts.maxAge - 0
 
     if (!isNaN(maxAge)) {
-      opts.expires = new Date(Date.now() + maxAge)
+      // expires: 0 asks for Max-Age without Expires, so it is kept (cookie
+      // leaves out a falsy expires); the type only lists a Date
+      if ((opts.expires as unknown) !== 0) {
+        opts.expires = new Date(Date.now() + maxAge)
+      }
       opts.maxAge = Math.floor(maxAge / 1000)
     }
   }
@@ -985,7 +1017,11 @@ res.redirect = function redirect(this: ExpressResponse, url: unknown) {
 
   // Respond
   this.status(status)
-  this.set('Content-Length', Buffer.byteLength(body))
+
+  // Content-Length and Transfer-Encoding can't be sent together, as in res.send
+  if (!this.get('Transfer-Encoding')) {
+    this.set('Content-Length', Buffer.byteLength(body))
+  }
 
   if (this.req.method === 'HEAD') {
     this.end()

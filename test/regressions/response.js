@@ -19,9 +19,7 @@ function tmpViews(files) {
 }
 
 describe('regressions: response', function () {
-  var BINARY = '`res.send` corrupts ArrayBuffer, DataView and typed-array bodies'
-
-  bug('#7362 res.send(ArrayBuffer) sends its bytes', BINARY, async function () {
+  it('#7362 res.send(ArrayBuffer) sends its bytes', async function () {
     var app = express()
     app.get('/', function (req, res) {
       res.send(new Uint8Array([1, 2, 3]).buffer)
@@ -32,7 +30,7 @@ describe('regressions: response', function () {
     assert.deepStrictEqual([...r.body], [1, 2, 3])
   })
 
-  bug('#7510 res.send(DataView) sends its bytes', BINARY, async function () {
+  it('#7510 res.send(DataView) sends its bytes', async function () {
     var app = express()
     app.get('/', function (req, res) {
       res.send(new DataView(new Uint8Array([0, 1, 2, 3, 0]).buffer))
@@ -43,7 +41,7 @@ describe('regressions: response', function () {
     assert.deepStrictEqual([...r.body], [0, 1, 2, 3, 0])
   })
 
-  bug('#7538 res.send(Uint16Array) sends its underlying bytes, with and without ETag', BINARY, async function () {
+  it('#7538 res.send(Uint16Array) sends its underlying bytes, with and without ETag', async function () {
     var data = new Uint16Array([0x0102, 0x0304])
     var expected = [...Buffer.from(data.buffer)]
     for (var etag of [true, false]) {
@@ -58,52 +56,40 @@ describe('regressions: response', function () {
     }
   })
 
-  bug(
-    '#7506 res.redirect leaves out Content-Length when Transfer-Encoding is set',
-    '`res.redirect` sends Content-Length with Transfer-Encoding',
-    async function () {
-      var app = express()
-      app.use(function (req, res) {
-        res.set('Transfer-Encoding', 'chunked')
-        res.redirect('http://example.com/')
-      })
-      var r = await request(app)
-      assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
-      assert.strictEqual(r.status, 302)
-      assert.strictEqual(r.headers['content-length'], undefined)
-      assert.strictEqual(r.headers.location, 'http://example.com/')
-    }
-  )
+  it('#7506 res.redirect leaves out Content-Length when Transfer-Encoding is set', async function () {
+    var app = express()
+    app.use(function (req, res) {
+      res.set('Transfer-Encoding', 'chunked')
+      res.redirect('http://example.com/')
+    })
+    var r = await request(app)
+    assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
+    assert.strictEqual(r.status, 302)
+    assert.strictEqual(r.headers['content-length'], undefined)
+    assert.strictEqual(r.headers.location, 'http://example.com/')
+  })
 
-  bug(
-    '#7034 res.set keeps an unknown Content-Type value as given',
-    '`res.set` sends `Content-Type: false` for unknown types',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.set('Content-Type', 'not-a-known-type')
-        res.end('x')
-      })
-      var r = await request(app)
-      assert.strictEqual(r.headers['content-type'], 'not-a-known-type')
-    }
-  )
+  it('#7034 res.set keeps an unknown Content-Type value as given', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.set('Content-Type', 'not-a-known-type')
+      res.end('x')
+    })
+    var r = await request(app)
+    assert.strictEqual(r.headers['content-type'], 'not-a-known-type')
+  })
 
-  bug(
-    '#5150 res.cookie leaves out Expires when expires is 0',
-    '`res.cookie` adds Expires despite `expires: 0`',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.cookie('a', 'b', { maxAge: 60000, expires: 0 })
-        res.end()
-      })
-      var r = await request(app)
-      var cookie = r.headers['set-cookie'][0]
-      assert.match(cookie, /Max-Age=60/)
-      assert.doesNotMatch(cookie, /Expires=/)
-    }
-  )
+  it('#5150 res.cookie leaves out Expires when expires is 0', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.cookie('a', 'b', { maxAge: 60000, expires: 0 })
+      res.end()
+    })
+    var r = await request(app)
+    var cookie = r.headers['set-cookie'][0]
+    assert.match(cookie, /Max-Age=60/)
+    assert.doesNotMatch(cookie, /Expires=/)
+  })
 
   bug(
     '#4750 res.sendFile honours a per-call etag: false',
@@ -210,17 +196,13 @@ describe('regressions: response', function () {
     }
   )
 
-  bug(
-    'PR #7161 res.jsonp with a callback that sanitises to nothing sends plain JSON',
-    'A JSONP callback that sanitises to nothing gives broken JS',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.jsonp({ a: 1 })
-      })
-      var r = await request(app, { path: '/?callback=!!!' })
-      assert.match(r.headers['content-type'], /^application\/json/)
-      assert.strictEqual(r.body.toString(), '{"a":1}')
-    }
-  )
+  it('PR #7161 res.jsonp with a callback that sanitises to nothing sends plain JSON', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.jsonp({ a: 1 })
+    })
+    var r = await request(app, { path: '/?callback=!!!' })
+    assert.match(r.headers['content-type'], /^application\/json/)
+    assert.strictEqual(r.body.toString(), '{"a":1}')
+  })
 })

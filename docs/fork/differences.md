@@ -5,7 +5,7 @@ description: Everything abedmurrar/express has changed compared with Express 5.3
 
 # Differences from Express 5.3.0
 
-So far the fork changes **how Express is tested and built**, not how it behaves: an app gets the same responses as on Express 5.3.0, except where 5.3.0 crashes the process (see below). Bug fixes, speed-ups and strict TypeScript come next, on the same drop-in line (see the [roadmap](./roadmap)).
+So far the fork changes **how Express is tested and built**, not how it behaves: an app gets the same responses as on Express 5.3.0, except where 5.3.0 crashes the process or has a bug the fork fixes (see below). Bug fixes, speed-ups and strict TypeScript come next, on the same drop-in line (see the [roadmap](./roadmap)).
 
 The full list is the "Unreleased (fork)" section of [History.md](https://github.com/abedmurrar/express/blob/master/History.md).
 
@@ -17,6 +17,11 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **`app.listen()` doesn't swallow later server errors.** Its startup `error` listener is removed once the server is listening, so a later `error` reaches the app's listeners, or is thrown when there are none, as with `http.createServer()`. Express 5.3.0 silently dropped the first one.
 - **Files that stat as 0 bytes but have content are sent.** Linux `/proc` and `/sys` files go out whole through `res.sendFile`, `res.download` and `express.static`, with no `Content-Length` and no ranges. Express 5.3.0 sent them empty. Really empty files are sent as before.
 - **No per-request prototype swap on `app.listen()` servers.** The server makes `req` and `res` with the app's prototypes already set, so `app.handle()` has nothing to swap. Apps see the same objects as before. The only visible difference: code that runs before the app on that server, such as an `upgrade`, `connect` or `checkContinue` listener, now gets `req` and `res` that already have the app's prototypes.
+- **`res.send` sends binary bodies byte for byte.** An ArrayBuffer, SharedArrayBuffer, DataView or any typed array is sent as the bytes it covers. Express 5.3.0 sent an ArrayBuffer as `{}`, a DataView as nothing, and a `Uint16Array` or `Float64Array` one byte per element, or answered 500.
+- **`res.set` keeps an unknown Content-Type as given.** `res.set('Content-Type', 'custom-type')` sends `custom-type`, where Express 5.3.0 sent `false`. `res.send`, `res.json` and `res.sendFile` then keep it too, where 5.3.0 used their default type.
+- **`res.redirect` sends no Content-Length with Transfer-Encoding**, as `res.send` already did, so clients accept the response.
+- **`res.cookie` honours `expires: 0`** with a `maxAge`: the cookie gets `Max-Age` and no `Expires`.
+- **`res.jsonp` falls back to JSON** when the callback name has no allowed characters, instead of sending JavaScript that doesn't parse.
 - **RegExp paths with `g` or `y` match on every request.** In Express 5.3.0 such a RegExp kept its `lastIndex` between requests and matched only every other request, which let requests past a guard like `app.use(/^\/admin/g, auth)`. The fork starts every match at index 0.
 - **A mount path made only of slashes keeps its slashes.** In Express 5.3.0, `app.use('//', router)` (or `///`) matched every request, because the trailing slashes were trimmed to an empty path, so the router answered `/secret` before the app's own guards. In the fork a `//` mount answers only `//` and `//` followed by `/...`, and `app.get('//', ...)` no longer answers `/`.
 - **Mounting a router on itself at `/` throws.** `router.use(router)`, or a cycle through other routers mounted at `/`, throws a `TypeError` at mount time. Express 5.3.0 accepts it, and any request the router doesn't answer then overflows the stack. Cycles through a mount at another path, which end, still work.

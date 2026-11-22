@@ -1021,4 +1021,17 @@ var scenarios = groups.reduce(function (all, g) {
   return all.concat(g.scenarios)
 }, [])
 
-module.exports = { scenarios: scenarios, groups: groups, allPairs: allPairs }
+// Calls whose responses differ from 5.3.0 on purpose, by the call's label
+// (the part of a scenario name before the first " | "). Its scenarios may
+// differ, and at least one must (some give both the same 304 or 412), so the
+// list never goes stale; the value names the ROADMAP.md item whose fix
+// changes it.
+var BINARY =
+  "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)"
+var allowed = {
+  'res.send Float64Array': BINARY,
+  'res.send ArrayBuffer': BINARY,
+  'res.send DataView': BINARY
+}
+
+module.exports = { scenarios: scenarios, groups: groups, allPairs: allPairs, allowed: allowed }

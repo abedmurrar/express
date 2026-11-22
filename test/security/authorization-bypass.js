@@ -13,7 +13,6 @@
 
 var assert = require('node:assert')
 var express = require('../../')
-var { bug } = require('../regressions/support')
 var { serve, request, auth, secret } = require('./support')
 
 var ATTACKS = [
@@ -615,22 +614,18 @@ describe('security: authorization bypass', function () {
       assert.strictEqual(r.status + ' ' + r.body, '401 denied')
     })
 
-    bug(
-      'a Host header with userinfo cannot pass a host-based guard as another host',
-      'Userinfo in the Host header becomes `req.hostname`',
-      async function () {
-        var app = express()
-        app.use(function (req, res, next) {
-          if (req.hostname === 'admin.example') return next()
-          res.status(403).send('wrong host')
-        })
-        app.get('/secret', function (req, res) {
-          res.send('admin')
-        })
-        var r = await request(app, { path: '/secret', headers: { Host: 'admin.example:x@public.example' } })
-        assert.strictEqual(r.status, 403)
-      }
-    )
+    it('a Host header with userinfo cannot pass a host-based guard as another host', async function () {
+      var app = express()
+      app.use(function (req, res, next) {
+        if (req.hostname === 'admin.example') return next()
+        res.status(403).send('wrong host')
+      })
+      app.get('/secret', function (req, res) {
+        res.send('admin')
+      })
+      var r = await request(app, { path: '/secret', headers: { Host: 'admin.example:x@public.example' } })
+      assert.strictEqual(r.status, 403)
+    })
 
     it('the guard of a sub-app still runs when the sub-app is mounted twice', async function () {
       var app = express()

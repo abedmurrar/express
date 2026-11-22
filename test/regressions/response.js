@@ -105,21 +105,17 @@ describe('regressions: response', function () {
     }
   )
 
-  bug(
-    '#4944 res.sendFile streams files whose size is reported as 0 (/proc)',
-    '`/proc` files are sent empty',
-    async function () {
-      if (!fs.existsSync('/proc/cpuinfo')) this.skip()
-      var app = express()
-      app.get('/', function (req, res) {
-        res.sendFile('/proc/cpuinfo')
-      })
-      var r = await request(app)
-      assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
-      assert.strictEqual(r.status, 200)
-      assert.ok(r.body.length > 0, 'expected the file contents, got an empty body')
-    }
-  )
+  it('#4944 res.sendFile streams files whose size is reported as 0 (/proc)', async function () {
+    if (!fs.existsSync('/proc/cpuinfo')) this.skip()
+    var app = express()
+    app.get('/', function (req, res) {
+      res.sendFile('/proc/cpuinfo')
+    })
+    var r = await request(app)
+    assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
+    assert.strictEqual(r.status, 200)
+    assert.ok(r.body.length > 0, 'expected the file contents, got an empty body')
+  })
 
   bug(
     '#7560 res.render after a send reports the error instead of throwing it',

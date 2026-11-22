@@ -3,7 +3,8 @@
 // Differential harness: every scenario runs on the baseline Express (5.3.0
 // from npm, installed as `express-baseline`) and on this repository. Status,
 // headers and body bytes must match, except for scenarios listed in
-// `allowed`, which must differ (so the list never goes stale). Each scenario
+// `allowed`, which must differ (so the list never goes stale). A key that
+// starts with a mode's prefix ("app.listen(): ") applies to that mode only. Each scenario
 // runs twice: on http.createServer(app) and on app.listen(), which takes a
 // different path in this fork (no per-request prototype swap).
 //
@@ -37,11 +38,13 @@ describe('differential: responses match Express 5.3.0', function () {
           await close(b)
         }
 
-        if (Object.prototype.hasOwnProperty.call(allowed, scenario.name)) {
+        // an `allowed` key with the mode's prefix applies to that mode only
+        var key = Object.hasOwn(allowed, mode.prefix + scenario.name) ? mode.prefix + scenario.name : scenario.name
+        if (Object.hasOwn(allowed, key)) {
           assert.notDeepStrictEqual(
             actual,
             expected,
-            'expected a difference (' + allowed[scenario.name] + '), but the responses match; remove it from `allowed`'
+            'expected a difference (' + allowed[key] + '), but the responses match; remove it from `allowed`'
           )
           return
         }
@@ -79,7 +82,10 @@ describe('differential: responses match Express 5.3.0', function () {
     })
     assert.strictEqual(new Set(names).size, names.length)
     Object.keys(allowed).forEach(function (name) {
-      assert.ok(names.includes(name), 'unknown scenario in allowed: ' + name)
+      var unprefixed = modes.reduce(function (n, mode) {
+        return mode.prefix && n.startsWith(mode.prefix) ? n.slice(mode.prefix.length) : n
+      }, name)
+      assert.ok(names.includes(unprefixed), 'unknown scenario in allowed: ' + name)
     })
   })
 })

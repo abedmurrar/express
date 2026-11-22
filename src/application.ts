@@ -701,6 +701,9 @@ app.render = function render(
  *    http.createServer(app).listen(80);
  *    https.createServer({ ... }, app).listen(443);
  *
+ * A trailing callback is called once the server is listening, or with the
+ * error when it fails to start. Later server errors are not passed to it.
+ *
  * @return {http.Server}
  * @public
  */
@@ -715,8 +718,22 @@ app.listen = function listen(this: Application) {
   )
   var args = slice.call(arguments)
   if (typeof args[args.length - 1] === 'function') {
-    var done = (args[args.length - 1] = once(args[args.length - 1]))
-    server.once('error', done)
+    var done = args[args.length - 1] as ListenCallback
+    // The error listener only reports a failed start. Once the server is
+    // listening it's removed, so a later 'error' goes to the app's own
+    // listeners, or is thrown when there are none, as on a server made with
+    // http.createServer(). A failed start removes the 'listening' listeners,
+    // so the callback runs once either way.
+    var onListening = function onListening() {
+      server.removeListener('error', onError)
+    }
+    var onError = function onError(this: Server, err: Error) {
+      server.removeListener('listening', onListening)
+      server.removeListener('listening', done)
+      done.call(this, err)
+    }
+    server.once('error', onError)
+    server.once('listening', onListening)
   }
   return server.listen.apply(server, args as Parameters<Server['listen']>)
 }
@@ -768,24 +785,5 @@ function tryRender(view: ViewInstance, options: RenderOptions, callback: RenderC
     view.render(options, callback)
   } catch (err) {
     callback(err as Error)
-  }
-}
-
-/**
- * Wrap `fn` so it runs at most once; later calls return the first result.
- * Replaces the `once` package.
- *
- * @private
- */
-
-function once<T extends Function>(fn: T): T
-function once(fn: Function): Function {
-  let called = false
-  let value: unknown
-  return function (this: unknown) {
-    if (called) return value
-    called = true
-    value = fn.apply(this, arguments)
-    return value
   }
 }

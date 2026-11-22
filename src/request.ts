@@ -8,7 +8,7 @@
 
 'use strict'
 
-import type { Accepts } from 'accepts'
+import type { Accepts, AcceptsConstructor } from './accepts'
 import type { IncomingMessage } from 'node:http'
 import type { Socket } from 'node:net'
 import type {
@@ -29,7 +29,7 @@ import type { Route } from './router/lib/route'
  * @private
  */
 
-const accepts = require('accepts') as typeof import('accepts')
+const accepts = require('./accepts') as AcceptsConstructor
 const isIP = (require('node:net') as typeof import('node:net')).isIP
 const typeis = require('type-is') as typeof import('type-is')
 const http = require('node:http') as typeof import('node:http')

@@ -9,9 +9,10 @@
 
 var assert = require('node:assert')
 var http = require('node:http')
+var util = require('node:util')
 var baseline = require('express-baseline')
 var ours = require('../..')
-var { scenarios, groups } = require('./generated')
+var { scenarios, groups, allowed } = require('./generated')
 var { sequence, close, useFixedClock } = require('./support')
 
 // res.cookie({ maxAge }) sets Expires to "now + maxAge", so the two servers
@@ -78,6 +79,8 @@ describe('differential: generated scenarios match Express 5.3.0', function () {
 
   var a
   var b
+  // allowed calls whose responses differed
+  var differed = new Set()
 
   before(async function () {
     a = await listen()
@@ -93,7 +96,28 @@ describe('differential: generated scenarios match Express 5.3.0', function () {
     it(scenario.name, async function () {
       var expected = await respond(a, baseline, scenario)
       var actual = await respond(b, ours, scenario)
+      var call = scenario.name.split(' | ')[0]
+
+      if (Object.hasOwn(allowed, call)) {
+        if (!util.isDeepStrictEqual(actual, expected)) differed.add(call)
+        return
+      }
+
       assert.deepStrictEqual(actual, expected)
+    })
+  })
+
+  // runs after the scenarios above (tests in a file run in order)
+  it('differs from 5.3.0 for every allowed call', function () {
+    Object.keys(allowed).forEach(function (call) {
+      assert.ok(
+        differed.has(call),
+        'expected a difference for ' +
+          call +
+          ' (' +
+          allowed[call] +
+          '), but every response matched; remove it from `allowed`'
+      )
     })
   })
 

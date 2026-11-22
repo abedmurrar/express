@@ -58,6 +58,8 @@ export interface Layer {
   path: string | undefined
   slash: boolean
   matchers: Array<MatchFunction<Params>>
+  rawPath: string | RegExp | Array<string | RegExp> // the path it was registered with, arrays flattened
+  rawMatchers: Array<MatchFunction<Params>> // one per rawPath entry
   method?: string | undefined // set by the route
   route?: Route | undefined // set by the router
   handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
@@ -113,7 +115,16 @@ function Layer(this: Layer, path: PathParams, options: LayerOptions | undefined,
         })
       }
 
+      // A RegExp with the g or y flag keeps state in lastIndex between calls,
+      // so the next request would be matched from where the last match ended
+      // and fail: a guard like app.use(/^\/admin/g, auth) was skipped on every
+      // other request. Not in upstream (router 2.2.0): start every match at 0,
+      // as on the first request, which keeps each flag's meaning (y stays
+      // anchored at the start).
+      const stateful = _path.global || _path.sticky
+
       return function regexpMatcher(p) {
+        if (stateful) _path.lastIndex = 0
         const match = _path.exec(p)
         if (!match) {
           return false
@@ -145,6 +156,18 @@ function Layer(this: Layer, path: PathParams, options: LayerOptions | undefined,
     } as MatchOptions)
   }
   this.matchers = Array.isArray(path) ? path.map(matcher) : [matcher(path)]
+
+  // Not in router 2.2.0: the path as registered, which req.originalRoute
+  // reads. rawPath is router 2.3.0's (pillarjs/router#174), with its comment:
+  // flat unnests nested path arrays and snapshots the caller's array.
+  // rawMatchers has one matcher per rawPath entry, so the entry that matched
+  // can be told apart; it's the same array as matchers unless the path nests
+  // arrays (2.3.0 builds matchers from rawPath, so they are always the same).
+  this.rawPath = Array.isArray(path) ? (path.flat(Infinity) as Array<string | RegExp>) : path
+  this.rawMatchers =
+    Array.isArray(path) && path.some(Array.isArray)
+      ? (this.rawPath as Array<string | RegExp>).map(matcher)
+      : this.matchers
 }
 
 /**
@@ -306,9 +329,17 @@ function loosen(path: PathParams): PathParams {
     return path
   }
 
-  return Array.isArray(path)
-    ? path.map(function (p) {
-        return loosen(p)
-      })
-    : String(path).replace(TRAILING_SLASH_REGEXP, '')
+  if (Array.isArray(path)) {
+    return path.map(function (p) {
+      return loosen(p)
+    })
+  }
+
+  const str = String(path)
+  const loose = str.replace(TRAILING_SLASH_REGEXP, '')
+
+  // Preserve paths that consist entirely of slashes (e.g. '//')
+  // to prevent them from being reduced to an empty string,
+  // which would incorrectly match all paths.
+  return loose || str
 }

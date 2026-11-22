@@ -13,7 +13,6 @@
 
 var assert = require('node:assert')
 var express = require('../../')
-var { bug } = require('../regressions/support')
 var { serve, request, auth, secret } = require('./support')
 
 var ATTACKS = [
@@ -346,8 +345,6 @@ describe('security: authorization bypass', function () {
   })
 
   describe('a stateful RegExp guard (g or y flag)', function () {
-    var ROW = 'A RegExp path with the `g` or `y` flag matches only every other request'
-
     function repeat(app, times) {
       var send = serve(app)
       var results = []
@@ -367,21 +364,21 @@ describe('security: authorization bypass', function () {
     }
 
     ;['g', 'y', 'gi', 'iy'].forEach(function (flags) {
-      bug('app.use(/^\\/admin/' + flags + ', auth) guards every request', ROW, async function () {
+      it('app.use(/^\\/admin/' + flags + ', auth) guards every request', async function () {
         var app = express()
         app.use(new RegExp('^/admin', flags), auth)
         app.get('/admin/secret', secret)
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))
       })
 
-      bug('app.all(/^\\/admin\\//' + flags + ', auth) guards every request', ROW, async function () {
+      it('app.all(/^\\/admin\\//' + flags + ', auth) guards every request', async function () {
         var app = express()
         app.all(new RegExp('^/admin/', flags), auth)
         app.get('/admin/secret', secret)
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))
       })
 
-      bug('router.use(/^\\/secret/' + flags + ', auth) guards every request', ROW, async function () {
+      it('router.use(/^\\/secret/' + flags + ', auth) guards every request', async function () {
         var app = express()
         var router = express.Router()
         router.use(new RegExp('^/secret', flags), auth)
@@ -390,7 +387,7 @@ describe('security: authorization bypass', function () {
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))
       })
 
-      bug('a route at /^\\/admin\\/secret$/' + flags + ' answers every request', ROW, async function () {
+      it('a route at /^\\/admin\\/secret$/' + flags + ' answers every request', async function () {
         var app = express()
         app.get(new RegExp('^/admin/secret$', flags), auth, secret)
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))
@@ -604,39 +601,31 @@ describe('security: authorization bypass', function () {
   })
 
   describe('mount paths and hosts', function () {
-    bug(
-      'a router mounted at "//" does not shadow a guarded route at "/"',
-      'A `//` mount also matches `/`',
-      async function () {
-        var app = express()
-        var open = express.Router()
-        open.get('/secret', function (req, res) {
-          res.send('open')
-        })
-        app.use('//', open)
-        app.use(auth)
-        app.get('/secret', secret)
-        var r = await request(app, '/secret')
-        assert.strictEqual(r.status + ' ' + r.body, '401 denied')
-      }
-    )
+    it('a router mounted at "//" does not shadow a guarded route at "/"', async function () {
+      var app = express()
+      var open = express.Router()
+      open.get('/secret', function (req, res) {
+        res.send('open')
+      })
+      app.use('//', open)
+      app.use(auth)
+      app.get('/secret', secret)
+      var r = await request(app, '/secret')
+      assert.strictEqual(r.status + ' ' + r.body, '401 denied')
+    })
 
-    bug(
-      'a Host header with userinfo cannot pass a host-based guard as another host',
-      'Userinfo in the Host header becomes `req.hostname`',
-      async function () {
-        var app = express()
-        app.use(function (req, res, next) {
-          if (req.hostname === 'admin.example') return next()
-          res.status(403).send('wrong host')
-        })
-        app.get('/secret', function (req, res) {
-          res.send('admin')
-        })
-        var r = await request(app, { path: '/secret', headers: { Host: 'admin.example:x@public.example' } })
-        assert.strictEqual(r.status, 403)
-      }
-    )
+    it('a Host header with userinfo cannot pass a host-based guard as another host', async function () {
+      var app = express()
+      app.use(function (req, res, next) {
+        if (req.hostname === 'admin.example') return next()
+        res.status(403).send('wrong host')
+      })
+      app.get('/secret', function (req, res) {
+        res.send('admin')
+      })
+      var r = await request(app, { path: '/secret', headers: { Host: 'admin.example:x@public.example' } })
+      assert.strictEqual(r.status, 403)
+    })
 
     it('the guard of a sub-app still runs when the sub-app is mounted twice', async function () {
       var app = express()

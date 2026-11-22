@@ -51,16 +51,117 @@ describe('app.listen()', function () {
   it('should not invoke callback more than once', function (done) {
     var app = express()
     var count = 0
+    var seen = []
     var server = app.listen(0, function () {
       count++
     })
 
+    server.on('error', function (err) {
+      seen.push(err.message)
+    })
     server.once('listening', function () {
       server.emit('error', new Error('boom'))
+      server.emit('listening')
       server.close(function (err) {
         assert.ifError(err)
         assert.strictEqual(count, 1)
+        assert.deepStrictEqual(seen, ['boom'])
         done()
+      })
+    })
+  })
+
+  describe('the startup error listener', function () {
+    // Node's own http.Server has 'listening' listeners of its own
+    var NODE_LISTENING = http.createServer().listenerCount('listening')
+
+    it('should be removed once the server is listening', function (done) {
+      var app = express()
+      var server = app.listen(0, '127.0.0.1', function () {
+        var errors = server.listenerCount('error')
+        var listening = server.listenerCount('listening')
+        server.close(function (err) {
+          assert.ifError(err)
+          assert.strictEqual(errors, 0)
+          assert.strictEqual(listening, NODE_LISTENING)
+          done()
+        })
+      })
+    })
+
+    it('should not be added without a callback', function (done) {
+      var app = express()
+      var server = app.listen(0, '127.0.0.1')
+      assert.strictEqual(server.listenerCount('error'), 0)
+      server.on('listening', function () {
+        server.close(done)
+      })
+    })
+
+    it('should leave a later error to the server error listeners', function (done) {
+      var app = express()
+      var calls = []
+      var server = app.listen(0, '127.0.0.1', function (err) {
+        calls.push(err)
+        server.on('error', function (err) {
+          server.close(function () {
+            assert.strictEqual(err.message, 'later failure')
+            assert.deepStrictEqual(calls, [undefined])
+            done()
+          })
+        })
+        server.emit('error', new Error('later failure'))
+      })
+    })
+
+    it('should not swallow a later error when the app has no error listener', function (done) {
+      var app = express()
+      var server = app.listen(0, '127.0.0.1', function () {
+        var later = new Error('later failure')
+        assert.throws(function () {
+          server.emit('error', later)
+        }, later)
+        server.close(done)
+      })
+    })
+
+    it('should not catch an EADDRINUSE from listening again', function (done) {
+      var app = express()
+      var server = app.listen(0, '127.0.0.1', function (err) {
+        if (err) return done(err)
+        server.close(function (err) {
+          if (err) return done(err)
+          var blocker = app.listen(0, '127.0.0.1', function (err) {
+            if (err) return done(err)
+            // first in line, so it counts the listeners before any other runs
+            server.prependOnceListener('error', function (err) {
+              var left = server.listenerCount('error')
+              blocker.close(function (closeErr) {
+                assert.ifError(closeErr)
+                assert.strictEqual(err.code, 'EADDRINUSE')
+                assert.strictEqual(left, 0)
+                done()
+              })
+            })
+            server.listen(blocker.address().port, '127.0.0.1')
+          })
+        })
+      })
+    })
+
+    it('should pass a failed start to the callback and remove both listeners', function (done) {
+      var app = express()
+      var blocker = app.listen(0, '127.0.0.1', function () {
+        var server = app.listen(blocker.address().port, '127.0.0.1', function (err) {
+          var errors = server.listenerCount('error')
+          var listening = server.listenerCount('listening')
+          blocker.close(function () {
+            assert.strictEqual(err.code, 'EADDRINUSE')
+            assert.strictEqual(errors, 0)
+            assert.strictEqual(listening, NODE_LISTENING)
+            done()
+          })
+        })
       })
     })
   })

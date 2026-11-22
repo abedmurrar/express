@@ -47,7 +47,21 @@ declare global {
   namespace Express {
     // These open interfaces may be extended in an application-specific manner via declaration merging.
     // See for example method-override.d.ts (https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/method-override/index.d.ts)
-    interface Request {}
+    interface Request {
+      /**
+       * An `AbortSignal` that aborts when the client goes away before the
+       * response has finished, for `fetch`, database drivers and timers.
+       * Created on first read; it never aborts once the response has
+       * finished, and is already aborted when read after the client has
+       * gone. The reason is an `AbortError` `DOMException`.
+       *
+       * Not in Express 5.3.0. Declared here, on the interface every Express
+       * request type extends (`@types/express-serve-static-core`'s too), so
+       * the two stay assignable to each other, and `readonly` as in
+       * `@types/node`'s own `IncomingMessage#signal` (Node.js 24.16 and 26.1).
+       */
+      readonly signal: AbortSignal
+    }
     interface Response {}
     interface Locals {}
     interface Application {}
@@ -798,6 +812,16 @@ export interface Request<
   signedCookies: any
 
   originalUrl: string
+
+  /**
+   * The full path pattern of the route that matched: the path of every
+   * router and sub-app it is mounted under, then its own path, for example
+   * `'/api/users/:id'` for `router.get('/users/:id')` under
+   * `app.use('/api', router)`. `undefined` while no route has matched, and
+   * when one of those paths is a RegExp. Like `req.route`, it stays set after
+   * the route calls `next()`. Added by this fork (expressjs/express#2501).
+   */
+  readonly originalRoute?: string | undefined
 
   url: string
 

@@ -26,7 +26,7 @@ import type {
 } from './router'
 import type { Route } from './router/lib/route'
 import type { QueryParser, TrustFunction } from './utils'
-import type { Engine, View as ViewInstance, ViewConstructor } from './view'
+import type { Engine, View as ViewInstance, ViewConstructor, ViewOptions } from './view'
 
 /**
  * Module dependencies.
@@ -59,6 +59,7 @@ export interface ApplicationSettings {
   'trust proxy fn': TrustFunction
   view: ViewConstructor
   'view engine': string | undefined
+  'view engines': string | string[] | undefined
   views: string | string[]
 }
 
@@ -269,9 +270,26 @@ app.handle = function handle(this: Application, req: Request, res: ExpressRespon
   req.res = res
   res.req = req
 
+  var reqProto: object | null = Object.getPrototypeOf(req)
+  var resProto: object | null = Object.getPrototypeOf(res)
+
+  // Not in 5.3.0: running inside another Express app (mounted with app.use()
+  // or router.use(), or called as its middleware), give the caller back its
+  // prototypes when control returns to it, so req.app, req.ip and the rest
+  // read the caller's settings again (#7427). 5.3.0 did this only in
+  // app.use()'s mounted_app wrapper. A caller that is not an Express app (no
+  // req.app) keeps this app's prototypes, as in 5.3.0.
+  if (callback && 'app' in req) {
+    done = function restoreCaller(err?: unknown) {
+      Object.setPrototypeOf(req, reqProto)
+      Object.setPrototypeOf(res, resProto)
+      callback(err)
+    }
+  }
+
   // alter the prototypes, unless app.listen() already made req and res with them
-  if (Object.getPrototypeOf(req) !== this.request) Object.setPrototypeOf(req, this.request)
-  if (Object.getPrototypeOf(res) !== this.response) Object.setPrototypeOf(res, this.response)
+  if (reqProto !== this.request) Object.setPrototypeOf(req, this.request)
+  if (resProto !== this.response) Object.setPrototypeOf(res, this.response)
 
   // setup locals
   if (!res.locals) {
@@ -331,14 +349,9 @@ app.use = function use(this: Application, fn: unknown) {
     fn.mountpath = path
     fn.parent = this
 
-    // restore .app property on req and res
+    // app.handle gives req and res back this app's prototypes (and .app) when it is done
     router.use(path, function mounted_app(req: Request, res: ExpressResponse, next: NextFunction) {
-      var orig = req.app
-      fn.handle!(req, res, function (err) {
-        Object.setPrototypeOf(req, orig.request)
-        Object.setPrototypeOf(res, orig.response)
-        next(err)
-      })
+      fn.handle!(req, res, next)
     })
 
     // mounted an app
@@ -658,18 +671,31 @@ app.render = function render(
   if (!view) {
     var View = this.get('view')
 
-    view = new View(name, {
+    var viewOptions: ViewOptions = {
       defaultEngine: this.get('view engine'),
       root: this.get('views'),
       engines: engines
-    })
+    }
+
+    // only when set, so a custom "view" class gets the same options as before
+    var extensions = this.get('view engines')
+
+    if (extensions) {
+      viewOptions.extensions = extensions
+    }
+
+    view = new View(name, viewOptions)
 
     if (!view.path) {
       var dirs =
         Array.isArray(view.root) && view.root.length > 1
           ? 'directories "' + view.root.slice(0, -1).join('", "') + '" or "' + view.root[view.root.length - 1] + '"'
           : 'directory "' + view.root + '"'
-      var err: Error & { view?: ViewInstance } = new Error('Failed to lookup view "' + name + '" in views ' + dirs)
+      // with "view engines", the extensions it tried, in order
+      var tried = view.extensions ? ' with extension ' + quotedList(view.extensions) : ''
+      var err: Error & { view?: ViewInstance } = new Error(
+        'Failed to lookup view "' + name + '" in views ' + dirs + tried
+      )
       err.view = view
       return done(err)
     }
@@ -701,6 +727,9 @@ app.render = function render(
  *    http.createServer(app).listen(80);
  *    https.createServer({ ... }, app).listen(443);
  *
+ * A trailing callback is called once the server is listening, or with the
+ * error when it fails to start. Later server errors are not passed to it.
+ *
  * @return {http.Server}
  * @public
  */
@@ -715,8 +744,22 @@ app.listen = function listen(this: Application) {
   )
   var args = slice.call(arguments)
   if (typeof args[args.length - 1] === 'function') {
-    var done = (args[args.length - 1] = once(args[args.length - 1]))
-    server.once('error', done)
+    var done = args[args.length - 1] as ListenCallback
+    // The error listener only reports a failed start. Once the server is
+    // listening it's removed, so a later 'error' goes to the app's own
+    // listeners, or is thrown when there are none, as on a server made with
+    // http.createServer(). A failed start removes the 'listening' listeners,
+    // so the callback runs once either way.
+    var onListening = function onListening() {
+      server.removeListener('error', onError)
+    }
+    var onError = function onError(this: Server, err: Error) {
+      server.removeListener('listening', onListening)
+      server.removeListener('listening', done)
+      done.call(this, err)
+    }
+    server.once('error', onError)
+    server.once('listening', onListening)
   }
   return server.listen.apply(server, args as Parameters<Server['listen']>)
 }
@@ -759,6 +802,17 @@ function logerror(this: Application, err: unknown) {
 }
 
 /**
+ * Quote a list for an error message: `"a"`, `"a" or "b"`, `"a", "b" or "c"`.
+ * @private
+ */
+
+function quotedList(items: string[]): string {
+  var last = '"' + items[items.length - 1] + '"'
+
+  return items.length > 1 ? '"' + items.slice(0, -1).join('", "') + '" or ' + last : last
+}
+
+/**
  * Try rendering a view.
  * @private
  */
@@ -768,24 +822,5 @@ function tryRender(view: ViewInstance, options: RenderOptions, callback: RenderC
     view.render(options, callback)
   } catch (err) {
     callback(err as Error)
-  }
-}
-
-/**
- * Wrap `fn` so it runs at most once; later calls return the first result.
- * Replaces the `once` package.
- *
- * @private
- */
-
-function once<T extends Function>(fn: T): T
-function once(fn: Function): Function {
-  let called = false
-  let value: unknown
-  return function (this: unknown) {
-    if (called) return value
-    called = true
-    value = fn.apply(this, arguments)
-    return value
   }
 }

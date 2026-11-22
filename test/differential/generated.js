@@ -259,7 +259,10 @@ var REQUEST = {
   ]),
   host: header('host', ['example.com:8080', 'tobi.ferrets.example.com', '[::1]:3000', 'EXAMPLE.COM']),
   forwardedFor: header('x-forwarded-for', ['10.0.0.1', '203.0.113.5, 10.0.0.2', 'not-an-ip']),
-  forwardedProto: header('x-forwarded-proto', ['https', 'https, http', 'HTTP']),
+  // No uppercase value: the fork lowercases a trusted X-Forwarded-Proto on
+  // purpose (upstream PR #7330), and the `allowed` scenario
+  // 'req.protocol uppercase forwarded' in ./scenarios.js shows that difference.
+  forwardedProto: header('x-forwarded-proto', ['https', 'https, http', 'http, https']),
   forwardedHost: header('x-forwarded-host', ['proxy.example.com', 'a.example.com:9000, b.example.com']),
   contentType: header('content-type', [
     'application/json',
@@ -711,7 +714,14 @@ var CALLS = {
       return [
         d[0],
         function (req, res) {
-          res.sendFile.apply(res, d[1])
+          // a fresh options object per call: Express 5.3.0 writes the app's
+          // etag setting onto it, which the next side would then read
+          res.sendFile.apply(
+            res,
+            d[1].map(function (arg) {
+              return arg && typeof arg === 'object' ? { ...arg } : arg
+            })
+          )
         }
       ]
     })
@@ -1018,4 +1028,25 @@ var scenarios = groups.reduce(function (all, g) {
   return all.concat(g.scenarios)
 }, [])
 
-module.exports = { scenarios: scenarios, groups: groups, allPairs: allPairs }
+// Calls whose responses differ from 5.3.0 on purpose, by the call's label
+// (the part of a scenario name before the first " | "). Its scenarios may
+// differ, and at least one must (some give both the same 304 or 412), so the
+// list never goes stale; the value names the ROADMAP.md item whose fix
+// changes it.
+var BINARY =
+  "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)"
+var allowed = {
+  'res.sendFile etag false':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
+  'res.download lastModified false':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
+  'res.send Float64Array': BINARY,
+  'res.send ArrayBuffer': BINARY,
+  'res.send DataView': BINARY,
+  'res.redirect 999, "/foo"':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 999)',
+  'res.links {}':
+    'fixed in the fork: `res.links` with empty values (an empty object leaves the header alone, so no empty Link)'
+}
+
+module.exports = { scenarios: scenarios, groups: groups, allPairs: allPairs, allowed: allowed }

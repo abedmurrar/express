@@ -271,8 +271,17 @@ If there is more than one `X-Forwarded-Host` header in the request, the
 value of the first header is used. This includes a single header with
 comma-separated values, in which the first value is used.
 
+Userinfo before an `@` is not part of the host, so it's dropped. A value
+whose port is not all digits is not a host, and gives `undefined`. Express
+5.3.0 kept both, so `Host: evil.example:x@good.example` gave the hostname
+`evil.example`.
+
 ```js
 // Host: "example.com:3000"
+console.dir(req.hostname);
+// => 'example.com'
+
+// Host: "user:pass@example.com:3000"
 console.dir(req.hostname);
 // => 'example.com'
 ```
@@ -301,6 +310,8 @@ console.dir(req.host);
 console.dir(req.host);
 // => '[::1]:3000'
 ```
+
+Userinfo and non-numeric ports are handled as for [`req.hostname`](#reqhostname).
 
 ### req.ip
 
@@ -368,6 +379,80 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 ```
 
 :::
+
+### req.originalRoute
+
+**Type:** `String | undefined`
+
+This is a fork addition; Express 5.3.0 has no `req.originalRoute` (expressjs/express#2501).
+
+The full path pattern of the route that matched: the path of every router and sub-app the route is
+mounted under, followed by the route's own path. It is to [`req.route`](#reqroute) what
+[`req.originalUrl`](#reqoriginalurl) is to `req.url`: `req.route.path` is the route's path inside its
+router, and `req.originalRoute` is the whole pattern, which suits logs and metrics, where the URL
+itself would give one entry per user ID.
+
+::: code-group
+
+```js [JavaScript]
+const api = express.Router();
+
+api.get('/users/:id', (req, res) => {
+  console.dir(req.route.path); // '/users/:id'
+  console.dir(req.originalRoute); // '/api/users/:id'
+  res.end();
+});
+
+// GET /api/users/7
+app.use('/api', api);
+```
+
+```ts [TypeScript]
+import { type Request, type Response } from 'express';
+
+const api = express.Router();
+
+api.get('/users/:id', (req: Request, res: Response) => {
+  console.dir(req.route.path); // '/users/:id'
+  console.dir(req.originalRoute); // '/api/users/:id'
+  res.end();
+});
+
+// GET /api/users/7
+app.use('/api', api);
+```
+
+:::
+
+It is built when you read it, from what the router keeps while it routes, so an app that doesn't
+read it doesn't pay for it.
+
+- **Mount paths** are joined as `req.baseUrl` joins them: without a trailing slash, and a router or
+  sub-app used without a path adds nothing. Routers and sub-apps nested at any depth all add their
+  paths, so `app.use('/api', api)`, `api.use('/v1', v1)` and `v1.get('/users/:id')` give
+  `'/api/v1/users/:id'`. The route's own path is kept as it is, so `api.get('/')` under `'/api'`
+  gives `'/api/'`.
+- **Patterns** are the strings you registered, with their parameters, wildcards and optional
+  groups: `'/t/:tenant{/:region}/files/*path'`.
+- **Path arrays** contribute the entry that matched, the first one in order (nested arrays
+  included): `app.get(['/a', '/b/:id'])` gives `'/b/:id'` for `GET /b/1`.
+- **RegExp paths** have no string form that is a route pattern, so when the route, or any mount
+  above it, matched with a RegExp, `req.originalRoute` is `undefined`. `String(regexp)` joined with
+  paths would be neither a path nor a RegExp, and the text the RegExp matched would put user IDs
+  back into metric names. `req.route.path` still has the RegExp.
+- **`router.route()` and `app.route()`** routes, and `router.param()` callbacks of a route, see
+  it as `app.get()` routes do.
+- **Middleware** (`app.use()`) is not a route: before any route has matched, `req.originalRoute`
+  is `undefined`.
+- **Error handlers** see the route that failed (it stays set when a route calls `next(err)` or
+  throws), or `undefined` when the error came before any route matched.
+- **404 handlers** see `undefined` when no route matched. It is set and kept exactly as long as
+  `req.route` is: when a route matched and passed the request on with `next()`, a later handler,
+  404 handlers included, sees that route, as `req.route` does.
+- It can be read after the response is sent, for example in a `res.on('finish')` listener.
+
+`req.originalRoute` is a getter on the request prototype, and not an enumerable one, so
+`Object.keys(express.request)` lists the same names as Express 5.3.0.
 
 ### req.originalUrl
 
@@ -524,7 +609,9 @@ Contains the request protocol string: either `http` or (for TLS requests) `https
 
 When the [`trust proxy` setting](/api/application#options-for-trust-proxy-setting) does not evaluate to `false`,
 this property will use the value of the `X-Forwarded-Proto` header field if present.
-This header can be set by the client or by the proxy.
+This header can be set by the client or by the proxy. The value is lowercased, since a
+scheme is case-insensitive, so `X-Forwarded-Proto: HTTPS` gives `https` (and
+[`req.secure`](#reqsecure) is `true`). Express 5.3.0 kept the case.
 
 ```js
 console.dir(req.protocol);
@@ -653,12 +740,17 @@ Route {
       path: undefined,
       slash: false,
       matchers: [ [Function: match] ],
+      rawPath: '/',
+      rawMatchers: [ [Function: match] ],
       method: 'get'
     }
   ],
   methods: [Object: null prototype] { get: true }
 }
 ```
+
+In this fork, each `Layer` also has `rawPath` (the path it was registered with, from router 2.3.0)
+and `rawMatchers`, which [`req.originalRoute`](#reqoriginalroute) reads.
 
 ### req.secure
 
@@ -669,6 +761,53 @@ A Boolean property that is true if a TLS connection is established. Equivalent t
 ```js
 req.protocol === 'https';
 ```
+
+### req.signal
+
+**Type:** `AbortSignal`
+
+An [`AbortSignal`](https://nodejs.org/api/globals.html#class-abortsignal) that aborts when the
+client goes away before the response has finished. Pass it to work that should stop when nobody
+is waiting for the answer any more, such as `fetch`, a database query or a timer.
+
+```js
+app.get('/report', async (req, res, next) => {
+  try {
+    const upstream = await fetch('https://api.example.com/report', { signal: req.signal });
+    res.json(await upstream.json());
+  } catch (err) {
+    if (err.name === 'AbortError') return; // the client has gone, nobody to answer
+    next(err);
+  }
+});
+```
+
+- **It aborts** when the connection closes before the response has finished: the client
+  disconnected or gave up, or the response was destroyed (`res.destroy()`). A pipelined request
+  whose response is still waiting its turn aborts too.
+- **It never aborts once the response has finished**, even when the connection closes
+  afterwards, and its listeners go away with the request, so nothing builds up on a keep-alive
+  connection.
+- **The reason** (`req.signal.reason`) is the default `AbortError` `DOMException`, the one Node's
+  own `IncomingMessage#signal`, Fastify's `request.signal` and `AbortController#abort()` use, so
+  `err.name === 'AbortError'` checks work.
+- **It is created on first read.** A request that never reads it gets no signal and no listener.
+- **Read late, it is still right:** read after the client has gone it is already aborted, and
+  read after the response has finished it never aborts.
+- **It is the same signal in every app** the request goes through, including a mounted sub-app.
+- Assigning `req.signal = mySignal` replaces it for that request (an own property), as it did on
+  Node.js 22 with Express 5.3.0, so a middleware that sets its own signal keeps working.
+
+::: info
+
+Not in Express 5.3.0. Node.js 24.16 and 26.1 added `IncomingMessage#signal`, but up to Node.js
+24.19 and 26.6 it also aborts after every response that finished normally
+([nodejs/node#64390](https://github.com/nodejs/node/issues/64390)), and Node.js 22 has none. The
+fork defines `req.signal` itself, so it behaves the same on every supported Node.js version. Before
+an Express app has handled the request (in an `upgrade` or `checkContinue` listener, for example)
+`req.signal` is Node's own, or `undefined` on Node.js 22, as with Express 5.3.0.
+
+:::
 
 ### req.signedCookies
 
@@ -717,6 +856,14 @@ console.dir(req.subdomains);
 The application property `subdomain offset`, which defaults to 2, is used for determining the
 beginning of the subdomain segments. To change this behavior, change its value
 using [app.set](/api/application#appset).
+
+An IP address host has no subdomains: `Host: [::ffff:127.0.0.1]` gives `[]` (and
+`['[::ffff:127.0.0.1]']` with `subdomain offset` set to 0). Express 5.3.0 split an
+IPv6 address on its dots.
+
+A trailing root dot is not a part: `Host: tobi.ferrets.example.com.` gives
+`['ferrets', 'tobi']`, as without the dot (`req.hostname` keeps it). Express 5.3.0
+counted the empty label after the dot and gave `['example', 'ferrets', 'tobi']`.
 
 ### req.xhr
 

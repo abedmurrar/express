@@ -38,6 +38,13 @@ const parseRange = require('range-parser') as typeof import('range-parser')
 const parse = require('parseurl') as typeof import('parseurl')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
 
+/**
+ * The port of a Host header: digits only, possibly none (RFC 3986 section 3.2.3).
+ * @private
+ */
+
+const PORT_REGEXP = /^[0-9]*$/
+
 /** A `next` function: call it to pass control on, or with an error to skip to the error handlers. */
 export type NextFunction = (err?: unknown) => void
 
@@ -93,6 +100,8 @@ export interface Request extends IncomingMessage {
   readonly fresh: boolean
   readonly stale: boolean
   readonly xhr: boolean
+  /** Aborts when the client goes away before the response has finished. */
+  readonly signal: AbortSignal
 }
 
 /**
@@ -386,7 +395,9 @@ defineGetter(req, 'protocol', function protocol() {
   var header = this.get('X-Forwarded-Proto') || proto
   var index = header.indexOf(',')
 
-  return index !== -1 ? header.substring(0, index).trim() : header.trim()
+  // A URI scheme is case-insensitive (RFC 3986 section 3.1), so a proxy that
+  // sends "HTTPS" means https, and req.secure must say so
+  return (index !== -1 ? header.substring(0, index).trim() : header.trim()).toLowerCase()
 })
 
 /**
@@ -458,10 +469,19 @@ defineGetter(req, 'ips', function ips() {
 defineGetter(req, 'subdomains', function subdomains() {
   var hostname = this.hostname
 
+  // A fully qualified name ends in the DNS root's empty label
+  // ("tobi.example.com."), the same host as "tobi.example.com". Left in, the
+  // empty label counts as a part and shifts every subdomain by one
+  if (hostname?.endsWith('.')) hostname = hostname.slice(0, -1)
+
   if (!hostname) return []
 
   var offset = this.app.get('subdomain offset')
-  var subdomains = !isIP(hostname) ? hostname.split('.').reverse() : [hostname]
+
+  // An IPv6 literal keeps its brackets in req.hostname, and net.isIP() needs
+  // them gone, or "[::ffff:127.0.0.1]" is split on its dots
+  var address = hostname[0] === '[' ? hostname.slice(1, -1) : hostname
+  var subdomains = !isIP(address) ? hostname.split('.').reverse() : [hostname]
 
   return subdomains.slice(offset)
 })
@@ -484,6 +504,9 @@ defineGetter(req, 'path', function path() {
  * address, the "X-Forwarded-Host" header field will
  * be trusted.
  *
+ * Userinfo before an "@" is dropped, and a value whose
+ * port is not all digits gives `undefined`.
+ *
  * @return {String}
  * @public
  */
@@ -499,6 +522,21 @@ defineGetter(req, 'host', function host() {
     //       single value, but this is to be safe.
     val = val.substring(0, val.indexOf(',')).trimEnd()
   }
+
+  if (!val) return undefined
+
+  // A host has no userinfo ("user@" or "user:pass@", RFC 3986 section 3.2.1),
+  // and a client must not send it (RFC 9110 section 4.2.4). Without this,
+  // "evil.example:x@good.example" gave req.hostname "evil.example". The host
+  // is what follows the last "@".
+  var at = val.lastIndexOf('@')
+  if (at !== -1) val = val.substring(at + 1)
+
+  // The port is digits only (RFC 3986 section 3.2.3). Anything else is not a
+  // host, for example an encoded "@" in "evil.example:x%40good.example".
+  var offset = val[0] === '[' ? val.indexOf(']') + 1 : 0
+  var colon = val.indexOf(':', offset)
+  if (colon !== -1 && !PORT_REGEXP.test(val.substring(colon + 1))) return undefined
 
   return val || undefined
 })
@@ -577,6 +615,83 @@ defineGetter(req, 'stale', function stale() {
 defineGetter(req, 'xhr', function xhr() {
   var val = this.get('X-Requested-With') || ''
   return val.toLowerCase() === 'xmlhttprequest'
+})
+
+/**
+ * The request's AbortController, kept on the request itself so the signal is
+ * the same whichever app's prototype the request has at the time.
+ * @private
+ */
+
+const kAbortController = Symbol('express.abortController')
+
+/**
+ * An `AbortSignal` that aborts when the client goes away before the response
+ * has finished, so a handler can pass it to `fetch`, a database driver or a
+ * timer. It is created on first read (no listener otherwise), never aborts
+ * once the response has finished, and is already aborted when read after
+ * the client has gone. The reason is the default `AbortError` DOMException,
+ * as for Node's own `IncomingMessage#signal`.
+ *
+ * Node 24.16 to 24.19 and 26.1 to 26.6 abort their own signal after every
+ * response, finished or not (nodejs/node#64390), and Node 22 has none, so
+ * Express defines it here, the same on every Node version. Assigning
+ * `req.signal` sets an own property, as on Node 22 with Express 5.3.0.
+ *
+ * Not in Express 5.3.0.
+ *
+ * @return {AbortSignal}
+ * @public
+ */
+
+Object.defineProperty(req, 'signal', {
+  configurable: true,
+  enumerable: false,
+  get: function signal(this: Request & { [kAbortController]?: AbortController }) {
+    var controller = this[kAbortController]
+    if (controller) return controller.signal
+
+    var res = this.res
+
+    // No Express app has handled this request yet (for example in an
+    // 'upgrade' or 'checkContinue' listener on an app.listen() server), so
+    // there is no response to watch: read what Express 5.3.0 would, Node's
+    // own signal (Node 24.16 and 26.1 added it), or undefined on Node 22
+    if (!res) return Reflect.get(http.IncomingMessage.prototype, 'signal', this)
+
+    var request = this
+    var ac = new AbortController()
+    this[kAbortController] = ac
+
+    // a finished response never aborts, so nothing to listen for
+    if (res.writableFinished) return ac.signal
+
+    // the client went away before this first read
+    if (request.socket.destroyed) {
+      ac.abort()
+      return ac.signal
+    }
+
+    // The response's 'close' comes after 'finish' when it finished, and on
+    // its own when the connection closed first. The request's 'close' also
+    // covers a pipelined request whose response is still queued, which gets
+    // no 'close' on Node 22 when the connection closes. A request's 'close'
+    // can come early, once its body is read, so the socket decides. Both
+    // events fire once per request, so both listeners go away with it.
+    var onclose = function onclose() {
+      if (!res.writableFinished && request.socket.destroyed) ac.abort()
+    }
+
+    res.once('close', onclose)
+    request.once('close', onclose)
+
+    return ac.signal
+  },
+  // Assigning sets an own property, as it did on Node 22 with Express 5.3.0
+  // (a polyfill middleware, for example), where IncomingMessage has no signal
+  set: function setSignal(this: Request, value: unknown) {
+    Object.defineProperty(this, 'signal', { configurable: true, enumerable: true, writable: true, value: value })
+  }
 })
 
 /**

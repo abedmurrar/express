@@ -10,6 +10,8 @@ const asApplication: Application = app
 
 // settings
 app.set('view engine', 'ejs')
+app.set('view engines', ['html', 'pug'])
+app.set('view engines', 'pug')
 app.set('trust proxy', 1)
 const setting: any = app.get('view engine')
 app.enable('strict routing')
@@ -183,6 +185,18 @@ app.get('/request', (req, res) => {
   void req.signedCookies
   void req.route
   void req.res
+  // the fork's req.originalRoute: a string, or undefined, and read-only
+  const originalRoute: string | undefined = req.originalRoute
+  // @ts-expect-error it is read-only
+  req.originalRoute = '/x'
+  void originalRoute
+  const signal: AbortSignal = req.signal
+  signal.addEventListener('abort', () => {
+    const reason: unknown = signal.reason
+    void reason
+  })
+  // @ts-expect-error read-only in the types, as in @types/node 26 (the setter is for JavaScript polyfills)
+  req.signal = AbortSignal.timeout(1000)
   res.end()
 })
 

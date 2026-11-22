@@ -8,7 +8,7 @@ var os = require('node:os')
 var path = require('node:path')
 var { Buffer } = require('node:buffer')
 var express = require('../../')
-var { bug, request } = require('./support')
+var { request } = require('./support')
 
 function tmpViews(files) {
   var dir = fs.mkdtempSync(path.join(os.tmpdir(), 'express-regression-'))
@@ -19,9 +19,7 @@ function tmpViews(files) {
 }
 
 describe('regressions: response', function () {
-  var BINARY = '`res.send` corrupts ArrayBuffer, DataView and typed-array bodies'
-
-  bug('#7362 res.send(ArrayBuffer) sends its bytes', BINARY, async function () {
+  it('#7362 res.send(ArrayBuffer) sends its bytes', async function () {
     var app = express()
     app.get('/', function (req, res) {
       res.send(new Uint8Array([1, 2, 3]).buffer)
@@ -32,7 +30,7 @@ describe('regressions: response', function () {
     assert.deepStrictEqual([...r.body], [1, 2, 3])
   })
 
-  bug('#7510 res.send(DataView) sends its bytes', BINARY, async function () {
+  it('#7510 res.send(DataView) sends its bytes', async function () {
     var app = express()
     app.get('/', function (req, res) {
       res.send(new DataView(new Uint8Array([0, 1, 2, 3, 0]).buffer))
@@ -43,7 +41,7 @@ describe('regressions: response', function () {
     assert.deepStrictEqual([...r.body], [0, 1, 2, 3, 0])
   })
 
-  bug('#7538 res.send(Uint16Array) sends its underlying bytes, with and without ETag', BINARY, async function () {
+  it('#7538 res.send(Uint16Array) sends its underlying bytes, with and without ETag', async function () {
     var data = new Uint16Array([0x0102, 0x0304])
     var expected = [...Buffer.from(data.buffer)]
     for (var etag of [true, false]) {
@@ -58,173 +56,191 @@ describe('regressions: response', function () {
     }
   })
 
-  bug(
-    '#7506 res.redirect leaves out Content-Length when Transfer-Encoding is set',
-    '`res.redirect` sends Content-Length with Transfer-Encoding',
-    async function () {
-      var app = express()
-      app.use(function (req, res) {
-        res.set('Transfer-Encoding', 'chunked')
-        res.redirect('http://example.com/')
-      })
+  it('#7506 res.redirect leaves out Content-Length when Transfer-Encoding is set', async function () {
+    var app = express()
+    app.use(function (req, res) {
+      res.set('Transfer-Encoding', 'chunked')
+      res.redirect('http://example.com/')
+    })
+    var r = await request(app)
+    assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
+    assert.strictEqual(r.status, 302)
+    assert.strictEqual(r.headers['content-length'], undefined)
+    assert.strictEqual(r.headers.location, 'http://example.com/')
+  })
+
+  it('#7034 res.set keeps an unknown Content-Type value as given', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.set('Content-Type', 'not-a-known-type')
+      res.end('x')
+    })
+    var r = await request(app)
+    assert.strictEqual(r.headers['content-type'], 'not-a-known-type')
+  })
+
+  it('#5150 res.cookie leaves out Expires when expires is 0', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.cookie('a', 'b', { maxAge: 60000, expires: 0 })
+      res.end()
+    })
+    var r = await request(app)
+    var cookie = r.headers['set-cookie'][0]
+    assert.match(cookie, /Max-Age=60/)
+    assert.doesNotMatch(cookie, /Expires=/)
+  })
+
+  it('#4750 res.sendFile honours a per-call etag: false', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.sendFile(path.join(__dirname, 'support.js'), { etag: false })
+    })
+    var r = await request(app)
+    assert.strictEqual(r.status, 200)
+    assert.strictEqual(r.headers.etag, undefined)
+  })
+
+  it('#4944 res.sendFile streams files whose size is reported as 0 (/proc)', async function () {
+    if (!fs.existsSync('/proc/cpuinfo')) this.skip()
+    var app = express()
+    app.get('/', function (req, res) {
+      res.sendFile('/proc/cpuinfo')
+    })
+    var r = await request(app)
+    assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
+    assert.strictEqual(r.status, 200)
+    assert.ok(r.body.length > 0, 'expected the file contents, got an empty body')
+  })
+
+  // The crash is in res.render's default callback (no callback given): its
+  // res.send throws from the engine's deferred callback, so on 5.3.0 this
+  // test fails with an uncaught ERR_HTTP_HEADERS_SENT.
+  it('#7560 res.render after a send reports the error instead of throwing it', async function () {
+    var dir = tmpViews({ 'index.tmpl': 'hi' })
+    var seen
+    var app = express()
+    app.engine('tmpl', function (file, opts, cb) {
+      cb(null, fs.readFileSync(file, 'utf8'))
+    })
+    app.set('views', dir)
+    app.set('view engine', 'tmpl')
+    app.get('/', function (req, res) {
+      res.send('already sent')
+      res.render('index')
+    })
+    app.use(function (err, req, res, next) {
+      seen = err.code
+    })
+    try {
       var r = await request(app)
-      assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
-      assert.strictEqual(r.status, 302)
-      assert.strictEqual(r.headers['content-length'], undefined)
-      assert.strictEqual(r.headers.location, 'http://example.com/')
+      await new Promise(function (resolve) {
+        setTimeout(resolve, 50)
+      })
+      assert.strictEqual(r.body.toString(), 'already sent')
+      assert.strictEqual(seen, 'ERR_HTTP_HEADERS_SENT')
+    } finally {
+      fs.rmSync(dir, { recursive: true })
     }
-  )
+  })
 
-  bug(
-    '#7034 res.set keeps an unknown Content-Type value as given',
-    '`res.set` sends `Content-Type: false` for unknown types',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.set('Content-Type', 'not-a-known-type')
-        res.end('x')
-      })
-      var r = await request(app)
-      assert.strictEqual(r.headers['content-type'], 'not-a-known-type')
+  it('PR #7541 res.render does not change the options object it is given', async function () {
+    var dir = tmpViews({ 'v.tmpl': 'x' })
+    var app = express()
+    app.engine('tmpl', function (f, o, cb) {
+      cb(null, 'ok')
+    })
+    app.set('views', dir)
+    app.set('view engine', 'tmpl')
+    var shared = { title: 't' }
+    app.get('/a', function (req, res) {
+      res.render('v', shared)
+    })
+    app.get('/b', function (req, res) {
+      res.render('v', Object.freeze({ title: 't' }))
+    })
+    try {
+      await request(app, { path: '/a' })
+      var b = await request(app, { path: '/b' })
+      assert.deepStrictEqual(Object.keys(shared), ['title'])
+      assert.strictEqual(b.status, 200)
+    } finally {
+      fs.rmSync(dir, { recursive: true })
     }
-  )
+  })
 
-  bug(
-    '#5150 res.cookie leaves out Expires when expires is 0',
-    '`res.cookie` adds Expires despite `expires: 0`',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.cookie('a', 'b', { maxAge: 60000, expires: 0 })
-        res.end()
+  it('#7350 app.render reports a view name ending in "." through the callback', function (done) {
+    var app = express()
+    app.set('view engine', 'ejs')
+    var threw = null
+    try {
+      app.render('index.', function (err) {
+        assert.ok(err instanceof Error)
+        done()
       })
-      var r = await request(app)
-      var cookie = r.headers['set-cookie'][0]
-      assert.match(cookie, /Max-Age=60/)
-      assert.doesNotMatch(cookie, /Expires=/)
+    } catch (e) {
+      threw = e
     }
-  )
+    if (threw) done(new Error('threw synchronously: ' + threw.message.split('\n')[0]))
+  })
 
-  bug(
-    '#4750 res.sendFile honours a per-call etag: false',
-    '`sendFile` ignores a per-call `etag: false`',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.sendFile(path.join(__dirname, 'support.js'), { etag: false })
-      })
-      var r = await request(app)
-      assert.strictEqual(r.status, 200)
-      assert.strictEqual(r.headers.etag, undefined)
-    }
-  )
+  it('PR #7161 res.jsonp with a callback that sanitises to nothing sends plain JSON', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.jsonp({ a: 1 })
+    })
+    var r = await request(app, { path: '/?callback=!!!' })
+    assert.match(r.headers['content-type'], /^application\/json/)
+    assert.strictEqual(r.body.toString(), '{"a":1}')
+  })
 
-  bug(
-    '#4944 res.sendFile streams files whose size is reported as 0 (/proc)',
-    '`/proc` files are sent empty',
-    async function () {
-      if (!fs.existsSync('/proc/cpuinfo')) this.skip()
-      var app = express()
-      app.get('/', function (req, res) {
-        res.sendFile('/proc/cpuinfo')
-      })
-      var r = await request(app)
-      assert.strictEqual(r.error, undefined, 'the client rejected the response: ' + r.error)
-      assert.strictEqual(r.status, 200)
-      assert.ok(r.body.length > 0, 'expected the file contents, got an empty body')
-    }
-  )
+  it('PR #7320 res.links leaves out a relation given an empty array', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.links({ next: 'http://example.com/2', prev: [] }).end()
+    })
+    var r = await request(app)
+    assert.strictEqual(r.headers.link, '<http://example.com/2>; rel="next"')
+  })
 
-  bug(
-    '#7560 res.render after a send reports the error instead of throwing it',
-    '`res.render` after a send crashes the process',
-    async function () {
-      var dir = tmpViews({ 'index.tmpl': 'hi' })
-      var seen
-      var app = express()
-      app.engine('tmpl', function (file, opts, cb) {
-        cb(null, fs.readFileSync(file, 'utf8'))
-      })
-      app.set('views', dir)
-      app.set('view engine', 'tmpl')
-      app.get('/', function (req, res, next) {
-        res.send('already sent')
-        res.render('index', function (err) {
-          seen = err && err.code
-        })
-      })
-      try {
-        var r = await request(app)
-        await new Promise(function (resolve) {
-          setTimeout(resolve, 50)
-        })
-        assert.strictEqual(r.body.toString(), 'already sent')
-        assert.strictEqual(seen, 'ERR_HTTP_HEADERS_SENT')
-      } finally {
-        fs.rmSync(dir, { recursive: true })
-      }
-    }
-  )
+  it('PR #7578 res.links({}) leaves the Link header as it is', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.links({ next: 'http://example.com/2' })
+      res.links({})
+      res.end()
+    })
+    var r = await request(app)
+    assert.strictEqual(r.headers.link, '<http://example.com/2>; rel="next"')
+  })
 
-  bug(
-    'PR #7541 res.render does not change the options object it is given',
-    "`res.render` mutates the caller's options",
-    async function () {
-      var dir = tmpViews({ 'v.tmpl': 'x' })
-      var app = express()
-      app.engine('tmpl', function (f, o, cb) {
-        cb(null, 'ok')
-      })
-      app.set('views', dir)
-      app.set('view engine', 'tmpl')
-      var shared = { title: 't' }
-      app.get('/a', function (req, res) {
-        res.render('v', shared)
-      })
-      app.get('/b', function (req, res) {
-        res.render('v', Object.freeze({ title: 't' }))
-      })
-      try {
-        await request(app, { path: '/a' })
-        var b = await request(app, { path: '/b' })
-        assert.deepStrictEqual(Object.keys(shared), ['title'])
-        assert.strictEqual(b.status, 200)
-      } finally {
-        fs.rmSync(dir, { recursive: true })
-      }
-    }
-  )
+  it('PR #7332 res.append keeps an existing empty header value', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.set('Warning', '')
+      res.append('Warning', '199 Miscellaneous warning')
+      res.end(JSON.stringify(res.get('Warning')))
+    })
+    var r = await request(app)
+    assert.strictEqual(r.body.toString(), '["","199 Miscellaneous warning"]')
+  })
 
-  bug(
-    '#7350 app.render reports a view name ending in "." through the callback',
-    'A view name ending in `.` throws synchronously',
-    function (done) {
-      var app = express()
-      app.set('view engine', 'ejs')
-      var threw = null
-      try {
-        app.render('index.', function (err) {
-          assert.ok(err instanceof Error)
-          done()
-        })
-      } catch (e) {
-        threw = e
-      }
-      if (threw) done(new Error('threw synchronously: ' + threw.message.split('\n')[0]))
-    }
-  )
+  it('PR #7407 res.redirect with a non-standard status names it by its number', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.redirect(399, 'http://example.com/')
+    })
+    var r = await request(app, { headers: { accept: 'text/plain' } })
+    assert.strictEqual(r.status, 399)
+    assert.strictEqual(r.body.toString(), '399. Redirecting to http://example.com/')
+  })
 
-  bug(
-    'PR #7161 res.jsonp with a callback that sanitises to nothing sends plain JSON',
-    'A JSONP callback that sanitises to nothing gives broken JS',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.jsonp({ a: 1 })
-      })
-      var r = await request(app, { path: '/?callback=!!!' })
-      assert.match(r.headers['content-type'], /^application\/json/)
-      assert.strictEqual(r.body.toString(), '{"a":1}')
-    }
-  )
+  it('PR #7479 a quoted ";" in a type parameter stays in its value', function () {
+    var utils = require('../../lib/utils')
+    assert.deepStrictEqual(utils.normalizeType('text/plain; foo="a;q=0"; bar=baz'), {
+      value: 'text/plain',
+      quality: 1,
+      params: { foo: '"a;q=0"', bar: 'baz' }
+    })
+  })
 })

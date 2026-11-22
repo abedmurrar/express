@@ -21,6 +21,10 @@ const { METHODS } = require('node:http') as typeof import('node:http')
 const { Buffer } = require('node:buffer') as typeof import('node:buffer')
 const parseUrl = require('parseurl') as typeof import('parseurl')
 const Route = require('./lib/route') as RouteConstructor
+const symbols = require('./lib/symbols') as typeof import('./lib/symbols')
+const { checkPath, trackRoute } = require('./lib/warnings') as typeof import('./lib/warnings')
+const mountMatch: typeof symbols.mountMatch = symbols.mountMatch
+const routeMatch: typeof symbols.routeMatch = symbols.routeMatch
 const debug = (require('debug') as typeof import('debug'))('router')
 const deprecate = (require('depd') as typeof import('depd'))('router')
 
@@ -35,6 +39,7 @@ import type {
   RouterResponse
 } from './lib/layer'
 import type { HandlerList, HttpMethod, HttpMethods, Route as RouteInstance, RouteConstructor } from './lib/route'
+import type { MatchedRequest, MatchRecord } from './lib/symbols'
 
 export type {
   ErrorRequestHandler,
@@ -104,6 +109,23 @@ interface ParamCalled {
 const slice = Array.prototype.slice
 const flatten = Array.prototype.flat
 const methods = METHODS.map((method) => method.toLowerCase()) as Array<HttpMethod | 'all'>
+
+/**
+ * Not in upstream (router 2.2.0, 2.3.0). When a mount path takes the whole
+ * pathname and the request has no slash after it (`GET /dir` on
+ * `use('/dir', router)`), `req.url` would be empty, so the router adds a
+ * leading slash. A strict router below then saw only "/", so a route for ""
+ * could never match (expressjs/express#3798). This maps the request to the
+ * exact `req.url` that adding the slash produced, while the mount is entered.
+ * For that `req.url`, a strict router tries each route on "" before "/", so
+ * `get('')` answers `/dir` and not `/dir/`. A route that matches "/" still
+ * answers both, as before (making it answer only `/dir/` is the opt-in for
+ * expressjs/express#2281). Once something rewrites `req.url`, it no longer
+ * equals the stored value and routes as it reads.
+ * @private
+ */
+
+const addedSlashUrl = new WeakMap<RouterRequest, string>()
 
 /**
  * Expose `Router`.
@@ -235,14 +257,29 @@ proto.handle = function handleRequest(req, res, callback) {
     throw new TypeError('argument callback is required')
   }
 
+  // A request target never carries a fragment (RFC 9112 section 3.2), but
+  // Node passes one through in req.url, and parseurl then falls back to
+  // url.parse, which reads "//user@host/..." as a host and routes a path the
+  // client never asked for. Not in upstream (router 2.2.0, 2.3.0): drop the
+  // fragment once, in the outermost router (no originalUrl yet), so every
+  // reader of req.url, req.originalUrl and req.path sees the same path.
+  if (!req.originalUrl && typeof req.url === 'string') {
+    const hash = req.url.indexOf('#')
+    if (hash !== -1) {
+      req.url = req.url.slice(0, hash)
+    }
+  }
+
   debug('dispatching %s %s', req.method, req.url)
 
+  let entered: MatchRecord | undefined
   let idx = 0
   let methods: string[] | undefined
   const protohost = getProtohost(req.url) || ''
   let removed = ''
   const self = this
   let slashAdded = false
+  let slashMarked = false
   let sync = 0
   const paramcalled: Record<string, ParamCalled> = {}
 
@@ -278,6 +315,18 @@ proto.handle = function handleRequest(req, res, callback) {
       slashAdded = false
     }
 
+    // forget the slash this router added (see addedSlashUrl)
+    if (slashMarked) {
+      addedSlashUrl.delete(req)
+      slashMarked = false
+    }
+
+    // leave the mount this router entered (see trimPrefix)
+    if (entered !== undefined) {
+      ;(req as RouterRequest & MatchedRequest)[mountMatch] = entered.parent
+      entered = undefined
+    }
+
     // restore altered req.url
     if (removed.length !== 0) {
       req.baseUrl = parentUrl
@@ -309,6 +358,9 @@ proto.handle = function handleRequest(req, res, callback) {
       return done(layerError)
     }
 
+    // a strict router below a mount that had no slash after it (see addedSlashUrl)
+    const noSlash = self.strict && addedSlashUrl.get(req) === req.url
+
     // find next matching layer
     let layer!: LayerInstance
     let match: unknown
@@ -316,7 +368,7 @@ proto.handle = function handleRequest(req, res, callback) {
 
     while (match !== true && idx < stack.length) {
       layer = stack[idx++] as LayerInstance
-      match = matchLayer(layer, path)
+      match = (noSlash && layer.route !== undefined && matchLayer(layer, '') === true) || matchLayer(layer, path)
       route = layer.route
 
       if (typeof match !== 'boolean') {
@@ -361,6 +413,16 @@ proto.handle = function handleRequest(req, res, callback) {
     // store route for dispatch on change
     if (route) {
       req.route = route
+
+      // Not in upstream (router 2.2.0, 2.3.0): what req.originalRoute is built
+      // from when it is read (lib/original-route), kept as long as req.route
+      // is, with the mounts the request is in at this moment
+      ;(req as RouterRequest & MatchedRequest)[routeMatch] = {
+        layer,
+        path,
+        noSlash,
+        parent: (req as RouterRequest & MatchedRequest)[mountMatch]
+      }
     }
 
     // Capture one-time layer values
@@ -406,11 +468,25 @@ proto.handle = function handleRequest(req, res, callback) {
       if (!protohost && req.url[0] !== '/') {
         req.url = '/' + req.url
         slashAdded = true
+
+        // the request had no slash after the mount path (see addedSlashUrl)
+        if (removed[removed.length - 1] !== '/') {
+          addedSlashUrl.set(req, req.url)
+          slashMarked = true
+        }
       }
 
       // Setup base URL (no trailing slash)
       req.baseUrl =
         parentUrl + (removed[removed.length - 1] === '/' ? removed.substring(0, removed.length - 1) : removed)
+    }
+
+    // Not in upstream (router 2.2.0, 2.3.0): record the mount the request
+    // enters, for req.originalRoute (see the route record in next()), until
+    // it comes back to next(). A "/" mount adds nothing to the route.
+    if (!layer.slash) {
+      entered = { layer, path, noSlash: false, parent: (req as RouterRequest & MatchedRequest)[mountMatch] }
+      ;(req as RouterRequest & MatchedRequest)[mountMatch] = entered
     }
 
     debug('%s %s : %s', layer.name, layerPath, req.originalUrl)
@@ -471,6 +547,14 @@ proto.use = function use(handler) {
       throw new TypeError('argument handler must be a function')
     }
 
+    // Not in upstream (router 2.2.0, 2.3.0): a router mounted at "/" on
+    // itself, directly or through routers mounted at "/", sends every request
+    // it doesn't answer round forever. Mounts at other paths consume a part
+    // of the path on each pass, so those cycles end and still work.
+    if (path === '/' && fn instanceof Router && mountsAtRoot(fn as Router, this, new Set())) {
+      throw new TypeError('argument handler would mount this router on itself at "/", which loops forever')
+    }
+
     // add the middleware
     debug('use %o %s', path, fn.name || '<anonymous>')
 
@@ -488,6 +572,10 @@ proto.use = function use(handler) {
 
     this.stack.push(layer)
   }
+
+  // Not in upstream (router 2.2.0, 2.3.0): warn about a path no request can
+  // match (lib/warnings), on the express:router debug namespace
+  checkPath(path, 'use')
 
   return this
 }
@@ -525,6 +613,12 @@ proto.route = function route(path) {
   layer.route = route
 
   this.stack.push(layer)
+
+  // Not in upstream (router 2.2.0, 2.3.0): the express:router warnings
+  // (lib/warnings) about a path no request can match and duplicate routes
+  checkPath(path, 'route')
+  trackRoute(this, route, this.stack.length - 1)
+
   return route
 }
 
@@ -648,6 +742,35 @@ function mergeParams(params: Params, parent: Params | undefined): Params {
   }
 
   return Object.assign(obj, params)
+}
+
+/**
+ * Whether `router` is `target`, or mounts it through routers mounted at "/".
+ * Not in upstream (router 2.2.0, 2.3.0). Runs when a router is mounted,
+ * never per request; `seen` stops it at a router it has already walked.
+ *
+ * @private
+ */
+
+function mountsAtRoot(router: Router, target: Router, seen: Set<Router>): boolean {
+  if (router === target) {
+    return true
+  }
+
+  if (seen.has(router)) {
+    return false
+  }
+
+  seen.add(router)
+
+  for (let i = 0; i < router.stack.length; i++) {
+    const layer = router.stack[i] as LayerInstance
+    if (layer.slash && layer.handle instanceof Router && mountsAtRoot(layer.handle as Router, target, seen)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 /**

@@ -116,6 +116,34 @@ app.get('/', (req: Request, res: Response) => {
 
 :::
 
+Once the headers are sent, a method that sets a header (`res.send()`, `res.json()`, `res.jsonp()`,
+`res.sendStatus()`, `res.redirect()`, `res.render()`, `res.set()`, `res.append()`, `res.cookie()`,
+`res.clearCookie()`, `res.location()`, `res.type()`, `res.attachment()`, `res.links()`, `res.vary()`
+and `res.format()`) throws Node's `ERR_HTTP_HEADERS_SENT` error. The message names the method that
+was called, which is usually the second response in a handler that forgot a `return`:
+
+```js
+app.get('/user/:id', async (req, res) => {
+  const user = await users.find(req.params.id);
+  if (!user) res.status(404).send('Not found'); // no return
+  res.json(user);
+  // Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client:
+  // res.json() was called after the response headers were sent
+});
+```
+
+::: info
+
+Not in Express 5.3.0, where the message is Node's "Cannot set headers after they are sent to
+the client" alone. Only the message changes: the error is the same object (same class, same
+`code`, same stack frames), thrown from the same place, so code that checks
+`err.code === 'ERR_HTTP_HEADERS_SENT'` keeps working, and so does a check that the message
+starts with or includes Node's text. `res.render()` without a callback passes it to `next(err)`.
+Aliases are named by their main name: `res.header()` as `res.set()` and `res.contentType()` as
+`res.type()`.
+
+:::
+
 ### res.locals
 
 **Type:** `Object`
@@ -690,7 +718,9 @@ res.status(500).jsonp({ error: 'message' });
 **Returns:** `Response`
 
 Joins the `links` provided as properties of the parameter to populate the response's
-`Link` HTTP header field.
+`Link` HTTP header field. Each call adds to an existing `Link` header. A relation whose value is
+an empty array adds nothing, and a call with nothing to add (such as `res.links({})`) leaves the
+header as it is.
 
 For example, the following call:
 
@@ -819,7 +849,7 @@ Optional parameters:
 - `locals`, an object whose properties define local variables for the view.
 - `callback`, a callback function. If provided, the method returns both the possible error and rendered string, but does not perform an automated response. When an error occurs, the method invokes `next(err)` internally.
 
-The `view` argument is a string that is the file path of the view file to render. This can be an absolute path, or a path relative to the `views` setting. If the path does not contain a file extension, then the `view engine` setting determines the file extension. If the path does contain a file extension, then Express will load the module for the specified template engine (via `require()`) and render it using the loaded module's `__express` function.
+The `view` argument is a string that is the file path of the view file to render. This can be an absolute path, or a path relative to the `views` setting. If the path does not contain a file extension, then the `view engine` setting determines the file extension. With the fork's `view engines` setting, a name without a known extension tries the `view engine` extension, then each listed one, and renders the first file found; see [Several template engines](/api/application#several-template-engines). If the path does contain a file extension, then Express will load the module for the specified template engine (via `require()`) and render it using the loaded module's `__express` function.
 
 For more information, see [Using template engines with Express](/guide/using-template-engines).
 
@@ -972,6 +1002,11 @@ including containing `..`. Express will validate that the relative path provided
 resolve within the given `root` option.
 
 :::
+
+A file whose size is reported as 0 but that has content, such as a Linux `/proc` or `/sys`
+file, is streamed to its end with no `Content-Length`, and a `Range` request gets the whole
+file. A really empty file is sent with `Content-Length: 0`. (Express 5.3.0 sent such files
+empty.)
 
 The method invokes the callback function `fn(err)` when the transfer is complete
 or when an error occurs. If the callback function is specified and an error occurs,

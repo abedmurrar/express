@@ -788,6 +788,30 @@ var scenarios = [
     req: get('/', { host: 'evil.example:x@good.example' })
   },
   {
+    name: 'req.hostname trusted X-Forwarded-Host userinfo',
+    setup: function (app) {
+      app.set('trust proxy', true)
+      echo(function (req) {
+        return [req.host, req.hostname, req.subdomains]
+      })(app)
+    },
+    req: get('/', { 'x-forwarded-host': 'admin.example:x@tobi.ferrets.example.com:8443, other.example' })
+  },
+  {
+    name: 'req.host non-numeric port',
+    setup: echo(function (req) {
+      return [req.host === undefined, req.hostname === undefined]
+    }),
+    req: get('/', { host: 'evil.example:x%40good.example' })
+  },
+  {
+    name: 'req.subdomains IPv6 with dots',
+    setup: echo(function (req) {
+      return [req.hostname, req.subdomains]
+    }),
+    req: get('/', { host: '[::ffff:127.0.0.1]:3000' })
+  },
+  {
     name: 'req.protocol untrusted',
     setup: echo(function (req) {
       return [req.protocol, req.secure, req.ip, req.ips]
@@ -1878,8 +1902,410 @@ FAST_PATH_SETTINGS.forEach(function (variant) {
   })
 })
 
+// Fixed in src/response.ts, so each differs from 5.3.0 on purpose (listed in
+// `allowed` below).
+scenarios.push(
+  {
+    // 5.3.0 hands the view to res.end, which rejects it: a 500
+    name: 'res.send Float32Array window without ETag',
+    setup: function (app) {
+      app.set('etag', false)
+      sendWith(new Float32Array([1, 2.5, -3, 4]).subarray(1, 3))(app)
+    },
+    req: get('/')
+  },
+  {
+    name: 'res.send SharedArrayBuffer',
+    setup: function (app) {
+      var sab = new SharedArrayBuffer(3)
+      new Uint8Array(sab).set([104, 105, 33])
+      sendWith(sab)(app)
+    },
+    req: get('/')
+  },
+  {
+    name: 'res.redirect 301 HEAD with Transfer-Encoding',
+    setup: route('head', '/', function (req, res) {
+      res.set('Transfer-Encoding', 'chunked')
+      res.redirect(301, '/moved')
+    }),
+    req: { method: 'HEAD', path: '/', headers: {} }
+  },
+  {
+    // 5.3.0 stores false, which res.send replaces with text/html
+    name: 'res.set unknown Content-Type then res.send string',
+    setup: route('get', '/', function (req, res) {
+      res.set('Content-Type', 'definitely-unknown').send('hi')
+    }),
+    req: get('/')
+  },
+  {
+    name: 'res.cookie maxAge with expires 0',
+    setup: route('get', '/', function (req, res) {
+      res.cookie('n', 'v', { maxAge: 60000, expires: 0 }).end()
+    }),
+    req: get('/')
+  },
+  {
+    name: 'res.jsonp first callback sanitises to nothing',
+    setup: route('get', '/', function (req, res) {
+      res.jsonp({ a: 1 })
+    }),
+    req: get('/?callback=%3C%3E&callback=ok')
+  }
+)
+
+// A per-call etag option wins over the app setting (src/response.ts,
+// sendFile), so this differs from 5.3.0 on purpose too.
+scenarios.push({
+  name: 'res.sendFile etag true option with etag disabled',
+  setup: function (app) {
+    app.disable('etag')
+    route('get', '/', function (req, res) {
+      res.sendFile(path.join(FIXTURES, 'name.txt'), { etag: true })
+    })(app)
+  },
+  req: get('/')
+})
+
+// Rendering fixes (src/response.ts render, src/view.ts), so these differ
+// from 5.3.0 on purpose too. res.render after another response was sent has
+// no scenario: on 5.3.0 it throws from a deferred callback and ends the
+// process, which would take the harness down with it.
+scenarios.push(
+  {
+    // 5.3.0 assigns _locals onto the frozen object: a 500
+    name: 'res.render with frozen options',
+    setup: function (app) {
+      views(app)
+      app.get('/', function (req, res) {
+        res.render('user.tmpl', Object.freeze({ user: { name: 'tobi' } }))
+      })
+    },
+    req: get('/')
+  },
+  {
+    // 5.3.0 calls require(''): a 500 with an ERR_INVALID_ARG_VALUE message
+    name: 'res.render view name ending in a dot',
+    setup: function (app) {
+      views(app)
+      app.set('view engine', 'tmpl')
+      app.get('/', function (req, res) {
+        res.render('user.')
+      })
+    },
+    req: get('/')
+  }
+)
+
+// A view whose extension matches a registered engine in another case
+// (src/view.ts): 5.3.0 misses the "TMPL" engine for "user.tmpl" and fails
+// on require('tmpl'), a 500; the fork renders it.
+scenarios.push({
+  name: 'res.render engine registered in another case',
+  setup: function (app) {
+    app.engine('TMPL', tmpl)
+    app.set('views', FIXTURES)
+    app.get('/', function (req, res) {
+      res.render('user.tmpl', { user: { name: 'tobi' } })
+    })
+  },
+  req: get('/')
+})
+
+// A fully qualified Host with the DNS root dot (src/request.ts): 5.3.0 counts
+// the empty label after it, so "example" becomes a subdomain.
+scenarios.push({
+  name: 'req.subdomains trailing root dot',
+  setup: echo(function (req) {
+    return [req.hostname, req.subdomains]
+  }),
+  req: get('/', { host: 'tobi.ferrets.example.com.:3000' })
+})
+
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
-var allowed = {}
+// A g-flag RegExp guard whose lastIndex the app left non-zero: Express 5.3.0
+// matches from that index, skips the guard and answers 404; the fork starts
+// every match at 0 and runs the guard (src/router/lib/layer.ts).
+scenarios.push({
+  name: 'app.use(stateful RegExp guard with lastIndex left at 3)',
+  setup: function (app) {
+    var re = /^\/admin/g
+    re.lastIndex = 3
+    app.use(re, function (req, res) {
+      res.status(401).send('denied')
+    })
+  },
+  req: get('/admin/secret')
+})
+
+// A router mounted at "//" in front of a guard: Express 5.3.0 loosens "//"
+// to "", which matches every path, so the router answers "/secret" before
+// the guard runs; the fork keeps "//" (src/router/lib/layer.ts, loosen).
+scenarios.push({
+  name: 'router at "//" in front of a guarded "/secret"',
+  setup: function (app, express) {
+    var open = express.Router()
+    open.get('/secret', function (req, res) {
+      res.send('open')
+    })
+    app.use('//', open)
+    app.use(function (req, res) {
+      res.status(401).send('denied')
+    })
+  },
+  req: get('/secret')
+})
+
+// A router mounted on itself at "/": Express 5.3.0 accepts the mount (and
+// overflows the stack on any request the router doesn't answer); the fork's
+// router.use() throws a TypeError (src/router/index.ts, mountsAtRoot).
+scenarios.push({
+  name: 'router.use(router) on itself',
+  setup: function (app, express) {
+    var r = express.Router()
+    var result = 'mounted'
+    try {
+      r.use(r)
+    } catch (err) {
+      result = err.name + ': ' + err.message
+    }
+    app.get('/', function (req, res) {
+      res.send(result)
+    })
+  },
+  req: get('/')
+})
+
+// A "#" fragment after "//user@host/admin": Express 5.3.0 parses the target
+// with url.parse, reads "x@evil.example" as a host and routes "/admin"; the
+// fork drops the fragment first (src/router/index.ts, handle) and routes the
+// path the client sent.
+scenarios.push({
+  name: 'GET //x@evil.example/admin#z',
+  setup: function (app) {
+    app.get('/admin', function (req, res) {
+      res.send('admin')
+    })
+    app.get('*splat', function (req, res) {
+      res.json([req.url, req.originalUrl, req.path])
+    })
+  },
+  req: get('//x@evil.example/admin#z')
+})
+
+// A strict router mounted at "/dir" with a route for "": Express 5.3.0 only
+// ever shows that router "/" (the slash it adds so req.url is never empty),
+// so the route never matches and the request is a 404; the fork's strict
+// router tries "" for that slash (src/router/index.ts, addedSlashUrl).
+scenarios.push({
+  name: 'strict router at "/dir" with a "" route: GET /dir',
+  setup: function (app, express) {
+    var router = express.Router({ strict: true })
+    router.get('', function (req, res) {
+      res.send('no slash ' + req.url)
+    })
+    app.use('/dir', router)
+  },
+  req: get('/dir')
+})
+
+// A sub-app mounted with router.use() that passes the request on: Express
+// 5.3.0 leaves req and res with the sub-app's prototypes, so the parent's
+// next middleware sees the sub-app's req.app and settings; the fork's
+// app.handle gives the parent's back (src/application.ts).
+scenarios.push({
+  name: 'router.use(subApp) then a parent middleware',
+  setup: function (app, express) {
+    app.set('trust proxy', true)
+    var sub = express()
+    var router = express.Router()
+    router.use('/sub', sub)
+    app.use(router)
+    app.use(function (req, res) {
+      res.json([req.app === app, res.app === app, req.ip])
+    })
+  },
+  req: get('/sub/x', { 'X-Forwarded-For': '203.0.113.9' })
+})
+
+// The error listeners on the server at request time. app.listen(port, cb) in
+// Express 5.3.0 leaves its startup error listener attached; the fork removes
+// it once the server is listening (src/application.ts). On
+// http.createServer(app) both have none, so only the app.listen() mode is in
+// `allowed`.
+scenarios.push({
+  name: 'server error listeners after a successful start',
+  setup: echo(function (req) {
+    return req.socket.server.listenerCount('error')
+  }),
+  req: get('/')
+})
+
+// A regular file that stats as 0 bytes but has content: Express 5.3.0 sends
+// it empty with Content-Length 0; the fork streams it to EOF
+// (src/send/index.ts). Only where /proc exists.
+var PROC_FILE = '/proc/version'
+var HAS_PROC = require('node:fs').existsSync(PROC_FILE)
+if (HAS_PROC) {
+  scenarios.push({
+    name: 'res.sendFile /proc file (size 0 with content)',
+    setup: route('get', '/', function (req, res) {
+      res.sendFile(PROC_FILE)
+    }),
+    req: get('/')
+  })
+}
+
+// res.links with empty values, res.append with an existing empty value,
+// res.redirect with a status that has no standard message, and a quoted ";"
+// in a type parameter (src/response.ts, src/utils.ts acceptParams), so these
+// differ from 5.3.0 on purpose. The last one has no effect on a response
+// (res.format only uses the type before the parameters), so it shows what
+// each side's lib/utils parses.
+var UTILS = new Map([
+  [require('express-baseline'), require('express-baseline/lib/utils')],
+  [require('../..'), require('../../lib/utils')]
+])
+
+scenarios.push(
+  {
+    // 5.3.0 sends `</2>; rel="next", ` with a trailing comma
+    name: 'res.links with an empty relation',
+    setup: route('get', '/', function (req, res) {
+      res.links({ next: '/2', prev: [] }).end()
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 sends an empty Link header
+    name: 'res.links({}) on a fresh response',
+    setup: route('get', '/', function (req, res) {
+      res.links({}).end()
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 drops the empty value
+    name: 'res.append to an empty value',
+    setup: route('get', '/', function (req, res) {
+      res.set('X-A', '')
+      res.append('X-A', 'b')
+      res.end(JSON.stringify(res.get('X-A')))
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 says "undefined. Redirecting to /next"
+    name: 'res.redirect 399 text accept',
+    setup: route('get', '/', function (req, res) {
+      res.redirect(399, '/next')
+    }),
+    req: get('/', { accept: 'text/plain' })
+  },
+  {
+    name: 'res.redirect 399 html accept',
+    setup: route('get', '/', function (req, res) {
+      res.redirect(399, '/next')
+    }),
+    req: get('/', { accept: 'text/html' })
+  },
+  {
+    // 5.3.0 cuts foo at the quoted ";" and reads the quoted q=0 as the quality
+    name: 'lib/utils normalizeType with a quoted ";"',
+    setup: function (app, express) {
+      var utils = UTILS.get(express)
+      route('get', '/', function (req, res) {
+        res.json(utils.normalizeType('text/plain; foo="a;q=0"; bar=baz'))
+      })(app)
+    },
+    req: get('/')
+  }
+)
+
+var allowed = {
+  'res.render with frozen options':
+    "fixed in the fork: `res.render` mutates the caller's options (it now merges res.locals into a copy)",
+  'res.render view name ending in a dot':
+    'fixed in the fork: a view name ending in `.` throws synchronously (it now gets the usual lookup error)',
+  'res.sendFile etag false option':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
+  'res.sendFile etag true option with etag disabled':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (a per-call `etag: true` wins too)',
+  'res.send ArrayBuffer':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send DataView':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send Uint16Array':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send Float32Array window without ETag':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send SharedArrayBuffer':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.redirect with Transfer-Encoding':
+    'fixed in the fork: `res.redirect` sends Content-Length with Transfer-Encoding (it now leaves it out, as res.send does)',
+  'res.redirect 301 HEAD with Transfer-Encoding':
+    'fixed in the fork: `res.redirect` sends Content-Length with Transfer-Encoding (it now leaves it out, as res.send does)',
+  'res.set Content-Type unknown':
+    'fixed in the fork: `res.set` sends `Content-Type: false` for unknown types (it now keeps the value as given)',
+  'res.set unknown Content-Type then res.send string':
+    'fixed in the fork: `res.set` sends `Content-Type: false` for unknown types (res.send now keeps the value as given)',
+  'res.cookie maxAge with expires 0':
+    'fixed in the fork: `res.cookie` adds Expires despite `expires: 0` (it now sends Max-Age alone)',
+  'res.jsonp empty after sanitising':
+    'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
+  'res.jsonp first callback sanitises to nothing':
+    'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
+  'res.links with an empty relation':
+    'fixed in the fork: `res.links` with empty values (an empty array adds nothing, so no trailing comma)',
+  'res.links({}) on a fresh response':
+    'fixed in the fork: `res.links` with empty values (nothing to add leaves the header alone, so no empty Link)',
+  'res.append to an empty value':
+    'fixed in the fork: `res.append` keeps an existing empty header value (it is sent as its own header line)',
+  'res.redirect 399 text accept':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 399)',
+  'res.redirect 399 html accept':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 399)',
+  'lib/utils normalizeType with a quoted ";"':
+    'fixed in the fork: quoted `;` in `acceptParams` (a parameter ends at the next `;` outside quotes)',
+  'req.hostname userinfo':
+    'fixed in the fork: userinfo before an "@" in the Host header is dropped, so req.hostname is good.example, not evil.example (upstream PR #7317)',
+  'req.hostname trusted X-Forwarded-Host userinfo':
+    'fixed in the fork: userinfo is dropped from a trusted X-Forwarded-Host too, so req.host, req.hostname and req.subdomains come from tobi.ferrets.example.com:8443 (upstream PR #7317)',
+  'req.host non-numeric port':
+    'fixed in the fork: a Host whose port is not all digits (an encoded "@" here) gives no req.host or req.hostname, where 5.3.0 gave evil.example (upstream PR #7317)',
+  'req.protocol uppercase forwarded':
+    'fixed in the fork: a trusted X-Forwarded-Proto is lowercased, so "HTTPS" gives req.protocol "https" and req.secure true (upstream PR #7330)',
+  'req.subdomains IPv6 with dots':
+    'fixed in the fork: an IPv6 host with dots has no subdomains, where 5.3.0 split "[::ffff:127.0.0.1]" on its dots (#7532, upstream PR #7533)',
+  'req.subdomains trailing root dot':
+    'fixed in the fork: a trailing DNS root dot is not a subdomain part, so "tobi.ferrets.example.com." gives ["ferrets", "tobi"], where 5.3.0 gave ["example", "ferrets", "tobi"] (upstream PR #7331)',
+  'res.render engine registered in another case':
+    'fixed in the fork: a view extension matches a registered engine ignoring case, so "user.tmpl" renders with the "TMPL" engine, where 5.3.0 tried require("tmpl") (#4594)',
+
+  'app.use(stateful RegExp guard with lastIndex left at 3)':
+    'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)',
+  'double slash mount':
+    'fixed in the fork: a `//` mount no longer also matches `/` (#4557), so "/secret" reaches the app route, not the router',
+  'router at "//" in front of a guarded "/secret"':
+    'fixed in the fork: a `//` mount no longer also matches `/` (#4557, an auth bypass in 5.3.0)',
+  'router.use(router) on itself':
+    'fixed in the fork: a router cycle gives a clear error instead of a stack overflow (#6809)',
+  'GET //x@evil.example/admin#z':
+    'fixed in the fork: a `#` fragment in the request target no longer changes the routed path',
+  'strict router at "/dir" with a "" route: GET /dir':
+    'fixed in the fork: mount-path edge case from #3798 (a strict router\'s "" route now answers "/dir")',
+  'router.use(subApp) then a parent middleware':
+    "fixed in the fork: `router.use(subApp)` restores req/res prototypes like `app.use` (the parent's req.app and trust proxy apply again)",
+
+  'app.listen(): server error listeners after a successful start':
+    'fixed in the fork: app.listen() removes its startup error listener once the server listens, so a later error is not swallowed (upstream PR #7501)'
+}
+
+if (HAS_PROC) {
+  allowed['res.sendFile /proc file (size 0 with content)'] =
+    'fixed in the fork: a file that stats as 0 bytes but has content is streamed to EOF instead of sent empty (#4944)'
+}
 
 module.exports = { scenarios: scenarios, allowed: allowed }

@@ -195,7 +195,7 @@ app.get('/request', (req, res) => {
     const reason: unknown = signal.reason
     void reason
   })
-  // @ts-expect-error it is read-only, like Node's own
+  // @ts-expect-error read-only in the types, as in @types/node 26 (the setter is for JavaScript polyfills)
   req.signal = AbortSignal.timeout(1000)
   res.end()
 })

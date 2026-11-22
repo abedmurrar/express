@@ -795,9 +795,8 @@ app.get('/report', async (req, res, next) => {
 - **Read late, it is still right:** read after the client has gone it is already aborted, and
   read after the response has finished it never aborts.
 - **It is the same signal in every app** the request goes through, including a mounted sub-app.
-- **It is read-only**, like Node's own `IncomingMessage#signal`: `req.signal = mySignal` throws a
-  `TypeError` in strict mode code (and is ignored otherwise). To give one request another signal,
-  use `Object.defineProperty(req, 'signal', { value: mySignal })`.
+- Assigning `req.signal = mySignal` replaces it for that request (an own property), as it did on
+  Node.js 22 with Express 5.3.0, so a middleware that sets its own signal keeps working.
 
 ::: info
 

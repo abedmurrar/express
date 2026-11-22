@@ -423,28 +423,24 @@ describe('req.signal', function () {
     })
   })
 
-  it("has no setter, like Node's own: assigning throws, Object.defineProperty replaces it", async function () {
+  it('can be assigned, which sets an own property as on Node 22 with Express 5.3.0', async function () {
     var app = express()
     var mine = new AbortController().signal
     var seen
     app.use(function (req, res, next) {
-      try {
-        req.signal = mine
-      } catch (err) {
-        seen = { thrown: err.name }
-      }
-      Object.defineProperty(req, 'signal', { configurable: true, value: mine })
+      // a polyfill middleware, in strict mode code
+      req.signal = mine
       next()
     })
     app.get('/', function (req, res) {
-      seen.same = req.signal === mine
+      seen = { same: req.signal === mine, own: Object.getOwnPropertyDescriptor(req, 'signal') }
       res.send('ok')
     })
     server = await listen(app)
 
     await get(server, '/')
-    assert.deepStrictEqual(seen, { thrown: 'TypeError', same: true })
-    assert.strictEqual(Object.getOwnPropertyDescriptor(express.request, 'signal').set, undefined)
+    assert.strictEqual(seen.same, true)
+    assert.deepStrictEqual(seen.own, { value: mine, writable: true, enumerable: true, configurable: true })
   })
 
   it("before an app handles the request, reads Node's own signal (none on Node 22)", async function () {

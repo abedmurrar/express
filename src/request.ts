@@ -635,10 +635,8 @@ const kAbortController = Symbol('express.abortController')
  *
  * Node 24.16 to 24.19 and 26.1 to 26.6 abort their own signal after every
  * response, finished or not (nodejs/node#64390), and Node 22 has none, so
- * Express defines it here, the same on every Node version. It has no
- * setter, like Node's own: a setter on the request prototype made the
- * not-found path count 0.4% more instructions per request. Use
- * Object.defineProperty to replace it on one request.
+ * Express defines it here, the same on every Node version. Assigning
+ * `req.signal` sets an own property, as on Node 22 with Express 5.3.0.
  *
  * Not in Express 5.3.0.
  *
@@ -688,6 +686,11 @@ Object.defineProperty(req, 'signal', {
     request.once('close', onclose)
 
     return ac.signal
+  },
+  // Assigning sets an own property, as it did on Node 22 with Express 5.3.0
+  // (a polyfill middleware, for example), where IncomingMessage has no signal
+  set: function signal(this: Request, value: unknown) {
+    Object.defineProperty(this, 'signal', { configurable: true, enumerable: true, writable: true, value: value })
   }
 })
 

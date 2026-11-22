@@ -107,6 +107,20 @@ describe('regressions: request, app and routing', function () {
     assert.deepStrictEqual([bare.body.toString(), slash.body.toString()], ['no slash', 'slash'])
   })
 
+  it('#7427 router.use(subApp) gives the parent app its prototypes back', async function () {
+    var app = express()
+    app.set('trust proxy', true)
+    var sub = express()
+    var router = express.Router()
+    router.use('/sub', sub)
+    app.use(router)
+    app.use(function (req, res) {
+      res.json([req.app === app, res.app === app, req.ip])
+    })
+    var r = await request(app, { path: '/sub/x', headers: { 'X-Forwarded-For': '203.0.113.9' } })
+    assert.deepStrictEqual(JSON.parse(r.body), [true, true, '203.0.113.9'])
+  })
+
   // Found by the property tests (test/property/query.js). With a "#" in the
   // request target, parseurl falls back to Node's legacy url.parse, which
   // reads a leading "//" as the start of a host. Express 5.3.0 does the same.

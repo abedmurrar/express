@@ -269,9 +269,26 @@ app.handle = function handle(this: Application, req: Request, res: ExpressRespon
   req.res = res
   res.req = req
 
+  var reqProto: object | null = Object.getPrototypeOf(req)
+  var resProto: object | null = Object.getPrototypeOf(res)
+
+  // Not in 5.3.0: running inside another Express app (mounted with app.use()
+  // or router.use(), or called as its middleware), give the caller back its
+  // prototypes when control returns to it, so req.app, req.ip and the rest
+  // read the caller's settings again (#7427). 5.3.0 did this only in
+  // app.use()'s mounted_app wrapper. A caller that is not an Express app (no
+  // req.app) keeps this app's prototypes, as in 5.3.0.
+  if (callback && 'app' in req) {
+    done = function restoreCaller(err?: unknown) {
+      Object.setPrototypeOf(req, reqProto)
+      Object.setPrototypeOf(res, resProto)
+      callback(err)
+    }
+  }
+
   // alter the prototypes, unless app.listen() already made req and res with them
-  if (Object.getPrototypeOf(req) !== this.request) Object.setPrototypeOf(req, this.request)
-  if (Object.getPrototypeOf(res) !== this.response) Object.setPrototypeOf(res, this.response)
+  if (reqProto !== this.request) Object.setPrototypeOf(req, this.request)
+  if (resProto !== this.response) Object.setPrototypeOf(res, this.response)
 
   // setup locals
   if (!res.locals) {
@@ -331,14 +348,9 @@ app.use = function use(this: Application, fn: unknown) {
     fn.mountpath = path
     fn.parent = this
 
-    // restore .app property on req and res
+    // app.handle gives req and res back this app's prototypes (and .app) when it is done
     router.use(path, function mounted_app(req: Request, res: ExpressResponse, next: NextFunction) {
-      var orig = req.app
-      fn.handle!(req, res, function (err) {
-        Object.setPrototypeOf(req, orig.request)
-        Object.setPrototypeOf(res, orig.response)
-        next(err)
-      })
+      fn.handle!(req, res, next)
     })
 
     // mounted an app

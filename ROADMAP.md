@@ -243,7 +243,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | Quoted `;` in `acceptParams` | PR #7479 | master | Small | new test | |
 | [ ] | Async view lookup (no sync file I/O after startup) | PR #2653 | master | Medium | existing view tests | |
 | [ ] | View engine extension matching ignores case | #4594, PR #7051 | master | Small | new test | |
-| [ ] | `router.use(subApp)` restores req/res prototypes like `app.use` | #7427 | master | Small | new test | |
+| [x] | `router.use(subApp)` restores req/res prototypes like `app.use` | #7427, PRs #7428, #7434 | master | Small | the #7427 repro passes: `app.handle` gives an Express caller its prototypes back when it calls the callback, so `app.use()`, `router.use()` and a sub-app called as middleware all restore them (`mounted_app` no longer does it itself); tests for `next()`, `next(err)`, `trust proxy`, the parent's own request methods, `req.url`/`req.baseUrl`/`req.originalUrl`, nested sub-apps, `app.use(subApp)` unchanged, and a bare router outside any app keeping the sub-app's prototypes as in 5.3.0 (PR #7434 restores there too, so it is not taken); a differential scenario differs on purpose. The `mount` event and settings inheritance for `router.use(subApp)` are not part of this. Removing the fix fails 12 tests | |
 | [ ] | `req.subdomains` ignores a trailing root dot | PR #7331 | master | Small | repro needed first | |
 | [ ] | `res.append` keeps an existing empty header value | PR #7332 | master | Small | repro needed first | |
 | [ ] | `res.redirect` body says `undefined` for non-standard status codes | PRs #7407, #7045 | master | Small | repro needed first | |

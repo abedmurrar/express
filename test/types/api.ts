@@ -190,6 +190,13 @@ app.get('/request', (req, res) => {
   // @ts-expect-error it is read-only
   req.originalRoute = '/x'
   void originalRoute
+  const signal: AbortSignal = req.signal
+  signal.addEventListener('abort', () => {
+    const reason: unknown = signal.reason
+    void reason
+  })
+  // @ts-expect-error read-only in the types, as in @types/node 26 (the setter is for JavaScript polyfills)
+  req.signal = AbortSignal.timeout(1000)
   res.end()
 })
 

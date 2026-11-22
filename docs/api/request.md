@@ -762,6 +762,53 @@ A Boolean property that is true if a TLS connection is established. Equivalent t
 req.protocol === 'https';
 ```
 
+### req.signal
+
+**Type:** `AbortSignal`
+
+An [`AbortSignal`](https://nodejs.org/api/globals.html#class-abortsignal) that aborts when the
+client goes away before the response has finished. Pass it to work that should stop when nobody
+is waiting for the answer any more, such as `fetch`, a database query or a timer.
+
+```js
+app.get('/report', async (req, res, next) => {
+  try {
+    const upstream = await fetch('https://api.example.com/report', { signal: req.signal });
+    res.json(await upstream.json());
+  } catch (err) {
+    if (err.name === 'AbortError') return; // the client has gone, nobody to answer
+    next(err);
+  }
+});
+```
+
+- **It aborts** when the connection closes before the response has finished: the client
+  disconnected or gave up, or the response was destroyed (`res.destroy()`). A pipelined request
+  whose response is still waiting its turn aborts too.
+- **It never aborts once the response has finished**, even when the connection closes
+  afterwards, and its listeners go away with the request, so nothing builds up on a keep-alive
+  connection.
+- **The reason** (`req.signal.reason`) is the default `AbortError` `DOMException`, the one Node's
+  own `IncomingMessage#signal`, Fastify's `request.signal` and `AbortController#abort()` use, so
+  `err.name === 'AbortError'` checks work.
+- **It is created on first read.** A request that never reads it gets no signal and no listener.
+- **Read late, it is still right:** read after the client has gone it is already aborted, and
+  read after the response has finished it never aborts.
+- **It is the same signal in every app** the request goes through, including a mounted sub-app.
+- Assigning `req.signal = mySignal` replaces it for that request (an own property), as it did on
+  Node.js 22 with Express 5.3.0, so a middleware that sets its own signal keeps working.
+
+::: info
+
+Not in Express 5.3.0. Node.js 24.16 and 26.1 added `IncomingMessage#signal`, but up to Node.js
+24.19 and 26.6 it also aborts after every response that finished normally
+([nodejs/node#64390](https://github.com/nodejs/node/issues/64390)), and Node.js 22 has none. The
+fork defines `req.signal` itself, so it behaves the same on every supported Node.js version. Before
+an Express app has handled the request (in an `upgrade` or `checkContinue` listener, for example)
+`req.signal` is Node's own, or `undefined` on Node.js 22, as with Express 5.3.0.
+
+:::
+
 ### req.signedCookies
 
 **Type:** `Object`

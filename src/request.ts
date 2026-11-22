@@ -100,6 +100,8 @@ export interface Request extends IncomingMessage {
   readonly fresh: boolean
   readonly stale: boolean
   readonly xhr: boolean
+  /** Aborts when the client goes away before the response has finished. */
+  readonly signal: AbortSignal
 }
 
 /**
@@ -613,6 +615,83 @@ defineGetter(req, 'stale', function stale() {
 defineGetter(req, 'xhr', function xhr() {
   var val = this.get('X-Requested-With') || ''
   return val.toLowerCase() === 'xmlhttprequest'
+})
+
+/**
+ * The request's AbortController, kept on the request itself so the signal is
+ * the same whichever app's prototype the request has at the time.
+ * @private
+ */
+
+const kAbortController = Symbol('express.abortController')
+
+/**
+ * An `AbortSignal` that aborts when the client goes away before the response
+ * has finished, so a handler can pass it to `fetch`, a database driver or a
+ * timer. It is created on first read (no listener otherwise), never aborts
+ * once the response has finished, and is already aborted when read after
+ * the client has gone. The reason is the default `AbortError` DOMException,
+ * as for Node's own `IncomingMessage#signal`.
+ *
+ * Node 24.16 to 24.19 and 26.1 to 26.6 abort their own signal after every
+ * response, finished or not (nodejs/node#64390), and Node 22 has none, so
+ * Express defines it here, the same on every Node version. Assigning
+ * `req.signal` sets an own property, as on Node 22 with Express 5.3.0.
+ *
+ * Not in Express 5.3.0.
+ *
+ * @return {AbortSignal}
+ * @public
+ */
+
+Object.defineProperty(req, 'signal', {
+  configurable: true,
+  enumerable: false,
+  get: function signal(this: Request & { [kAbortController]?: AbortController }) {
+    var controller = this[kAbortController]
+    if (controller) return controller.signal
+
+    var res = this.res
+
+    // No Express app has handled this request yet (for example in an
+    // 'upgrade' or 'checkContinue' listener on an app.listen() server), so
+    // there is no response to watch: read what Express 5.3.0 would, Node's
+    // own signal (Node 24.16 and 26.1 added it), or undefined on Node 22
+    if (!res) return Reflect.get(http.IncomingMessage.prototype, 'signal', this)
+
+    var request = this
+    var ac = new AbortController()
+    this[kAbortController] = ac
+
+    // a finished response never aborts, so nothing to listen for
+    if (res.writableFinished) return ac.signal
+
+    // the client went away before this first read
+    if (request.socket.destroyed) {
+      ac.abort()
+      return ac.signal
+    }
+
+    // The response's 'close' comes after 'finish' when it finished, and on
+    // its own when the connection closed first. The request's 'close' also
+    // covers a pipelined request whose response is still queued, which gets
+    // no 'close' on Node 22 when the connection closes. A request's 'close'
+    // can come early, once its body is read, so the socket decides. Both
+    // events fire once per request, so both listeners go away with it.
+    var onclose = function onclose() {
+      if (!res.writableFinished && request.socket.destroyed) ac.abort()
+    }
+
+    res.once('close', onclose)
+    request.once('close', onclose)
+
+    return ac.signal
+  },
+  // Assigning sets an own property, as it did on Node 22 with Express 5.3.0
+  // (a polyfill middleware, for example), where IncomingMessage has no signal
+  set: function setSignal(this: Request, value: unknown) {
+    Object.defineProperty(this, 'signal', { configurable: true, enumerable: true, writable: true, value: value })
+  }
 })
 
 /**

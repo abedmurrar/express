@@ -8,6 +8,8 @@
 // express.json(), express.Router() and the rest come from the matching side.
 
 var path = require('node:path')
+var util = require('node:util')
+var zlib = require('node:zlib')
 var { Buffer } = require('node:buffer')
 var tmpl = require('../support/tmpl')
 
@@ -39,6 +41,22 @@ function echo(fn) {
   })
 }
 
+// The extended query parser (qs) on a query string. The response shows
+// req.query as JSON and through util.inspect, which also shows null
+// prototypes, array holes and own `__proto__` keys.
+function extendedQueryScenario(name, query) {
+  return {
+    name: 'req.query extended: ' + name,
+    setup: function (app) {
+      app.set('query parser', 'extended')
+      echo(function (req) {
+        return { json: req.query, inspect: util.inspect(req.query, { depth: 20 }) }
+      })(app)
+    },
+    req: get('/?' + query)
+  }
+}
+
 // express.static(FIXTURES, options), with an error handler that shows the
 // error's status and message (finalhandler's page would show its stack).
 function staticScenario(name, options, req) {
@@ -53,6 +71,51 @@ function staticScenario(name, options, req) {
     req: req
   }
 }
+
+// A body parser (built from the Express under test by `parser(express)`) in
+// front of a handler that shows what it parsed, and an error handler that
+// shows the error's own properties (finalhandler's page would show only the
+// message, and a stack in development).
+function bodyScenario(name, parser, req) {
+  return {
+    name: name,
+    setup: function (app, express) {
+      app.use(parser(express))
+      app.post('/', function (req, res) {
+        res.json({ type: typeof req.body, buffer: Buffer.isBuffer(req.body), body: req.body })
+      })
+      app.use(function (err, req, res, next) {
+        res.status(err.status || 500).json({
+          name: err.name,
+          status: err.status,
+          statusCode: err.statusCode,
+          expose: err.expose,
+          type: err.type,
+          message: err.message,
+          charset: err.charset,
+          encoding: err.encoding,
+          limit: err.limit,
+          length: err.length,
+          expected: err.expected,
+          received: err.received,
+          body: err.body === undefined ? 'undefined' : String(err.body),
+          keys: Object.keys(err).sort()
+        })
+      })
+    },
+    req: req
+  }
+}
+
+function form(body, headers) {
+  return post('/', body, Object.assign({ 'content-type': 'application/x-www-form-urlencoded' }, headers))
+}
+
+function jsonBody(body, headers) {
+  return post('/', body, Object.assign({ 'content-type': 'application/json' }, headers))
+}
+
+var LATIN1_FORM = Buffer.from('name=caf%E9&sym=%A3', 'latin1')
 
 function views(app) {
   app.engine('tmpl', tmpl)
@@ -654,6 +717,22 @@ var scenarios = [
     },
     req: get('/?a[b]=1&c[]=2&c[]=3')
   },
+  extendedQueryScenario('nested objects and arrays', 'a[b][c]=1&a[b][d][]=2&a[b][d][]=3&e[0]=x&e[1]=y'),
+  extendedQueryScenario('deeper than depth 5', 'a[b][c][d][e][f][g][h]=1'),
+  extendedQueryScenario('an index past arrayLimit', 'a[0]=x&a[25]=y&b[19]=p&b[20]=q&b[21]=r'),
+  extendedQueryScenario('more than 20 repeated keys', Array.from({ length: 25 }, (_, i) => 'a=' + i).join('&')),
+  extendedQueryScenario(
+    'prototype keys (allowPrototypes)',
+    '__proto__[x]=1&constructor[prototype][y]=2&toString=3&hasOwnProperty[a]=4&a[__proto__][b]=5&valueOf'
+  ),
+  extendedQueryScenario('dots, encoded brackets and plus signs', 'a.b=1&c%5Bd%5D=2&e%5b%5d=3&f+g=h+i&j%2Ek=l'),
+  extendedQueryScenario('mixed keys: scalar, index and brackets', 'a=1&a[0]=2&a[]=3&a[b]=4&c[]=1&c=2&c[x]=3'),
+  extendedQueryScenario('bad escapes and empty parts', '%=1&a=%E9&b=%ZZ&&=&c&d=&[]=e&[x]=f&g[=h&i]=j'),
+  extendedQueryScenario('utf8 sentinel and numeric entities', 'utf8=%26%2310003%3B&a=%E9&b=%26%239786%3B'),
+  extendedQueryScenario(
+    '1200 parameters (parameterLimit 1000)',
+    Array.from({ length: 1200 }, (_, i) => 'k[' + i + ']=1').join('&')
+  ),
   {
     name: 'req.query disabled',
     setup: function (app) {
@@ -1231,6 +1310,432 @@ var scenarios = [
     req: post('/', Buffer.from([0, 1, 2, 3]), { 'content-type': 'application/octet-stream' })
   },
 
+  // body parsers: details
+  bodyScenario(
+    'express.json body details',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('{"user":{"name":"tobi"},"n":[1,2.5,null]}')
+  ),
+  bodyScenario(
+    'express.json empty body',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('')
+  ),
+  bodyScenario(
+    'express.json leading whitespace',
+    function (express) {
+      return express.json()
+    },
+    jsonBody(' \n\t {"a":1}')
+  ),
+  bodyScenario(
+    'express.json strict violation message',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('  true')
+  ),
+  bodyScenario(
+    'express.json strict violation after whitespace only',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('   ')
+  ),
+  bodyScenario(
+    'express.json malformed details',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('{"a":1,}')
+  ),
+  bodyScenario(
+    'express.json non-strict primitive',
+    function (express) {
+      return express.json({ strict: false })
+    },
+    jsonBody('"str"')
+  ),
+  bodyScenario(
+    'express.json non-strict malformed',
+    function (express) {
+      return express.json({ strict: false })
+    },
+    jsonBody('nope')
+  ),
+  bodyScenario(
+    'express.json reviver',
+    function (express) {
+      return express.json({
+        reviver: function (k, v) {
+          return typeof v === 'number' ? v * 2 : v
+        }
+      })
+    },
+    jsonBody('{"a":1,"b":[2]}')
+  ),
+  bodyScenario(
+    'express.json reviver throws',
+    function (express) {
+      return express.json({
+        reviver: function () {
+          throw Object.assign(new Error('bad'), { code: 'E' })
+        }
+      })
+    },
+    jsonBody('{"a":1}')
+  ),
+  bodyScenario(
+    'express.json too large details',
+    function (express) {
+      return express.json({ limit: '10b' })
+    },
+    jsonBody('{"long":"aaaaaaaaaaaaaaa"}')
+  ),
+  bodyScenario(
+    'express.json numeric limit',
+    function (express) {
+      return express.json({ limit: 5 })
+    },
+    jsonBody('{"a":12}')
+  ),
+  bodyScenario(
+    'express.json latin1 charset',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('{}', { 'content-type': 'application/json; charset=latin1' })
+  ),
+  bodyScenario(
+    'express.json utf-16 charset',
+    function (express) {
+      return express.json()
+    },
+    jsonBody(Buffer.from('{"a":"\u00e9"}', 'utf16le'), { 'content-type': 'application/json; charset=utf-16le' })
+  ),
+  bodyScenario(
+    'express.json unknown utf- charset',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('{}', { 'content-type': 'application/json; charset=utf-9' })
+  ),
+  bodyScenario(
+    'express.json unknown charset with verify',
+    function (express) {
+      return express.json({ verify: function () {} })
+    },
+    jsonBody('{}', { 'content-type': 'application/json; charset=utf-9' })
+  ),
+  bodyScenario(
+    'express.json verify throws',
+    function (express) {
+      return express.json({
+        verify: function () {
+          throw new Error('no')
+        }
+      })
+    },
+    jsonBody('{"a":1}')
+  ),
+  bodyScenario(
+    'express.json verify throws with type',
+    function (express) {
+      return express.json({
+        verify: function () {
+          throw Object.assign(new Error('no'), { type: 'custom.type', status: 401 })
+        }
+      })
+    },
+    jsonBody('{"a":1}')
+  ),
+  bodyScenario(
+    'express.json gzip',
+    function (express) {
+      return express.json()
+    },
+    jsonBody(zlib.gzipSync('{"z":"gzip"}'), { 'content-encoding': 'gzip' })
+  ),
+  bodyScenario(
+    'express.json deflate',
+    function (express) {
+      return express.json()
+    },
+    jsonBody(zlib.deflateSync('{"z":"deflate"}'), { 'content-encoding': 'deflate' })
+  ),
+  bodyScenario(
+    'express.json brotli',
+    function (express) {
+      return express.json()
+    },
+    jsonBody(zlib.brotliCompressSync('{"z":"br"}'), { 'content-encoding': 'br' })
+  ),
+  bodyScenario(
+    'express.json uppercase GZIP',
+    function (express) {
+      return express.json()
+    },
+    jsonBody(zlib.gzipSync('{"z":1}'), { 'content-encoding': 'GZIP' })
+  ),
+  bodyScenario(
+    'express.json gzip inflate false',
+    function (express) {
+      return express.json({ inflate: false })
+    },
+    jsonBody(zlib.gzipSync('{"z":1}'), { 'content-encoding': 'gzip' })
+  ),
+  bodyScenario(
+    'express.json unknown content encoding',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('{}', { 'content-encoding': 'compress' })
+  ),
+  bodyScenario(
+    'express.json corrupt gzip',
+    function (express) {
+      return express.json()
+    },
+    jsonBody(Buffer.from('not gzip at all'), { 'content-encoding': 'gzip' })
+  ),
+  bodyScenario(
+    'express.json gzip over limit',
+    function (express) {
+      return express.json({ limit: '20b' })
+    },
+    jsonBody(zlib.gzipSync(JSON.stringify({ a: 'x'.repeat(100) })), { 'content-encoding': 'gzip' })
+  ),
+  bodyScenario(
+    'express.json type option',
+    function (express) {
+      return express.json({ type: 'application/*+json' })
+    },
+    jsonBody('{"a":1}', { 'content-type': 'application/vnd.api+json' })
+  ),
+  bodyScenario(
+    'express.json type function',
+    function (express) {
+      return express.json({
+        type: function () {
+          return true
+        }
+      })
+    },
+    post('/', '{"a":1}', { 'content-type': 'text/plain' })
+  ),
+  bodyScenario(
+    'express.urlencoded simple nested keys',
+    function (express) {
+      return express.urlencoded()
+    },
+    form('user[name]=tobi&a[]=1&a[]=2&x.y=z')
+  ),
+  bodyScenario(
+    'express.urlencoded simple repeated keys',
+    function (express) {
+      return express.urlencoded({ extended: false })
+    },
+    form('a=1&a=2&b=&c')
+  ),
+  bodyScenario(
+    'express.urlencoded extended nested',
+    function (express) {
+      return express.urlencoded({ extended: true })
+    },
+    form('a[b][c]=1&a[d][]=2&a[d][]=3&e[0]=x&e[2]=y')
+  ),
+  bodyScenario(
+    'express.urlencoded extended proto key',
+    function (express) {
+      return express.urlencoded({ extended: true })
+    },
+    form('__proto__[x]=1&hasOwnProperty=2&a[__proto__]=3')
+  ),
+  bodyScenario(
+    'express.urlencoded extended depth exceeded',
+    function (express) {
+      return express.urlencoded({ extended: true, depth: 2 })
+    },
+    form('a[b][c][d]=1')
+  ),
+  bodyScenario(
+    'express.urlencoded extended array over 100',
+    function (express) {
+      return express.urlencoded({ extended: true })
+    },
+    form('a[150]=x&a[1]=y')
+  ),
+  bodyScenario(
+    'express.urlencoded empty body',
+    function (express) {
+      return express.urlencoded()
+    },
+    form('')
+  ),
+  bodyScenario(
+    'express.urlencoded too many parameters',
+    function (express) {
+      return express.urlencoded({ parameterLimit: 3 })
+    },
+    form('a=1&b=2&c=3&d=4')
+  ),
+  bodyScenario(
+    'express.urlencoded at the parameter limit',
+    function (express) {
+      return express.urlencoded({ parameterLimit: 3 })
+    },
+    form('a=1&b=2&c=3')
+  ),
+  bodyScenario(
+    'express.urlencoded too large',
+    function (express) {
+      return express.urlencoded({ limit: '8b' })
+    },
+    form('a=123456789')
+  ),
+  bodyScenario(
+    'express.urlencoded latin1 charset',
+    function (express) {
+      return express.urlencoded()
+    },
+    form(LATIN1_FORM, { 'content-type': 'application/x-www-form-urlencoded; charset=iso-8859-1' })
+  ),
+  bodyScenario(
+    'express.urlencoded latin1 default charset',
+    function (express) {
+      return express.urlencoded({ defaultCharset: 'iso-8859-1' })
+    },
+    form(LATIN1_FORM)
+  ),
+  bodyScenario(
+    'express.urlencoded charset sentinel',
+    function (express) {
+      return express.urlencoded({ charsetSentinel: true })
+    },
+    form('utf8=%E2%9C%93&name=caf%C3%A9', { 'content-type': 'application/x-www-form-urlencoded; charset=iso-8859-1' })
+  ),
+  bodyScenario(
+    'express.urlencoded numeric entities',
+    function (express) {
+      return express.urlencoded({ interpretNumericEntities: true })
+    },
+    form('a=%26%239786%3B', { 'content-type': 'application/x-www-form-urlencoded; charset=iso-8859-1' })
+  ),
+  bodyScenario(
+    'express.urlencoded unsupported charset',
+    function (express) {
+      return express.urlencoded()
+    },
+    form('a=1', { 'content-type': 'application/x-www-form-urlencoded; charset=koi8-r' })
+  ),
+  bodyScenario(
+    'express.urlencoded gzip',
+    function (express) {
+      return express.urlencoded()
+    },
+    form(zlib.gzipSync('a=1&b=2'), { 'content-encoding': 'gzip' })
+  ),
+  bodyScenario(
+    'express.text latin1 charset',
+    function (express) {
+      return express.text()
+    },
+    post('/', Buffer.from('caf\u00e9', 'latin1'), { 'content-type': 'text/plain; charset=iso-8859-1' })
+  ),
+  bodyScenario(
+    'express.text koi8-r charset',
+    function (express) {
+      return express.text()
+    },
+    post('/', Buffer.from([0xf0, 0xd2, 0xc9]), { 'content-type': 'text/plain; charset=koi8-r' })
+  ),
+  bodyScenario(
+    'express.text unknown charset',
+    function (express) {
+      return express.text()
+    },
+    post('/', 'x', { 'content-type': 'text/plain; charset=bogus' })
+  ),
+  bodyScenario(
+    'express.text unknown charset with verify',
+    function (express) {
+      return express.text({ verify: function () {} })
+    },
+    post('/', 'x', { 'content-type': 'text/plain; charset=bogus' })
+  ),
+  bodyScenario(
+    'express.text default charset',
+    function (express) {
+      return express.text({ defaultCharset: 'utf-16le' })
+    },
+    post('/', Buffer.from('hi', 'utf16le'), { 'content-type': 'text/plain' })
+  ),
+  bodyScenario(
+    'express.text too large',
+    function (express) {
+      return express.text({ limit: '3b' })
+    },
+    post('/', 'four', { 'content-type': 'text/plain' })
+  ),
+  bodyScenario(
+    'express.text deflate',
+    function (express) {
+      return express.text()
+    },
+    post('/', zlib.deflateSync('inflated text'), { 'content-type': 'text/plain', 'content-encoding': 'deflate' })
+  ),
+  bodyScenario(
+    'express.raw body bytes',
+    function (express) {
+      return express.raw()
+    },
+    post('/', Buffer.from([0, 255, 10, 13]), { 'content-type': 'application/octet-stream' })
+  ),
+  bodyScenario(
+    'express.raw ignores charset',
+    function (express) {
+      return express.raw()
+    },
+    post('/', Buffer.from([1, 2]), { 'content-type': 'application/octet-stream; charset=bogus' })
+  ),
+  bodyScenario(
+    'express.raw too large',
+    function (express) {
+      return express.raw({ limit: '2b' })
+    },
+    post('/', Buffer.from([1, 2, 3]), { 'content-type': 'application/octet-stream' })
+  ),
+  bodyScenario(
+    'express.raw gzip',
+    function (express) {
+      return express.raw()
+    },
+    post('/', zlib.gzipSync(Buffer.from([9, 8, 7])), {
+      'content-type': 'application/octet-stream',
+      'content-encoding': 'gzip'
+    })
+  ),
+  bodyScenario(
+    'express.raw type array',
+    function (express) {
+      return express.raw({ type: ['image/png', 'application/pdf'] })
+    },
+    post('/', Buffer.from([1]), { 'content-type': 'application/pdf' })
+  ),
+  bodyScenario(
+    'express.json zstd',
+    function (express) {
+      return express.json()
+    },
+    jsonBody('zstdCompressSync' in zlib ? zlib.zstdCompressSync('{"z":"zstd"}') : '{}', {
+      'content-encoding': 'zstd'
+    })
+  ),
+
   // locals and misc
   {
     name: 'res.locals per request',
@@ -1271,6 +1776,107 @@ var scenarios = [
     req: get('/x/y')
   }
 ]
+
+// Routing fast paths: the router skips a route that has no handler for the
+// method before matching its path, and checks a string path's literal start
+// before its regex. One app with routes that test where either could go
+// wrong (methods, HEAD and OPTIONS, all(), route chains, case, escapes,
+// which match raw with their hex digits in any case, trailing slashes,
+// segment-bounded middleware, a mounted router with mergeParams, a bad
+// escape in a route the method skips), and the requests that hit them, with
+// and without case-sensitive and strict routing. Non-ASCII paths are in
+// test/router/fork-fast-paths.js: Node's HTTP parser rejects them.
+function fastPathApp(settings) {
+  return function (app, express) {
+    Object.keys(settings).forEach(function (name) {
+      app.set(name, settings[name])
+    })
+    function reply(label) {
+      return function (req, res) {
+        res.json([label, req.method, req.params, req.baseUrl, req.url])
+      }
+    }
+    app.use('/api', function (req, res, next) {
+      res.append('x-seen', 'api ' + req.baseUrl + ' ' + req.url)
+      next()
+    })
+    app.param('id', function (req, res, next, id) {
+      res.append('x-param', id)
+      next()
+    })
+    app.get('/users/:id', reply('get user'))
+    app.post('/users/:id', reply('post user'))
+    app.all('/any/:id', reply('all'))
+    app.route('/chain').get(reply('chain get')).post(reply('chain post'))
+    app.put('/put', reply('put'))
+    app.get('/Mixed/Case', reply('mixed'))
+    app.get('/a%2Fb', reply('escaped'))
+    app.get('/caf%C3%A9/:x', reply('cafe'))
+    app.get('/dir/', reply('dir'))
+    app.get('/apix', reply('apix'))
+    app.get('/api/users/:id', reply('api user'))
+    var org = express.Router({ mergeParams: true })
+    org.get('/team/:team', reply('get team'))
+    org.delete('/team/:team', reply('delete team'))
+    app.use('/org/:org', org)
+    app.use(function (err, req, res, next) {
+      res.status(err.status || 500).send('error ' + err.message)
+    })
+  }
+}
+
+var FAST_PATH_REQUESTS = [
+  ['GET', '/users/1'],
+  ['POST', '/users/1'],
+  ['PUT', '/users/1'],
+  ['DELETE', '/USERS/1'],
+  ['HEAD', '/users/1'],
+  ['OPTIONS', '/users/1'],
+  ['OPTIONS', '/chain'],
+  ['OPTIONS', '/put'],
+  ['HEAD', '/put'],
+  ['POST', '/chain'],
+  ['PATCH', '/chain'],
+  ['PATCH', '/any/1'],
+  ['OPTIONS', '/any/1'],
+  ['HEAD', '/any/1'],
+  ['GET', '/MIXED/case'],
+  ['GET', '/Mixed/Case'],
+  ['GET', '/a%2fb'],
+  ['GET', '/a%2Fb'],
+  ['GET', '/a/b'],
+  ['GET', '/caf%C3%A9/1'],
+  ['GET', '/CAF%c3%a9/1'],
+  ['GET', '/caf%C3%89/1'],
+  ['GET', '/cafe/1'],
+  ['GET', '/dir'],
+  ['GET', '/dir/'],
+  ['GET', '/api'],
+  ['GET', '/apix'],
+  ['GET', '/API/users/1'],
+  ['POST', '/api/users/1'],
+  ['POST', '/users/%E0'],
+  ['GET', '/users/%E0'],
+  ['DELETE', '/org/acme/team/blue'],
+  ['GET', '/ORG/acme/TEAM/blue'],
+  ['POST', '/org/acme/team/blue'],
+  ['OPTIONS', '/org/acme/team/blue']
+]
+
+var FAST_PATH_SETTINGS = [
+  { label: '', settings: {} },
+  { label: ', case sensitive and strict', settings: { 'case sensitive routing': true, 'strict routing': true } }
+]
+
+FAST_PATH_SETTINGS.forEach(function (variant) {
+  FAST_PATH_REQUESTS.forEach(function (r) {
+    scenarios.push({
+      name: 'routing fast paths' + variant.label + ': ' + r[0] + ' ' + r[1],
+      setup: fastPathApp(variant.settings),
+      req: { method: r[0], path: r[1], headers: {} }
+    })
+  })
+})
 
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.

@@ -1,12 +1,16 @@
 'use strict'
 
 // Properties of route matching: parameters decode back to what the client
-// encoded, and a table of literal routes behaves like a simple model.
+// encoded, a table of literal routes behaves like a simple model, and the
+// router's fast paths (the method check and the literal-prefix check before
+// a path regex) change nothing: random routers run the same handlers, in the
+// same order, as upstream's router, which has neither.
 
 var assert = require('node:assert')
 var fc = require('fast-check')
 var express = require('../../')
 var { check, timeout, listen, PROPERTY } = require('./support')
+var trace = require('../router/support/trace')
 
 // Any non-empty string of whole code points (encodeURIComponent rejects lone
 // surrogates, which a client could not send as UTF-8 anyway).
@@ -204,6 +208,195 @@ describe('property: route matching', function () {
             await client.close()
           }
         })
+      )
+    })
+  })
+
+  describe('the fast paths change nothing', function () {
+    // Pieces of route paths: literals in both cases, percent-escapes, a dot,
+    // non-ASCII letters (the Kelvin sign folds to "k" only with the `u` flag),
+    // parameters, wildcards and optional groups.
+    var word = fc.constantFrom(
+      'a',
+      'A',
+      'b',
+      'users',
+      'Users',
+      'api',
+      '%2F',
+      '%41',
+      'x.y',
+      'caf\u00e9',
+      'k',
+      '\u212a',
+      '-'
+    )
+    var piece = fc.oneof(
+      { weight: 4, arbitrary: word.map((w) => ({ text: '/' + w })) },
+      { weight: 2, arbitrary: fc.constant({ param: '/' }) },
+      { weight: 1, arbitrary: fc.constant({ wildcard: '/' }) },
+      { weight: 1, arbitrary: word.map((w) => ({ group: '/' + w })) },
+      { weight: 1, arbitrary: fc.constant({ groupParam: true }) },
+      { weight: 1, arbitrary: word.map((w) => ({ text: '/\\:' + w })) }
+    )
+    var stringPath = fc
+      .record({ pieces: fc.array(piece, { minLength: 1, maxLength: 3 }), slash: fc.boolean() })
+      .map(function (r) {
+        var out = ''
+        r.pieces.forEach(function (p, i) {
+          if (p.text) out += p.text
+          else if (p.param) out += '/:p' + i
+          else if (p.wildcard) out += '/*w' + i
+          else if (p.group) out += '{' + p.group + '}'
+          else out += '{/:o' + i + '}'
+        })
+        return r.slash ? out + '/' : out
+      })
+    var routePath = fc.oneof(
+      { weight: 8, arbitrary: stringPath },
+      { weight: 1, arbitrary: fc.constantFrom(/^\/a/i, /^\/users\/(\d+)$/, /\/(?<name>[^/]+)$/) },
+      { weight: 1, arbitrary: fc.tuple(stringPath, stringPath).map((t) => [t[0], t[1]]) }
+    )
+    var usePath = fc.option(
+      fc.oneof({ weight: 6, arbitrary: routePath }, { weight: 1, arbitrary: fc.constantFrom('/', '') }),
+      {
+        nil: undefined
+      }
+    )
+    var action = fc.constantFrom('next', 'next', 'next', 'next', 'route', 'router', 'fail', 'throw', 'post')
+    var routeMethods = fc.subarray(['get', 'post', 'put', 'delete', 'head', 'options', 'all'], {
+      minLength: 1,
+      maxLength: 3
+    })
+
+    function stackOf(depth) {
+      var entry = [
+        { weight: 3, arbitrary: fc.record({ use: usePath, action: action }) },
+        { weight: 6, arbitrary: fc.record({ route: routePath, methods: routeMethods, action: action }) },
+        { weight: 1, arbitrary: fc.record({ error: usePath }) },
+        { weight: 1, arbitrary: fc.record({ param: fc.constantFrom('p0', 'p1', 'o2', 'w1') }) }
+      ]
+      if (depth > 0) {
+        entry.push({ weight: 2, arbitrary: fc.record({ use: usePath, router: setupOf(depth - 1) }) })
+      }
+      return fc.array(fc.oneof.apply(fc, entry), { minLength: 1, maxLength: 6 })
+    }
+
+    function setupOf(depth) {
+      return fc.record({
+        options: fc.record({ caseSensitive: fc.boolean(), strict: fc.boolean(), mergeParams: fc.boolean() }),
+        stack: stackOf(depth)
+      })
+    }
+
+    // Give every entry an id, so the logs say which handler ran.
+    function numbered(setup) {
+      var n = 0
+      ;(function walk(s) {
+        s.stack.forEach(function (e) {
+          e.id = 'h' + n++
+          if (e.router) walk(e.router)
+        })
+      })(setup)
+      return setup
+    }
+
+    // Requests: segments that hit the literals above in other cases and
+    // spellings, escapes good and bad, and trailing or doubled slashes.
+    var segment = fc.constantFrom(
+      'a',
+      'A',
+      'b',
+      'users',
+      'USERS',
+      'Users',
+      'api',
+      'apix',
+      'API',
+      '%2F',
+      '%2f',
+      '%41',
+      '%E0',
+      '1',
+      'x.y',
+      'xzy',
+      'caf\u00e9',
+      'CAF\u00c9',
+      'k',
+      'K',
+      '\u212a',
+      '\u017f',
+      ':a',
+      ''
+    )
+    var requestPath = fc
+      .record({
+        segments: fc.array(segment, { minLength: 1, maxLength: 4 }),
+        slash: fc.boolean(),
+        query: fc.boolean()
+      })
+      .map(function (r) {
+        return '/' + r.segments.join('/') + (r.slash ? '/' : '') + (r.query ? '?q=1' : '')
+      })
+    var method = fc.constantFrom(
+      'GET',
+      'POST',
+      'PUT',
+      'DELETE',
+      'PATCH',
+      'HEAD',
+      'OPTIONS',
+      'get',
+      'head',
+      'options',
+      undefined
+    )
+    var request = fc.record({ method: method, url: requestPath })
+
+    it('random routers run the same handlers in the same order as upstream', async function () {
+      await check(
+        fc.asyncProperty(
+          setupOf(2).map(numbered),
+          fc.array(request, { minLength: 1, maxLength: 5 }),
+          async function (setup, requests) {
+            for (var r of requests) {
+              var logs = await trace.both(setup, r.method, r.url)
+              assert.deepStrictEqual(logs.fork, logs.upstream, String(r.method) + ' ' + r.url)
+            }
+          }
+        )
+      )
+    })
+
+    it("a layer matches exactly when upstream's does, with the same params", function () {
+      var anyPath = fc.oneof(
+        requestPath,
+        fc.string({ unit: 'binary', maxLength: 12 }).map((s) => '/' + s)
+      )
+      var options = fc.record({ sensitive: fc.boolean(), strict: fc.boolean(), end: fc.boolean() })
+      function result(Layer, path, opts, request) {
+        var layer = Layer(path, opts, function () {})
+        try {
+          return { match: layer.match(request), params: layer.params, path: layer.path }
+        } catch (err) {
+          return { error: err.message }
+        }
+      }
+      check(
+        fc.property(
+          stringPath,
+          options,
+          fc.array(anyPath, { minLength: 1, maxLength: 8 }),
+          function (path, opts, paths) {
+            for (var p of paths) {
+              assert.deepStrictEqual(
+                result(trace.ForkLayer, path, opts, p),
+                result(trace.UpstreamLayer, path, opts, p),
+                p
+              )
+            }
+          }
+        )
       )
     })
   })

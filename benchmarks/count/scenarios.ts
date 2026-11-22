@@ -3,7 +3,7 @@
 // benchmarks measure the same work: the throughput one over real sockets,
 // this one in-process (see worker.ts). `format` is only counted here: it
 // measures content negotiation (`res.format` on a browser's Accept header),
-// which the other frameworks there don't have.
+// which the other frameworks there don't have built in.
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 

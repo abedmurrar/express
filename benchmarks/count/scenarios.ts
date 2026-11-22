@@ -1,18 +1,31 @@
 // The Express apps that the instruction counter drives, one per scenario.
 // They match the Express servers in benchmarks/compare/servers.ts, so both
 // benchmarks measure the same work: the throughput one over real sockets,
-// this one in-process (see worker.ts).
+// this one in-process (see worker.ts). `format` is only counted here: it
+// measures content negotiation (`res.format` on a browser's Accept header),
+// which the other frameworks there don't have.
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found'
+export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found' | 'format'
 
-export const SCENARIOS: readonly Scenario[] = ['hello', 'json', 'params', 'mw10', 'routes100', 'post-json', 'not-found']
+export const SCENARIOS: readonly Scenario[] = [
+  'hello',
+  'json',
+  'params',
+  'mw10',
+  'routes100',
+  'post-json',
+  'not-found',
+  'format'
+]
 
 export interface Request {
   method: 'GET' | 'POST'
   path: string
   body?: string
+  // more request headers, besides Host
+  headers?: Record<string, string>
   // what the first response must look like, so a scenario that answers
   // differently fails instead of measuring something else
   status: number
@@ -21,6 +34,9 @@ export interface Request {
 
 export const PAYLOAD = { hello: 'world', n: 42, list: [1, 2, 3], nested: { a: true, b: 'x' } }
 const POST_BODY = JSON.stringify({ user: 'tobi', tags: ['a', 'b'], n: 7 })
+// What Chrome sends for a page
+const BROWSER_ACCEPT =
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'
 
 export const REQUESTS: Record<Scenario, Request> = {
   hello: { method: 'GET', path: '/', status: 200, text: 'Hello World!' },
@@ -29,7 +45,8 @@ export const REQUESTS: Record<Scenario, Request> = {
   mw10: { method: 'GET', path: '/', status: 200, text: 'Hello World!' },
   routes100: { method: 'GET', path: '/r99/abc', status: 200, text: 'abc' },
   'post-json': { method: 'POST', path: '/echo', body: POST_BODY, status: 200, text: POST_BODY },
-  'not-found': { method: 'GET', path: '/nope', status: 404 }
+  'not-found': { method: 'GET', path: '/nope', status: 404 },
+  format: { method: 'GET', path: '/', headers: { accept: BROWSER_ACCEPT }, status: 200, text: '<p>Hello World!</p>' }
 }
 
 // The parts of Express these apps use. The harness loads Express from a
@@ -43,6 +60,7 @@ export interface ExpressResponse extends ServerResponse {
   locals: Record<string, unknown>
   send(body: string): void
   json(body: unknown): void
+  format(handlers: Record<string, () => void>): void
 }
 
 type Handler = (req: ExpressRequest, res: ExpressResponse, next: () => void) => void
@@ -92,6 +110,14 @@ export function createApp(express: ExpressModule, scenario: Scenario): App {
   if (scenario === 'post-json') {
     app.post('/echo', express.json(), (req, res) => {
       res.json(req.body)
+    })
+  }
+  if (scenario === 'format') {
+    app.get('/', (req, res) => {
+      res.format({
+        json: () => res.json(PAYLOAD),
+        html: () => res.send('<p>Hello World!</p>')
+      })
     })
   }
   if (scenario === 'hello' || scenario === 'mw10') {

@@ -91,19 +91,15 @@ describe('regressions: response', function () {
     assert.doesNotMatch(cookie, /Expires=/)
   })
 
-  bug(
-    '#4750 res.sendFile honours a per-call etag: false',
-    '`sendFile` ignores a per-call `etag: false`',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.sendFile(path.join(__dirname, 'support.js'), { etag: false })
-      })
-      var r = await request(app)
-      assert.strictEqual(r.status, 200)
-      assert.strictEqual(r.headers.etag, undefined)
-    }
-  )
+  it('#4750 res.sendFile honours a per-call etag: false', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.sendFile(path.join(__dirname, 'support.js'), { etag: false })
+    })
+    var r = await request(app)
+    assert.strictEqual(r.status, 200)
+    assert.strictEqual(r.headers.etag, undefined)
+  })
 
   it('#4944 res.sendFile streams files whose size is reported as 0 (/proc)', async function () {
     if (!fs.existsSync('/proc/cpuinfo')) this.skip()

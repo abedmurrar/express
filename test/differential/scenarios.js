@@ -1955,6 +1955,19 @@ scenarios.push(
   }
 )
 
+// A per-call etag option wins over the app setting (src/response.ts,
+// sendFile), so this differs from 5.3.0 on purpose too.
+scenarios.push({
+  name: 'res.sendFile etag true option with etag disabled',
+  setup: function (app) {
+    app.disable('etag')
+    route('get', '/', function (req, res) {
+      res.sendFile(path.join(FIXTURES, 'name.txt'), { etag: true })
+    })(app)
+  },
+  req: get('/')
+})
+
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
 // A g-flag RegExp guard whose lastIndex the app left non-zero: Express 5.3.0
@@ -2056,6 +2069,10 @@ if (HAS_PROC) {
 }
 
 var allowed = {
+  'res.sendFile etag false option':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
+  'res.sendFile etag true option with etag disabled':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (a per-call `etag: true` wins too)',
   'res.send ArrayBuffer':
     "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
   'res.send DataView':

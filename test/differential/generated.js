@@ -714,7 +714,14 @@ var CALLS = {
       return [
         d[0],
         function (req, res) {
-          res.sendFile.apply(res, d[1])
+          // a fresh options object per call: Express 5.3.0 writes the app's
+          // etag setting onto it, which the next side would then read
+          res.sendFile.apply(
+            res,
+            d[1].map(function (arg) {
+              return arg && typeof arg === 'object' ? { ...arg } : arg
+            })
+          )
         }
       ]
     })
@@ -1029,6 +1036,10 @@ var scenarios = groups.reduce(function (all, g) {
 var BINARY =
   "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)"
 var allowed = {
+  'res.sendFile etag false':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
+  'res.download lastModified false':
+    'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
   'res.send Float64Array': BINARY,
   'res.send ArrayBuffer': BINARY,
   'res.send DataView': BINARY

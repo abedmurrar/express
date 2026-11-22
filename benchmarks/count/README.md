@@ -76,3 +76,5 @@ A deliberately slowed build (a 1,000-step loop at the start of `res.send`, not c
 | not-found | 98.66k | 98.61k | -0.05% |
 
 That run took 53 minutes locally with `--jobs 2`, most of it the two extra measurements of each failing scenario.
+
+When the PR declares the same dependencies as its merge-base (all kinds, plus `overrides`), the baseline worktree shares the head's `node_modules`, so both load them from the same paths. When they differ, the baseline gets its own `npm install`: otherwise a PR that removes or replaces a package (as #60 does with `accepts`) breaks the baseline's build or run.

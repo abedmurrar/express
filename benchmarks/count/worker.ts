@@ -42,6 +42,11 @@ function send(app: App, request: Request): Promise<void> {
   req.httpVersionMinor = 1
   req.headers = { host: 'localhost' }
   req.rawHeaders = ['Host', 'localhost']
+  for (const [name, value] of Object.entries(request.headers ?? {})) {
+    // a new string from the bytes, as Node's parser makes for each request
+    req.headers[name] = Buffer.from(value, 'latin1').toString('latin1')
+    req.rawHeaders.push(name, value)
+  }
   if (request.body !== undefined) {
     const length = String(Buffer.byteLength(request.body))
     req.headers['content-type'] = 'application/json'

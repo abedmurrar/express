@@ -1,11 +1,22 @@
 // The Express apps that the instruction counter drives, one per scenario.
 // They match the Express servers in benchmarks/compare/servers.ts, so both
 // benchmarks measure the same work: the throughput one over real sockets,
-// this one in-process (see worker.ts).
+// this one in-process (see worker.ts). `format` is only counted here: it
+// measures content negotiation (`res.format` on a browser's Accept header),
+// which the other frameworks there don't have built in.
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found' | 'query'
+export type Scenario =
+  | 'hello'
+  | 'json'
+  | 'params'
+  | 'mw10'
+  | 'routes100'
+  | 'post-json'
+  | 'not-found'
+  | 'query'
+  | 'format'
 
 export const SCENARIOS: readonly Scenario[] = [
   'hello',
@@ -15,13 +26,16 @@ export const SCENARIOS: readonly Scenario[] = [
   'routes100',
   'post-json',
   'not-found',
-  'query'
+  'query',
+  'format'
 ]
 
 export interface Request {
   method: 'GET' | 'POST'
   path: string
   body?: string
+  // more request headers, besides Host
+  headers?: Record<string, string>
   // what the first response must look like, so a scenario that answers
   // differently fails instead of measuring something else
   status: number
@@ -33,6 +47,9 @@ const POST_BODY = JSON.stringify({ user: 'tobi', tags: ['a', 'b'], n: 7 })
 // a flat query string, read with the extended ("qs") query parser
 export const QUERY = 'q=express+router&page=2&sort=desc&limit=20&tag=a&tag=b'
 export const QUERY_RESULT = { q: 'express router', page: '2', sort: 'desc', limit: '20', tag: ['a', 'b'] }
+// What Chrome sends for a page
+const BROWSER_ACCEPT =
+  'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7'
 
 export const REQUESTS: Record<Scenario, Request> = {
   hello: { method: 'GET', path: '/', status: 200, text: 'Hello World!' },
@@ -42,7 +59,8 @@ export const REQUESTS: Record<Scenario, Request> = {
   routes100: { method: 'GET', path: '/r99/abc', status: 200, text: 'abc' },
   'post-json': { method: 'POST', path: '/echo', body: POST_BODY, status: 200, text: POST_BODY },
   'not-found': { method: 'GET', path: '/nope', status: 404 },
-  query: { method: 'GET', path: `/search?${QUERY}`, status: 200, text: JSON.stringify(QUERY_RESULT) }
+  query: { method: 'GET', path: `/search?${QUERY}`, status: 200, text: JSON.stringify(QUERY_RESULT) },
+  format: { method: 'GET', path: '/', headers: { accept: BROWSER_ACCEPT }, status: 200, text: '<p>Hello World!</p>' }
 }
 
 // The parts of Express these apps use. The harness loads Express from a
@@ -57,6 +75,7 @@ export interface ExpressResponse extends ServerResponse {
   locals: Record<string, unknown>
   send(body: string): void
   json(body: unknown): void
+  format(handlers: Record<string, () => void>): void
 }
 
 type Handler = (req: ExpressRequest, res: ExpressResponse, next: () => void) => void
@@ -113,6 +132,14 @@ export function createApp(express: ExpressModule, scenario: Scenario): App {
     app.set('query parser', 'extended')
     app.get('/search', (req, res) => {
       res.json(req.query)
+    })
+  }
+  if (scenario === 'format') {
+    app.get('/', (req, res) => {
+      res.format({
+        json: () => res.json(PAYLOAD),
+        html: () => res.send('<p>Hello World!</p>')
+      })
     })
   }
   if (scenario === 'hello' || scenario === 'mw10') {

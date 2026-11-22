@@ -126,6 +126,37 @@ export interface ExpressResponse extends ServerResponse<Request> {
 }
 
 /**
+ * The messages of the ERR_HTTP_HEADERS_SENT errors named below, as Node
+ * threw them.
+ * @private
+ */
+
+const headersSentMessages = new WeakMap<Error, string>()
+
+/**
+ * Names the Express method in Node's ERR_HTTP_HEADERS_SENT error, which
+ * otherwise only says "Cannot set headers after they are sent to the client"
+ * (expressjs/express#7560). Only the message changes: the error is the same
+ * object, with the same class, code and stack frames, thrown from the same
+ * place. Each method that can set a header calls this from a catch block,
+ * so nothing runs unless something threw, and the outermost call wins: the
+ * method the app called (res.json(), not the res.set() inside it). Any
+ * other error is returned untouched.
+ *
+ * Not in Express 5.3.0.
+ * @private
+ */
+
+function headersSent(err: unknown, method: string): unknown {
+  if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'ERR_HTTP_HEADERS_SENT') {
+    var message = headersSentMessages.get(err) ?? err.message
+    headersSentMessages.set(err, message)
+    err.message = message + ': ' + method + ' was called after the response headers were sent'
+  }
+  return err
+}
+
+/**
  * Response prototype.
  * @public
  */
@@ -188,26 +219,30 @@ res.status = function status(this: ExpressResponse, code: unknown) {
  */
 
 res.links = function (this: ExpressResponse, links: Record<string, string | string[]>) {
-  var values: string[] = []
-  Object.keys(links).forEach(function (rel) {
-    var targets = links[rel]
-    // Allow multiple links if links[rel] is an array
-    if (Array.isArray(targets)) {
-      targets.forEach(function (target) {
-        values.push(`<${target}>; rel="${rel}"`)
-      })
-    } else {
-      values.push(`<${targets}>; rel="${rel}"`)
-    }
-  })
+  try {
+    var values: string[] = []
+    Object.keys(links).forEach(function (rel) {
+      var targets = links[rel]
+      // Allow multiple links if links[rel] is an array
+      if (Array.isArray(targets)) {
+        targets.forEach(function (target) {
+          values.push(`<${target}>; rel="${rel}"`)
+        })
+      } else {
+        values.push(`<${targets}>; rel="${rel}"`)
+      }
+    })
 
-  // Nothing to add (an empty object, or only empty arrays): leave the header
-  // as it is, rather than sending an empty Link or a trailing ", "
-  if (values.length === 0) return this
+    // Nothing to add (an empty object, or only empty arrays): leave the header
+    // as it is, rather than sending an empty Link or a trailing ", "
+    if (values.length === 0) return this
 
-  var link = this.get('Link') || ''
-  if (link) link += ', '
-  return this.set('Link', link + values.join(', '))
+    var link = this.get('Link') || ''
+    if (link) link += ', '
+    return this.set('Link', link + values.join(', '))
+  } catch (err) {
+    throw headersSent(err, 'res.links()')
+  }
 }
 
 /**
@@ -224,131 +259,135 @@ res.links = function (this: ExpressResponse, links: Record<string, string | stri
  */
 
 res.send = function send(this: ExpressResponse, body?: unknown) {
-  var chunk: unknown = body
-  var encoding: BufferEncoding | undefined
-  var req = this.req
+  try {
+    var chunk: unknown = body
+    var encoding: BufferEncoding | undefined
+    var req = this.req
 
-  // settings
-  var app = this.app
+    // settings
+    var app = this.app
 
-  switch (typeof chunk) {
-    // string defaulting to html
-    case 'string':
-      encoding = 'utf8'
-      const type = this.get('Content-Type')
+    switch (typeof chunk) {
+      // string defaulting to html
+      case 'string':
+        encoding = 'utf8'
+        const type = this.get('Content-Type')
 
-      // a value with no "/" isn't a media type and has no charset to set:
-      // res.set keeps an unknown type such as "not-a-type" as given, and it
-      // is sent as it is (setCharset would throw on it)
-      if (typeof type === 'string') {
-        if (type.indexOf('/') !== -1) this.set('Content-Type', setCharset(type, 'utf-8'))
+        // a value with no "/" isn't a media type and has no charset to set:
+        // res.set keeps an unknown type such as "not-a-type" as given, and it
+        // is sent as it is (setCharset would throw on it)
+        if (typeof type === 'string') {
+          if (type.indexOf('/') !== -1) this.set('Content-Type', setCharset(type, 'utf-8'))
+        } else {
+          this.type('html')
+        }
+        break
+      case 'boolean':
+      case 'number':
+      case 'object':
+        if (chunk === null) {
+          chunk = ''
+        } else if (ArrayBuffer.isView(chunk)) {
+          if (!this.get('Content-Type')) {
+            this.type('bin')
+          }
+
+          // send the view's own bytes: Buffer.from(view) copies one byte per
+          // element (so a Uint16Array loses its high bytes) and gives nothing
+          // for a DataView, and res.end() rejects views other than Uint8Array.
+          // A Buffer over the same memory gives the exact byteOffset and
+          // byteLength window, with or without an ETag. A view whose buffer was
+          // transferred (detached) has no bytes and sends none, as before;
+          // Buffer.from would throw on its buffer.
+          if (!Buffer.isBuffer(chunk)) {
+            chunk =
+              chunk.byteLength === 0 ? Buffer.alloc(0) : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+          }
+        } else if (isAnyArrayBuffer(chunk)) {
+          // an ArrayBuffer or SharedArrayBuffer is binary data too, not an
+          // object to send as JSON ({}). A detached one has no bytes.
+          if (!this.get('Content-Type')) {
+            this.type('bin')
+          }
+
+          chunk = chunk.byteLength === 0 ? Buffer.alloc(0) : Buffer.from(chunk)
+        } else {
+          return this.json(chunk)
+        }
+        break
+    }
+
+    // determine if ETag should be generated (const, so that TypeScript narrows
+    // etagFn through generateETag below)
+    const etagFn = app.get('etag fn') as ETagFunction | undefined
+    const generateETag = !this.get('ETag') && typeof etagFn === 'function'
+
+    // chunk is a string or an ArrayBufferView here, or any other value that
+    // passed the switch untouched (a function, symbol or bigint), which Buffer
+    // rejects below exactly as in Express. The casts keep those reads and calls
+    // as they were.
+    var len: number | undefined
+    if (chunk !== undefined) {
+      if (Buffer.isBuffer(chunk)) {
+        // get length of Buffer
+        len = chunk.length
+      } else if (!generateETag && (chunk as { length: number }).length < 1000) {
+        // just calculate length when no ETag + small chunk
+        len = Buffer.byteLength(chunk as string, encoding)
       } else {
-        this.type('html')
+        // convert chunk to Buffer and calculate
+        chunk = Buffer.from(chunk as string, encoding)
+        encoding = undefined
+        // TypeScript doesn't narrow an unknown variable on assignment
+        len = (chunk as Buffer).length
       }
-      break
-    case 'boolean':
-    case 'number':
-    case 'object':
-      if (chunk === null) {
-        chunk = ''
-      } else if (ArrayBuffer.isView(chunk)) {
-        if (!this.get('Content-Type')) {
-          this.type('bin')
-        }
 
-        // send the view's own bytes: Buffer.from(view) copies one byte per
-        // element (so a Uint16Array loses its high bytes) and gives nothing
-        // for a DataView, and res.end() rejects views other than Uint8Array.
-        // A Buffer over the same memory gives the exact byteOffset and
-        // byteLength window, with or without an ETag. A view whose buffer was
-        // transferred (detached) has no bytes and sends none, as before;
-        // Buffer.from would throw on its buffer.
-        if (!Buffer.isBuffer(chunk)) {
-          chunk =
-            chunk.byteLength === 0 ? Buffer.alloc(0) : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-        }
-      } else if (isAnyArrayBuffer(chunk)) {
-        // an ArrayBuffer or SharedArrayBuffer is binary data too, not an
-        // object to send as JSON ({}). A detached one has no bytes.
-        if (!this.get('Content-Type')) {
-          this.type('bin')
-        }
-
-        chunk = chunk.byteLength === 0 ? Buffer.alloc(0) : Buffer.from(chunk)
-      } else {
-        return this.json(chunk)
+      // Because Content-Length and Transfer-Encoding can't be present in the response headers together,
+      // Content-Length should be added only if there is no Transfer-Encoding header
+      if (!this.get('Transfer-Encoding')) {
+        this.set('Content-Length', len)
       }
-      break
-  }
+    }
 
-  // determine if ETag should be generated (const, so that TypeScript narrows
-  // etagFn through generateETag below)
-  const etagFn = app.get('etag fn') as ETagFunction | undefined
-  const generateETag = !this.get('ETag') && typeof etagFn === 'function'
+    // populate ETag
+    // when generateETag is set, chunk went through Buffer.from above
+    var etag: string
+    if (generateETag && len !== undefined) {
+      if ((etag = etagFn(chunk as Buffer, encoding))) {
+        this.set('ETag', etag)
+      }
+    }
 
-  // chunk is a string or an ArrayBufferView here, or any other value that
-  // passed the switch untouched (a function, symbol or bigint), which Buffer
-  // rejects below exactly as in Express. The casts keep those reads and calls
-  // as they were.
-  var len: number | undefined
-  if (chunk !== undefined) {
-    if (Buffer.isBuffer(chunk)) {
-      // get length of Buffer
-      len = chunk.length
-    } else if (!generateETag && (chunk as { length: number }).length < 1000) {
-      // just calculate length when no ETag + small chunk
-      len = Buffer.byteLength(chunk as string, encoding)
+    // freshness
+    if (req.fresh) this.status(304)
+
+    // strip irrelevant headers
+    if (204 === this.statusCode || 304 === this.statusCode) {
+      this.removeHeader('Content-Type')
+      this.removeHeader('Content-Length')
+      this.removeHeader('Transfer-Encoding')
+      chunk = ''
+    }
+
+    // alter headers for 205
+    if (this.statusCode === 205) {
+      this.set('Content-Length', '0')
+      this.removeHeader('Transfer-Encoding')
+      chunk = ''
+    }
+
+    if (req.method === 'HEAD') {
+      // skip body for HEAD
+      this.end()
     } else {
-      // convert chunk to Buffer and calculate
-      chunk = Buffer.from(chunk as string, encoding)
-      encoding = undefined
-      // TypeScript doesn't narrow an unknown variable on assignment
-      len = (chunk as Buffer).length
+      // respond (Node takes an undefined encoding; its typings only list a set one)
+      this.end(chunk, encoding as BufferEncoding)
     }
 
-    // Because Content-Length and Transfer-Encoding can't be present in the response headers together,
-    // Content-Length should be added only if there is no Transfer-Encoding header
-    if (!this.get('Transfer-Encoding')) {
-      this.set('Content-Length', len)
-    }
+    return this
+  } catch (err) {
+    throw headersSent(err, 'res.send()')
   }
-
-  // populate ETag
-  // when generateETag is set, chunk went through Buffer.from above
-  var etag: string
-  if (generateETag && len !== undefined) {
-    if ((etag = etagFn(chunk as Buffer, encoding))) {
-      this.set('ETag', etag)
-    }
-  }
-
-  // freshness
-  if (req.fresh) this.status(304)
-
-  // strip irrelevant headers
-  if (204 === this.statusCode || 304 === this.statusCode) {
-    this.removeHeader('Content-Type')
-    this.removeHeader('Content-Length')
-    this.removeHeader('Transfer-Encoding')
-    chunk = ''
-  }
-
-  // alter headers for 205
-  if (this.statusCode === 205) {
-    this.set('Content-Length', '0')
-    this.removeHeader('Transfer-Encoding')
-    chunk = ''
-  }
-
-  if (req.method === 'HEAD') {
-    // skip body for HEAD
-    this.end()
-  } else {
-    // respond (Node takes an undefined encoding; its typings only list a set one)
-    this.end(chunk, encoding as BufferEncoding)
-  }
-
-  return this
 }
 
 /**
@@ -364,19 +403,23 @@ res.send = function send(this: ExpressResponse, body?: unknown) {
  */
 
 res.json = function json(this: ExpressResponse, obj?: unknown) {
-  // settings
-  var app = this.app
-  var escape = app.get('json escape')
-  var replacer = app.get('json replacer')
-  var spaces = app.get('json spaces')
-  var body = stringify(obj, replacer, spaces, escape)
+  try {
+    // settings
+    var app = this.app
+    var escape = app.get('json escape')
+    var replacer = app.get('json replacer')
+    var spaces = app.get('json spaces')
+    var body = stringify(obj, replacer, spaces, escape)
 
-  // content-type
-  if (!this.get('Content-Type')) {
-    this.set('Content-Type', 'application/json')
+    // content-type
+    if (!this.get('Content-Type')) {
+      this.set('Content-Type', 'application/json')
+    }
+
+    return this.send(body)
+  } catch (err) {
+    throw headersSent(err, 'res.json()')
   }
-
-  return this.send(body)
 }
 
 /**
@@ -392,51 +435,55 @@ res.json = function json(this: ExpressResponse, obj?: unknown) {
  */
 
 res.jsonp = function jsonp(this: ExpressResponse, obj?: unknown) {
-  // settings
-  var app = this.app
-  var escape = app.get('json escape')
-  var replacer = app.get('json replacer')
-  var spaces = app.get('json spaces')
-  var body = stringify(obj, replacer, spaces, escape)
-  // the setting is used as a property key as it is
-  var callback: unknown = (this.req.query as Record<string, unknown>)[app.get('jsonp callback name') as string]
+  try {
+    // settings
+    var app = this.app
+    var escape = app.get('json escape')
+    var replacer = app.get('json replacer')
+    var spaces = app.get('json spaces')
+    var body = stringify(obj, replacer, spaces, escape)
+    // the setting is used as a property key as it is
+    var callback: unknown = (this.req.query as Record<string, unknown>)[app.get('jsonp callback name') as string]
 
-  // content-type
-  if (!this.get('Content-Type')) {
-    this.set('X-Content-Type-Options', 'nosniff')
-    this.set('Content-Type', 'application/json')
-  }
-
-  // fixup callback
-  if (Array.isArray(callback)) {
-    callback = callback[0]
-  }
-
-  // restrict callback charset, before the check below, so a callback that
-  // has no allowed characters gets plain JSON instead of broken JavaScript
-  if (typeof callback === 'string') {
-    callback = callback.replace(/[^\[\]\w$.]/g, '')
-  }
-
-  // jsonp
-  if (typeof callback === 'string' && callback.length !== 0) {
-    this.set('X-Content-Type-Options', 'nosniff')
-    this.set('Content-Type', 'text/javascript')
-
-    if (body === undefined) {
-      // empty argument
-      body = ''
-    } else if (typeof body === 'string') {
-      // replace chars not allowed in JavaScript that are in JSON
-      body = body.replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
+    // content-type
+    if (!this.get('Content-Type')) {
+      this.set('X-Content-Type-Options', 'nosniff')
+      this.set('Content-Type', 'application/json')
     }
 
-    // the /**/ is a specific security mitigation for "Rosetta Flash JSONP abuse"
-    // the typeof check is just to reduce client error noise
-    body = '/**/ typeof ' + callback + " === 'function' && " + callback + '(' + body + ');'
-  }
+    // fixup callback
+    if (Array.isArray(callback)) {
+      callback = callback[0]
+    }
 
-  return this.send(body)
+    // restrict callback charset, before the check below, so a callback that
+    // has no allowed characters gets plain JSON instead of broken JavaScript
+    if (typeof callback === 'string') {
+      callback = callback.replace(/[^\[\]\w$.]/g, '')
+    }
+
+    // jsonp
+    if (typeof callback === 'string' && callback.length !== 0) {
+      this.set('X-Content-Type-Options', 'nosniff')
+      this.set('Content-Type', 'text/javascript')
+
+      if (body === undefined) {
+        // empty argument
+        body = ''
+      } else if (typeof body === 'string') {
+        // replace chars not allowed in JavaScript that are in JSON
+        body = body.replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
+      }
+
+      // the /**/ is a specific security mitigation for "Rosetta Flash JSONP abuse"
+      // the typeof check is just to reduce client error noise
+      body = '/**/ typeof ' + callback + " === 'function' && " + callback + '(' + body + ');'
+    }
+
+    return this.send(body)
+  } catch (err) {
+    throw headersSent(err, 'res.jsonp()')
+  }
 }
 
 /**
@@ -455,12 +502,16 @@ res.jsonp = function jsonp(this: ExpressResponse, obj?: unknown) {
  */
 
 res.sendStatus = function sendStatus(this: ExpressResponse, statusCode: number) {
-  var body = statuses.message[statusCode] || String(statusCode)
+  try {
+    var body = statuses.message[statusCode] || String(statusCode)
 
-  this.status(statusCode)
-  this.type('txt')
+    this.status(statusCode)
+    this.type('txt')
 
-  return this.send(body)
+    return this.send(body)
+  } catch (err) {
+    throw headersSent(err, 'res.sendStatus()')
+  }
 }
 
 /**
@@ -653,9 +704,13 @@ res.download = function download(
  */
 
 res.contentType = res.type = function contentType(this: ExpressResponse, type: string) {
-  var ct = type.indexOf('/') === -1 ? mimeContentType(type) || 'application/octet-stream' : type
+  try {
+    var ct = type.indexOf('/') === -1 ? mimeContentType(type) || 'application/octet-stream' : type
 
-  return this.set('Content-Type', ct)
+    return this.set('Content-Type', ct)
+  } catch (err) {
+    throw headersSent(err, 'res.type()')
+  }
 }
 
 /**
@@ -727,7 +782,13 @@ res.format = function (this: ExpressResponse, obj: Record<string, FormatHandler>
   // a non-empty list gives one type, or false
   var key = keys.length > 0 ? (req.accepts(keys) as string | false) : false
 
-  this.vary('Accept')
+  // after another response, this is what throws ERR_HTTP_HEADERS_SENT; a
+  // handler below that sends twice names its own method
+  try {
+    this.vary('Accept')
+  } catch (err) {
+    throw headersSent(err, 'res.format()')
+  }
 
   if (key) {
     this.set('Content-Type', normalizeType(key).value)
@@ -757,14 +818,18 @@ res.format = function (this: ExpressResponse, obj: Record<string, FormatHandler>
  */
 
 res.attachment = function attachment(this: ExpressResponse, filename?: string) {
-  const name = filename !== undefined ? basename(filename) : undefined
-  if (name) {
-    this.type(extname(name))
+  try {
+    const name = filename !== undefined ? basename(filename) : undefined
+    if (name) {
+      this.type(extname(name))
+    }
+
+    this.set('Content-Disposition', contentDisposition.create(name))
+
+    return this
+  } catch (err) {
+    throw headersSent(err, 'res.attachment()')
   }
-
-  this.set('Content-Disposition', contentDisposition.create(name))
-
-  return this
 }
 
 /**
@@ -783,17 +848,21 @@ res.attachment = function attachment(this: ExpressResponse, filename?: string) {
  */
 
 res.append = function append(this: ExpressResponse, field: string, val: string | string[]) {
-  var prev = this.get(field)
-  var value: string | string[] | (string | number)[] = val
+  try {
+    var prev = this.get(field)
+    var value: string | string[] | (string | number)[] = val
 
-  // an existing empty value (or a number 0 set through res.setHeader) is
-  // still a value: keep it
-  if (prev !== undefined) {
-    // concat the new and prev vals
-    value = Array.isArray(prev) ? prev.concat(val) : Array.isArray(val) ? [prev].concat(val) : [prev, val]
+    // an existing empty value (or a number 0 set through res.setHeader) is
+    // still a value: keep it
+    if (prev !== undefined) {
+      // concat the new and prev vals
+      value = Array.isArray(prev) ? prev.concat(val) : Array.isArray(val) ? [prev].concat(val) : [prev, val]
+    }
+
+    return this.set(field, value)
+  } catch (err) {
+    throw headersSent(err, 'res.append()')
   }
-
-  return this.set(field, value)
 }
 
 /**
@@ -818,29 +887,33 @@ res.append = function append(this: ExpressResponse, field: string, val: string |
  */
 
 res.set = res.header = function header(this: ExpressResponse, field: string | Record<string, unknown>, val?: unknown) {
-  // TypeScript can't tie arguments.length to the parameter types, so the
-  // casts below say which form each branch handles. A field of the other kind
-  // behaves exactly as in Express (toLowerCase throws, or for-in walks it).
-  if (arguments.length === 2) {
-    var value: string | string[] = Array.isArray(val) ? val.map(String) : String(val)
+  try {
+    // TypeScript can't tie arguments.length to the parameter types, so the
+    // casts below say which form each branch handles. A field of the other kind
+    // behaves exactly as in Express (toLowerCase throws, or for-in walks it).
+    if (arguments.length === 2) {
+      var value: string | string[] = Array.isArray(val) ? val.map(String) : String(val)
 
-    // add charset to content-type
-    if ((field as string).toLowerCase() === 'content-type') {
-      if (Array.isArray(value)) {
-        throw new TypeError('Content-Type cannot be set to an Array')
+      // add charset to content-type
+      if ((field as string).toLowerCase() === 'content-type') {
+        if (Array.isArray(value)) {
+          throw new TypeError('Content-Type cannot be set to an Array')
+        }
+        // mime.contentType gives false for a type it doesn't know, which Node
+        // would write as "false"; keep the value as given instead
+        value = mimeContentType(value) || value
       }
-      // mime.contentType gives false for a type it doesn't know, which Node
-      // would write as "false"; keep the value as given instead
-      value = mimeContentType(value) || value
-    }
 
-    this.setHeader(field as string, value)
-  } else {
-    for (var key in field as Record<string, unknown>) {
-      this.set(key, (field as Record<string, unknown>)[key])
+      this.setHeader(field as string, value)
+    } else {
+      for (var key in field as Record<string, unknown>) {
+        this.set(key, (field as Record<string, unknown>)[key])
+      }
     }
+    return this
+  } catch (err) {
+    throw headersSent(err, 'res.set()')
   }
-  return this
 }
 
 /**
@@ -865,12 +938,16 @@ res.get = function (this: ExpressResponse, field: string) {
  */
 
 res.clearCookie = function clearCookie(this: ExpressResponse, name: string, options?: CookieOptions) {
-  // Force cookie expiration by setting expires to the past
-  const opts = { path: '/', ...options, expires: new Date(1) }
-  // ensure maxAge is not passed
-  delete opts.maxAge
+  try {
+    // Force cookie expiration by setting expires to the past
+    const opts = { path: '/', ...options, expires: new Date(1) }
+    // ensure maxAge is not passed
+    delete opts.maxAge
 
-  return this.cookie(name, '', opts)
+    return this.cookie(name, '', opts)
+  } catch (err) {
+    throw headersSent(err, 'res.clearCookie()')
+  }
 }
 
 /**
@@ -898,41 +975,45 @@ res.clearCookie = function clearCookie(this: ExpressResponse, name: string, opti
  */
 
 res.cookie = function (this: ExpressResponse, name: string, value: unknown, options?: CookieOptions) {
-  var opts = { ...options }
-  var secret = this.req.secret
-  var signed = opts.signed
+  try {
+    var opts = { ...options }
+    var secret = this.req.secret
+    var signed = opts.signed
 
-  if (signed && !secret) {
-    throw new Error('cookieParser("secret") required for signed cookies')
-  }
-
-  var val = typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
-
-  if (signed) {
-    // the check above threw when signed is set without a secret
-    val = 's:' + sign(val, secret!)
-  }
-
-  if (opts.maxAge != null) {
-    var maxAge = opts.maxAge - 0
-
-    if (!isNaN(maxAge)) {
-      // expires: 0 asks for Max-Age without Expires, so it is kept (cookie
-      // leaves out a falsy expires); the type only lists a Date
-      if ((opts.expires as unknown) !== 0) {
-        opts.expires = new Date(Date.now() + maxAge)
-      }
-      opts.maxAge = Math.floor(maxAge / 1000)
+    if (signed && !secret) {
+      throw new Error('cookieParser("secret") required for signed cookies')
     }
+
+    var val = typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)
+
+    if (signed) {
+      // the check above threw when signed is set without a secret
+      val = 's:' + sign(val, secret!)
+    }
+
+    if (opts.maxAge != null) {
+      var maxAge = opts.maxAge - 0
+
+      if (!isNaN(maxAge)) {
+        // expires: 0 asks for Max-Age without Expires, so it is kept (cookie
+        // leaves out a falsy expires); the type only lists a Date
+        if ((opts.expires as unknown) !== 0) {
+          opts.expires = new Date(Date.now() + maxAge)
+        }
+        opts.maxAge = Math.floor(maxAge / 1000)
+      }
+    }
+
+    if (opts.path == null) {
+      opts.path = '/'
+    }
+
+    this.append('Set-Cookie', cookie.serialize(name, String(val), opts))
+
+    return this
+  } catch (err) {
+    throw headersSent(err, 'res.cookie()')
   }
-
-  if (opts.path == null) {
-    opts.path = '/'
-  }
-
-  this.append('Set-Cookie', cookie.serialize(name, String(val), opts))
-
-  return this
 }
 
 /**
@@ -950,7 +1031,11 @@ res.cookie = function (this: ExpressResponse, name: string, value: unknown, opti
  */
 
 res.location = function location(this: ExpressResponse, url: string) {
-  return this.set('Location', encodeUrl(url))
+  try {
+    return this.set('Location', encodeUrl(url))
+  } catch (err) {
+    throw headersSent(err, 'res.location()')
+  }
 }
 
 /**
@@ -968,72 +1053,76 @@ res.location = function location(this: ExpressResponse, url: string) {
  */
 
 res.redirect = function redirect(this: ExpressResponse, url: unknown) {
-  var address: unknown = url
-  // set by whichever format handler below runs
-  var body!: string
-  var status: unknown = 302
+  try {
+    var address: unknown = url
+    // set by whichever format handler below runs
+    var body!: string
+    var status: unknown = 302
 
-  // allow status / url
-  if (arguments.length === 2) {
-    status = arguments[0]
-    address = arguments[1]
-  }
-
-  if (!address) {
-    deprecate('Provide a url argument')
-  }
-
-  if (typeof address !== 'string') {
-    deprecate('Url must be a string')
-  }
-
-  if (typeof status !== 'number') {
-    deprecate('Status must be a number')
-  }
-
-  // Set location header (a url that isn't a string only gets the warnings
-  // above, and encodeurl turns it into a string)
-  address = this.location(address as string).get('Location')
-
-  // Support text/{plain,html} by default. A status without a standard
-  // message is named by its number, as in res.sendStatus
-  var message = statuses.message[status as number] || String(status)
-  this.format({
-    text: function () {
-      body = message + '. Redirecting to ' + address
-    },
-
-    html: function () {
-      // location() stored a string
-      var u = escapeHtml(address as string)
-      body =
-        '<!DOCTYPE html><head><title>' +
-        message +
-        '</title></head>' +
-        '<body><p>' +
-        message +
-        '. Redirecting to ' +
-        u +
-        '</p></body>'
-    },
-
-    default: function () {
-      body = ''
+    // allow status / url
+    if (arguments.length === 2) {
+      status = arguments[0]
+      address = arguments[1]
     }
-  })
 
-  // Respond
-  this.status(status)
+    if (!address) {
+      deprecate('Provide a url argument')
+    }
 
-  // Content-Length and Transfer-Encoding can't be sent together, as in res.send
-  if (!this.get('Transfer-Encoding')) {
-    this.set('Content-Length', Buffer.byteLength(body))
-  }
+    if (typeof address !== 'string') {
+      deprecate('Url must be a string')
+    }
 
-  if (this.req.method === 'HEAD') {
-    this.end()
-  } else {
-    this.end(body)
+    if (typeof status !== 'number') {
+      deprecate('Status must be a number')
+    }
+
+    // Set location header (a url that isn't a string only gets the warnings
+    // above, and encodeurl turns it into a string)
+    address = this.location(address as string).get('Location')
+
+    // Support text/{plain,html} by default. A status without a standard
+    // message is named by its number, as in res.sendStatus
+    var message = statuses.message[status as number] || String(status)
+    this.format({
+      text: function () {
+        body = message + '. Redirecting to ' + address
+      },
+
+      html: function () {
+        // location() stored a string
+        var u = escapeHtml(address as string)
+        body =
+          '<!DOCTYPE html><head><title>' +
+          message +
+          '</title></head>' +
+          '<body><p>' +
+          message +
+          '. Redirecting to ' +
+          u +
+          '</p></body>'
+      },
+
+      default: function () {
+        body = ''
+      }
+    })
+
+    // Respond
+    this.status(status)
+
+    // Content-Length and Transfer-Encoding can't be sent together, as in res.send
+    if (!this.get('Transfer-Encoding')) {
+      this.set('Content-Length', Buffer.byteLength(body))
+    }
+
+    if (this.req.method === 'HEAD') {
+      this.end()
+    } else {
+      this.end(body)
+    }
+  } catch (err) {
+    throw headersSent(err, 'res.redirect()')
   }
 }
 
@@ -1047,9 +1136,13 @@ res.redirect = function redirect(this: ExpressResponse, url: unknown) {
  */
 
 res.vary = function (this: ExpressResponse, field: string | string[]) {
-  vary(this, field)
+  try {
+    vary(this, field)
 
-  return this
+    return this
+  } catch (err) {
+    throw headersSent(err, 'res.vary()')
+  }
 }
 
 /**
@@ -1101,7 +1194,7 @@ res.render = function render(
       try {
         self.send(str)
       } catch (sendErr) {
-        req.next(sendErr)
+        req.next(headersSent(sendErr, 'res.render()'))
       }
     }
 

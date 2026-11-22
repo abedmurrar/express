@@ -32,6 +32,11 @@ export interface ViewOptions {
   defaultEngine?: string | undefined
   /** template engine require() cache */
   engines: Record<string, Engine>
+  /**
+   * the "view engines" setting: more engine extensions to try, in order,
+   * after the default engine's, for a name without a known extension
+   */
+  extensions?: string | string[] | undefined
   /** root path for view lookup */
   root: string | string[]
 }
@@ -43,6 +48,11 @@ export interface View {
   name: string
   root: string | string[]
   engine: Engine
+  /**
+   * The extensions tried, in order, for a name without a known extension,
+   * when the "view engines" setting is used. Unset otherwise.
+   */
+  extensions?: string[]
   path: string | undefined
   lookup(name: string): string | undefined
   render(options: object, callback: RenderCallback): void
@@ -80,6 +90,7 @@ module.exports = View
  *
  *   - `defaultEngine` the default template engine name
  *   - `engines` template engine require() cache
+ *   - `extensions` more engine extensions to try ("view engines" setting)
  *   - `root` root path for view lookup
  *
  * @param {string} name
@@ -103,6 +114,17 @@ function View(this: View, name: string, options: ViewOptions) {
     this.ext = ''
   }
 
+  // the "view engines" setting (opt-in): a name without a known extension
+  // tries the default engine's extension, then each listed one, in order,
+  // and takes the first that has a file
+  var extensions = opts.extensions ? engineExtensions(this.defaultEngine, opts.extensions) : undefined
+
+  if (extensions && !knownExtension(this.ext, extensions, opts.engines)) {
+    this.extensions = extensions
+    this.path = lookupExtensions(this, name, extensions, opts.engines)
+    return
+  }
+
   if (!this.ext && !this.defaultEngine) {
     throw new Error('No default engine was specified and no extension was provided.')
   }
@@ -117,27 +139,8 @@ function View(this: View, name: string, options: ViewOptions) {
     fileName += this.ext
   }
 
-  // the engine registered for this extension, or one registered in another
-  // case ("Eta" for "search.eta"); the file name keeps its own case
-  var engine = opts.engines[this.ext] || engineIgnoringCase(opts.engines, this.ext)
-
-  if (!engine) {
-    // load engine
-    var mod = this.ext.slice(1)
-    debug('require "%s"', mod)
-
-    // default engine export
-    var fn: unknown = (require(mod) as { __express?: unknown }).__express
-
-    if (typeof fn !== 'function') {
-      throw new Error('Module "' + mod + '" does not provide a view engine.')
-    }
-
-    engine = opts.engines[this.ext] = fn as Engine
-  }
-
   // store loaded engine
-  this.engine = engine
+  this.engine = loadEngine(opts.engines, this.ext)
 
   // lookup path
   this.path = this.lookup(fileName)
@@ -237,6 +240,136 @@ proto.resolve = function resolve(dir, file) {
   }
 
   return undefined
+}
+
+/**
+ * Lookup `view` by `name` (a name without a known extension) with each of
+ * the given extensions in turn, each one in every root before the next one,
+ * through `view.lookup`, and take the first that has a file: sets the view's
+ * `ext` and `engine` to its own. Undefined when none has; `ext` is then the
+ * name's own extension.
+ *
+ * @param {View} view
+ * @param {string} name
+ * @param {string[]} extensions
+ * @param {object} engines
+ * @return {string}
+ * @private
+ */
+
+function lookupExtensions(
+  view: View,
+  name: string,
+  extensions: string[],
+  engines: Record<string, Engine>
+): string | undefined {
+  var ext = view.ext
+
+  for (var i = 0; i < extensions.length; i++) {
+    view.ext = extensions[i] as string
+
+    var path = view.lookup(name + view.ext)
+
+    if (path) {
+      view.engine = loadEngine(engines, view.ext)
+      return path
+    }
+  }
+
+  view.ext = ext
+  return undefined
+}
+
+/**
+ * The engine for `ext`: the one registered for it, or one registered in
+ * another case ("Eta" for "search.eta"), or else the `__express` export of
+ * the module named after it, which is then cached in `engines`.
+ *
+ * @param {object} engines
+ * @param {string} ext
+ * @return {function}
+ * @private
+ */
+
+function loadEngine(engines: Record<string, Engine>, ext: string): Engine {
+  var engine = engines[ext] || engineIgnoringCase(engines, ext)
+
+  if (engine) {
+    return engine
+  }
+
+  // load engine
+  var mod = ext.slice(1)
+  debug('require "%s"', mod)
+
+  // default engine export
+  var fn: unknown = (require(mod) as { __express?: unknown }).__express
+
+  if (typeof fn !== 'function') {
+    throw new Error('Module "' + mod + '" does not provide a view engine.')
+  }
+
+  return (engines[ext] = fn as Engine)
+}
+
+/**
+ * The extensions the "view engines" setting tries, in order, each with its
+ * leading dot: the default engine's first, then the listed ones, without
+ * repeats. Undefined when the setting lists none, so it is off.
+ *
+ * @param {string} defaultEngine
+ * @param {string|string[]} setting
+ * @return {string[]}
+ * @private
+ */
+
+function engineExtensions(defaultEngine: string | undefined, setting: string | string[]): string[] | undefined {
+  var listed = ([] as string[]).concat(setting)
+
+  if (listed.length === 0) {
+    return undefined
+  }
+
+  var extensions: string[] = []
+
+  for (var name of defaultEngine ? [defaultEngine, ...listed] : listed) {
+    var ext = name[0] !== '.' ? '.' + name : name
+
+    if (!extensions.includes(ext)) {
+      extensions.push(ext)
+    }
+  }
+
+  return extensions
+}
+
+/**
+ * Whether `ext` is a known view extension when the "view engines" setting is
+ * on: an engine is registered for it (in any case), or it is one of the
+ * extensions the setting tries (in any case). Any other extension, and none,
+ * is part of the view name.
+ *
+ * @param {string} ext
+ * @param {string[]} extensions
+ * @param {object} engines
+ * @return {boolean}
+ * @private
+ */
+
+function knownExtension(ext: string, extensions: string[], engines: Record<string, Engine>): boolean {
+  if (!ext) {
+    return false
+  }
+
+  if (engines[ext] || engineIgnoringCase(engines, ext)) {
+    return true
+  }
+
+  var wanted = ext.toLowerCase()
+
+  return extensions.some(function sameExtension(known) {
+    return known.toLowerCase() === wanted
+  })
 }
 
 /**

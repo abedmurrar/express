@@ -10,6 +10,8 @@ const asApplication: Application = app
 
 // settings
 app.set('view engine', 'ejs')
+app.set('view engines', ['html', 'pug'])
+app.set('view engines', 'pug')
 app.set('trust proxy', 1)
 const setting: any = app.get('view engine')
 app.enable('strict routing')

@@ -26,7 +26,7 @@ import type {
 } from './router'
 import type { Route } from './router/lib/route'
 import type { QueryParser, TrustFunction } from './utils'
-import type { Engine, View as ViewInstance, ViewConstructor } from './view'
+import type { Engine, View as ViewInstance, ViewConstructor, ViewOptions } from './view'
 
 /**
  * Module dependencies.
@@ -59,6 +59,7 @@ export interface ApplicationSettings {
   'trust proxy fn': TrustFunction
   view: ViewConstructor
   'view engine': string | undefined
+  'view engines': string | string[] | undefined
   views: string | string[]
 }
 
@@ -670,18 +671,31 @@ app.render = function render(
   if (!view) {
     var View = this.get('view')
 
-    view = new View(name, {
+    var viewOptions: ViewOptions = {
       defaultEngine: this.get('view engine'),
       root: this.get('views'),
       engines: engines
-    })
+    }
+
+    // only when set, so a custom "view" class gets the same options as before
+    var extensions = this.get('view engines')
+
+    if (extensions) {
+      viewOptions.extensions = extensions
+    }
+
+    view = new View(name, viewOptions)
 
     if (!view.path) {
       var dirs =
         Array.isArray(view.root) && view.root.length > 1
           ? 'directories "' + view.root.slice(0, -1).join('", "') + '" or "' + view.root[view.root.length - 1] + '"'
           : 'directory "' + view.root + '"'
-      var err: Error & { view?: ViewInstance } = new Error('Failed to lookup view "' + name + '" in views ' + dirs)
+      // with "view engines", the extensions it tried, in order
+      var tried = view.extensions ? ' with extension ' + quotedList(view.extensions) : ''
+      var err: Error & { view?: ViewInstance } = new Error(
+        'Failed to lookup view "' + name + '" in views ' + dirs + tried
+      )
       err.view = view
       return done(err)
     }
@@ -785,6 +799,17 @@ function withPrototype(Base: Function, proto: object): Function {
 function logerror(this: Application, err: unknown) {
   /* istanbul ignore next */
   if (this.get('env') !== 'test') console.error(err)
+}
+
+/**
+ * Quote a list for an error message: `"a"`, `"a" or "b"`, `"a", "b" or "c"`.
+ * @private
+ */
+
+function quotedList(items: string[]): string {
+  var last = '"' + items[items.length - 1] + '"'
+
+  return items.length > 1 ? '"' + items.slice(0, -1).join('", "') + '" or ' + last : last
 }
 
 /**

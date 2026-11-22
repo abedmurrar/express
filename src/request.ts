@@ -672,16 +672,26 @@ Object.defineProperty(req, 'signal', {
       return ac.signal
     }
 
+    // The response counts as finished only if it finished while the
+    // connection was still open. A response ended after the client left (an
+    // error handler's 400 for an aborted body, say) is finished by the time
+    // 'close' comes, but the client never got it, so the signal aborts.
+    var finishedOpen = false
+    var onfinish = function onfinish() {
+      finishedOpen = !request.socket.destroyed
+    }
+
     // The response's 'close' comes after 'finish' when it finished, and on
     // its own when the connection closed first. The request's 'close' also
     // covers a pipelined request whose response is still queued, which gets
     // no 'close' on Node 22 when the connection closes. A request's 'close'
-    // can come early, once its body is read, so the socket decides. Both
-    // events fire once per request, so both listeners go away with it.
+    // can come early, once its body is read, so the socket decides. Each
+    // event fires once per request, so the listeners go away with it.
     var onclose = function onclose() {
-      if (!res.writableFinished && request.socket.destroyed) ac.abort()
+      if (!finishedOpen && request.socket.destroyed) ac.abort()
     }
 
+    res.once('finish', onfinish)
     res.once('close', onclose)
     request.once('close', onclose)
 

@@ -220,17 +220,17 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | Status | Item | Upstream | Line | Size | Proof | PR |
 |---|---|---|---|---|---|---|
 | [x] | A bad value in `res.sendFile`'s or `res.download`'s `headers` option (a CR or LF, or an invalid name) crashes the process: it throws inside `send`'s file-stat callback. Any throw from a `headers` listener now becomes an error for the callback or `next(err)`. `express.static` is covered too: it uses our vendored serve-static, so a throwing `setHeaders` (or a CR or LF set through `res.setHeader` in it) goes to the error handler | | master | Small | 6 security tests that fail with an uncaught error before the fix (4 for `res.sendFile` and `res.download`, 2 for `express.static`) | [#39](https://github.com/abedmurrar/express/pull/39), [#54](https://github.com/abedmurrar/express/pull/54) |
-| [ ] | `res.send` corrupts ArrayBuffer, DataView and typed-array bodies | #7362, #7510, #7538, PRs #7574, #7363, #7511, #7542, #7410 | master | Small | repros 7362, 7510, 7538 | |
-| [ ] | `res.redirect` sends Content-Length with Transfer-Encoding | #7506, PR #7508 | master | Small | repro 7506 | |
-| [ ] | `res.set` sends `Content-Type: false` for unknown types | #7034, PR #7035 | master | Small | repro 7034 | |
-| [ ] | `res.cookie` adds Expires despite `expires: 0` | #5150, PR #5151 | master | Small | repro 5150 | |
+| [x] | `res.send` corrupts ArrayBuffer, DataView and typed-array bodies | #7362, #7510, #7538, PRs #7574, #7363, #7511, #7542, #7410 | master | Small | repros 7362, 7510, 7538 pass; new tests for every typed-array kind (whole and a `byteOffset`/`byteLength` window, ETag on and off), DataView windows, ArrayBuffer, SharedArrayBuffer, cross-realm views, detached buffers, HEAD, 304 and the 1,000-element path; 5 differential scenarios and 3 generated calls differ from 5.3.0 on purpose. Removing the view fix fails 59 tests, the ArrayBuffer branch 14, the detached-buffer guard 2 | |
+| [x] | `res.redirect` sends Content-Length with Transfer-Encoding | #7506, PR #7508 | master | Small | repro 7506 passes; new tests for GET, HEAD and the no-Transfer-Encoding case; 2 differential scenarios differ on purpose. Removing the fix fails 7 tests | |
+| [x] | `res.set` sends `Content-Type: false` for unknown types. `res.send` then keeps that value too (it has no `/`, so no charset), where 5.3.0 swapped in its default type | #7034, PR #7035 | master | Small | repro 7034 passes; new tests for `res.end`, the object form, an empty value, `res.send`, `res.json`, known shorthands and an invalid type with a `/` (still a 500); 2 differential scenarios differ on purpose. Removing the fix fails 10 tests, the `res.send` part 2 | |
+| [x] | `res.cookie` adds Expires despite `expires: 0` | #5150, PR #5151 | master | Small | repro 5150 passes; new tests for `maxAge` 0, the options object, `expires` undefined, null and a Date (unchanged); 1 differential scenario differs on purpose. Removing the fix fails 5 tests | |
 | [ ] | `sendFile` ignores a per-call `etag: false` | #4750, PR #7467 | master | Small | repro 7467 | |
 | [ ] | `/proc` files are sent empty | #4944 | master | Small | repro 4944 | |
 | [ ] | `res.render` after a send crashes the process | #7560, PR #7559 | master | Small | repro 7560 | |
 | [ ] | `res.render` mutates the caller's options | PR #7541 | master | Small | repro 7541 | |
 | [ ] | A view name ending in `.` throws synchronously | #7350, PRs #7351, #7392 | master | Small | repro 7350 | |
 | [ ] | `app.listen` leaves its error listener attached | PR #7501 | master | Small | repros 7501, 7501b | |
-| [ ] | A JSONP callback that sanitises to nothing gives broken JS | PR #7161 | master | Small | repro 7161 | |
+| [x] | A JSONP callback that sanitises to nothing gives broken JS | PR #7161 | master | Small | repro 7161 passes; new tests for an array of callbacks and a partly kept callback; 2 differential scenarios differ on purpose. Removing the fix fails 7 tests | |
 | [ ] | `req.subdomains` splits IPv6 literals | #7532, PR #7533 | master | Small | repro 7532 | |
 | [ ] | Userinfo in the Host header becomes `req.hostname` | PR #7317 | master | Small | repro 7317 | |
 | [ ] | Uppercase `X-Forwarded-Proto: HTTPS` is not secure | PR #7330 | master | Small | repro 7330 | |

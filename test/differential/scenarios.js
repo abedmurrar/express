@@ -1878,6 +1878,59 @@ FAST_PATH_SETTINGS.forEach(function (variant) {
   })
 })
 
+// Fixed in src/response.ts, so each differs from 5.3.0 on purpose (listed in
+// `allowed` below).
+scenarios.push(
+  {
+    // 5.3.0 hands the view to res.end, which rejects it: a 500
+    name: 'res.send Float32Array window without ETag',
+    setup: function (app) {
+      app.set('etag', false)
+      sendWith(new Float32Array([1, 2.5, -3, 4]).subarray(1, 3))(app)
+    },
+    req: get('/')
+  },
+  {
+    name: 'res.send SharedArrayBuffer',
+    setup: function (app) {
+      var sab = new SharedArrayBuffer(3)
+      new Uint8Array(sab).set([104, 105, 33])
+      sendWith(sab)(app)
+    },
+    req: get('/')
+  },
+  {
+    name: 'res.redirect 301 HEAD with Transfer-Encoding',
+    setup: route('head', '/', function (req, res) {
+      res.set('Transfer-Encoding', 'chunked')
+      res.redirect(301, '/moved')
+    }),
+    req: { method: 'HEAD', path: '/', headers: {} }
+  },
+  {
+    // 5.3.0 stores false, which res.send replaces with text/html
+    name: 'res.set unknown Content-Type then res.send string',
+    setup: route('get', '/', function (req, res) {
+      res.set('Content-Type', 'definitely-unknown').send('hi')
+    }),
+    req: get('/')
+  },
+  {
+    name: 'res.cookie maxAge with expires 0',
+    setup: route('get', '/', function (req, res) {
+      res.cookie('n', 'v', { maxAge: 60000, expires: 0 }).end()
+    }),
+    req: get('/')
+  },
+  {
+    name: 'res.jsonp first callback sanitises to nothing',
+    setup: route('get', '/', function (req, res) {
+      res.jsonp({ a: 1 })
+    }),
+    req: get('/?callback=%3C%3E&callback=ok')
+  }
+)
+
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
 // A g-flag RegExp guard whose lastIndex the app left non-zero: Express 5.3.0
@@ -1896,6 +1949,30 @@ scenarios.push({
 })
 
 var allowed = {
+  'res.send ArrayBuffer':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send DataView':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send Uint16Array':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send Float32Array window without ETag':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.send SharedArrayBuffer':
+    "fixed in the fork: `res.send` corrupts ArrayBuffer, DataView and typed-array bodies (it now sends the view's own bytes)",
+  'res.redirect with Transfer-Encoding':
+    'fixed in the fork: `res.redirect` sends Content-Length with Transfer-Encoding (it now leaves it out, as res.send does)',
+  'res.redirect 301 HEAD with Transfer-Encoding':
+    'fixed in the fork: `res.redirect` sends Content-Length with Transfer-Encoding (it now leaves it out, as res.send does)',
+  'res.set Content-Type unknown':
+    'fixed in the fork: `res.set` sends `Content-Type: false` for unknown types (it now keeps the value as given)',
+  'res.set unknown Content-Type then res.send string':
+    'fixed in the fork: `res.set` sends `Content-Type: false` for unknown types (res.send now keeps the value as given)',
+  'res.cookie maxAge with expires 0':
+    'fixed in the fork: `res.cookie` adds Expires despite `expires: 0` (it now sends Max-Age alone)',
+  'res.jsonp empty after sanitising':
+    'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
+  'res.jsonp first callback sanitises to nothing':
+    'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
   'app.use(stateful RegExp guard with lastIndex left at 3)':
     'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)'
 }

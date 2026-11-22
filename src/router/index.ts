@@ -309,10 +309,6 @@ proto.handle = function handleRequest(req, res, callback) {
       return done(layerError)
     }
 
-    // not in upstream: the method a route must handle for its path to be
-    // worth matching (see skippableMethod)
-    const skipUnless = skippableMethod(req.method, path)
-
     // find next matching layer
     let layer!: LayerInstance
     let match: unknown
@@ -320,16 +316,8 @@ proto.handle = function handleRequest(req, res, callback) {
 
     while (match !== true && idx < stack.length) {
       layer = stack[idx++] as LayerInstance
-      route = layer.route
-
-      // not in upstream: a route without a handler for the method would only
-      // get `match = false` below once its path matched
-      if (route && skipUnless !== undefined && !route.methods._all && !route.methods[skipUnless]) {
-        match = false
-        continue
-      }
-
       match = matchLayer(layer, path)
+      route = layer.route
 
       if (typeof match !== 'boolean') {
         // hold on to layerError
@@ -615,29 +603,6 @@ function matchLayer(layer: LayerInstance, path: string): unknown {
   } catch (err) {
     return err
   }
-}
-
-/**
- * The request method in lower case, when a route that has no handler for it
- * can be skipped without matching its path: matching would end in a skip
- * anyway. Undefined, so every route's path is matched as before, for HEAD
- * (a matching route runs even without a GET handler), for OPTIONS (every
- * route whose path matches adds its methods to the automatic `Allow`), and
- * for a path with a `%` (matching it can throw a decoding error, which goes
- * on to the error handlers).
- *
- * Not in upstream.
- * @private
- */
-
-function skippableMethod(method: string | undefined, path: string): string | undefined {
-  if (typeof method !== 'string' || method === 'OPTIONS' || path.indexOf('%') !== -1) {
-    return undefined
-  }
-
-  const name = method.toLowerCase()
-
-  return name === 'head' ? undefined : name
 }
 
 /**

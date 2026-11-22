@@ -51,7 +51,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **Middleware's own test suites.** The test suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests) run against Express 5.3.0 and against the fork. Every test that passes on 5.3.0 must pass on the fork, and today all of them do.
 - **Security test suite.** Checks that an auth guard always runs before the route it protects however the path is spelled, that CR and LF never inject a header, where redirects point, that no request pollutes `Object.prototype`, and that file serving never leaves its root.
 - **100% coverage.** Statements, branches, functions and lines of `lib/` are measured with c8 and must stay at 100%, or CI fails.
-- **Regression tests for 22 confirmed bugs.** Each one asserts the correct behaviour and stays skipped until its fix lands.
+- **Regression tests for 27 confirmed bugs.** Each one asserts the correct behaviour and stays skipped until its fix lands.
 - **Upstream test PRs.** Eight upstream test-coverage pull requests are ported, keeping their authors.
 
 ## Tooling

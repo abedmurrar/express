@@ -380,6 +380,80 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 :::
 
+### req.originalRoute
+
+**Type:** `String | undefined`
+
+This is a fork addition; Express 5.3.0 has no `req.originalRoute` (expressjs/express#2501).
+
+The full path pattern of the route that matched: the path of every router and sub-app the route is
+mounted under, followed by the route's own path. It is to [`req.route`](#reqroute) what
+[`req.originalUrl`](#reqoriginalurl) is to `req.url`: `req.route.path` is the route's path inside its
+router, and `req.originalRoute` is the whole pattern, which suits logs and metrics, where the URL
+itself would give one entry per user ID.
+
+::: code-group
+
+```js [JavaScript]
+const api = express.Router();
+
+api.get('/users/:id', (req, res) => {
+  console.dir(req.route.path); // '/users/:id'
+  console.dir(req.originalRoute); // '/api/users/:id'
+  res.end();
+});
+
+// GET /api/users/7
+app.use('/api', api);
+```
+
+```ts [TypeScript]
+import { type Request, type Response } from 'express';
+
+const api = express.Router();
+
+api.get('/users/:id', (req: Request, res: Response) => {
+  console.dir(req.route.path); // '/users/:id'
+  console.dir(req.originalRoute); // '/api/users/:id'
+  res.end();
+});
+
+// GET /api/users/7
+app.use('/api', api);
+```
+
+:::
+
+It is built when you read it, from what the router keeps while it routes, so an app that doesn't
+read it doesn't pay for it.
+
+- **Mount paths** are joined as `req.baseUrl` joins them: without a trailing slash, and a router or
+  sub-app used without a path adds nothing. Routers and sub-apps nested at any depth all add their
+  paths, so `app.use('/api', api)`, `api.use('/v1', v1)` and `v1.get('/users/:id')` give
+  `'/api/v1/users/:id'`. The route's own path is kept as it is, so `api.get('/')` under `'/api'`
+  gives `'/api/'`.
+- **Patterns** are the strings you registered, with their parameters, wildcards and optional
+  groups: `'/t/:tenant{/:region}/files/*path'`.
+- **Path arrays** contribute the entry that matched, the first one in order (nested arrays
+  included): `app.get(['/a', '/b/:id'])` gives `'/b/:id'` for `GET /b/1`.
+- **RegExp paths** have no string form that is a route pattern, so when the route, or any mount
+  above it, matched with a RegExp, `req.originalRoute` is `undefined`. `String(regexp)` joined with
+  paths would be neither a path nor a RegExp, and the text the RegExp matched would put user IDs
+  back into metric names. `req.route.path` still has the RegExp.
+- **`router.route()` and `app.route()`** routes, and `router.param()` callbacks of a route, see
+  it as `app.get()` routes do.
+- **Middleware** (`app.use()`) is not a route: before any route has matched, `req.originalRoute`
+  is `undefined`.
+- **Error handlers** see the route that failed (it stays set when a route calls `next(err)` or
+  throws), or `undefined` when the error came before any route matched.
+- **404 handlers** see `undefined` when no route matched. It is set and kept exactly as long as
+  `req.route` is: when a route matched and passed the request on with `next()`, a later handler,
+  404 handlers included, sees that route, as `req.route` does.
+- It can be read after the response is sent, for example in a `res.on('finish')` listener.
+
+`req.originalRoute` is a getter on the request prototype, and not an enumerable one, so
+`Object.keys(express.request)` lists the same names as Express 5.3.0.
+
 ### req.originalUrl
 
 **Type:** `String`
@@ -666,12 +740,17 @@ Route {
       path: undefined,
       slash: false,
       matchers: [ [Function: match] ],
+      rawPath: '/',
+      rawMatchers: [ [Function: match] ],
       method: 'get'
     }
   ],
   methods: [Object: null prototype] { get: true }
 }
 ```
+
+In this fork, each `Layer` also has `rawPath` (the path it was registered with, from router 2.3.0)
+and `rawMatchers`, which [`req.originalRoute`](#reqoriginalroute) reads.
 
 ### req.secure
 

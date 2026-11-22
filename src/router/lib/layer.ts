@@ -58,6 +58,8 @@ export interface Layer {
   path: string | undefined
   slash: boolean
   matchers: Array<MatchFunction<Params>>
+  rawPath: string | RegExp | Array<string | RegExp> // the path it was registered with, arrays flattened
+  rawMatchers: Array<MatchFunction<Params>> // one per rawPath entry
   method?: string | undefined // set by the route
   route?: Route | undefined // set by the router
   handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
@@ -154,6 +156,18 @@ function Layer(this: Layer, path: PathParams, options: LayerOptions | undefined,
     } as MatchOptions)
   }
   this.matchers = Array.isArray(path) ? path.map(matcher) : [matcher(path)]
+
+  // Not in router 2.2.0: the path as registered, which req.originalRoute
+  // reads. rawPath is router 2.3.0's (pillarjs/router#174), with its comment:
+  // flat unnests nested path arrays and snapshots the caller's array.
+  // rawMatchers has one matcher per rawPath entry, so the entry that matched
+  // can be told apart; it's the same array as matchers unless the path nests
+  // arrays (2.3.0 builds matchers from rawPath, so they are always the same).
+  this.rawPath = Array.isArray(path) ? (path.flat(Infinity) as Array<string | RegExp>) : path
+  this.rawMatchers =
+    Array.isArray(path) && path.some(Array.isArray)
+      ? (this.rawPath as Array<string | RegExp>).map(matcher)
+      : this.matchers
 }
 
 /**

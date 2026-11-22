@@ -28,6 +28,7 @@ const proto = require('./application') as Application
 const Router = require('./router') as RouterConstructor
 const req = require('./request') as Request
 const res = require('./response') as ExpressResponse
+const { originalRoute } = require('./router/lib/original-route') as typeof import('./router/lib/original-route')
 
 /**
  * Expose `createApplication()`.
@@ -64,6 +65,21 @@ function createApplication(): Application {
   app.init()
   return app
 }
+
+/**
+ * `req.originalRoute`: the full path pattern of the route that matched
+ * (expressjs/express#2501), built by the router when it is read. Not in
+ * Express 5.3.0. Not enumerable, so the request prototype keeps the own
+ * enumerable keys it has in Express 5.3.0.
+ */
+
+Object.defineProperty(req, 'originalRoute', {
+  configurable: true,
+  enumerable: false,
+  get: function getOriginalRoute(this: Request) {
+    return originalRoute(this)
+  }
+})
 
 /**
  * Expose the prototypes.

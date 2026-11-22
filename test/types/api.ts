@@ -185,6 +185,11 @@ app.get('/request', (req, res) => {
   void req.signedCookies
   void req.route
   void req.res
+  // the fork's req.originalRoute: a string, or undefined, and read-only
+  const originalRoute: string | undefined = req.originalRoute
+  // @ts-expect-error it is read-only
+  req.originalRoute = '/x'
+  void originalRoute
   res.end()
 })
 

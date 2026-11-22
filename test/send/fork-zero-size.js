@@ -264,11 +264,8 @@ describe('send: files that stat as 0 bytes', function () {
     })
   })
 
-  describe('/proc files', function () {
-    before(function () {
-      if (!fs.existsSync('/proc/version')) this.skip()
-    })
-
+  // skipped where there is no /proc (Windows, macOS)
+  ;(fs.existsSync('/proc/version') ? describe : describe.skip)('/proc files', function () {
     it('sends /proc/version whole', function () {
       var expected = fs.readFileSync('/proc/version', 'utf8')
       assert.strictEqual(fs.statSync('/proc/version').size, 0)

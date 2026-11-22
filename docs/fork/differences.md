@@ -21,6 +21,9 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **`res.cookie` honours `expires: 0`** with a `maxAge`: the cookie gets `Max-Age` and no `Expires`.
 - **`res.jsonp` falls back to JSON** when the callback name has no allowed characters, instead of sending JavaScript that doesn't parse.
 - **`res.sendFile` and `res.download` honour a per-call `etag` option.** The app's `etag` setting is only the default, and the options object you pass is no longer changed.
+- **`res.render` after another response no longer crashes the process.** Without a callback, the "headers already sent" error goes to the error handler. Express 5.3.0 threw it from a deferred callback and ended the process.
+- **`res.render` leaves its options object alone.** `res.locals` is merged into a copy, so a frozen options object works and a shared one isn't changed.
+- **A view name ending in `.` gets the usual lookup error** through the callback, where Express 5.3.0 threw a `require('')` error synchronously.
 - **RegExp paths with `g` or `y` match on every request.** In Express 5.3.0 such a RegExp kept its `lastIndex` between requests and matched only every other request, which let requests past a guard like `app.use(/^\/admin/g, auth)`. The fork starts every match at index 0.
 - **Fewer dependencies.** The `merge-descriptors`, `once` and `wrappy` packages are gone, replaced by short built-in equivalents with the same behaviour. With `body-parser` and `qs` vendored, `qs` and the 18 packages it brought (`side-channel` and its chain) are gone too: a production install has 38 packages instead of 58.
 - **Project links** in `package.json` point to the fork, and upstream's `funding` entry is removed.

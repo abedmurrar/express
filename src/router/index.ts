@@ -235,6 +235,19 @@ proto.handle = function handleRequest(req, res, callback) {
     throw new TypeError('argument callback is required')
   }
 
+  // A request target never carries a fragment (RFC 9112 section 3.2), but
+  // Node passes one through in req.url, and parseurl then falls back to
+  // url.parse, which reads "//user@host/..." as a host and routes a path the
+  // client never asked for. Not in upstream (router 2.2.0, 2.3.0): drop the
+  // fragment once, in the outermost router (no originalUrl yet), so every
+  // reader of req.url, req.originalUrl and req.path sees the same path.
+  if (!req.originalUrl && typeof req.url === 'string') {
+    const hash = req.url.indexOf('#')
+    if (hash !== -1) {
+      req.url = req.url.slice(0, hash)
+    }
+  }
+
   debug('dispatching %s %s', req.method, req.url)
 
   let idx = 0
@@ -471,6 +484,14 @@ proto.use = function use(handler) {
       throw new TypeError('argument handler must be a function')
     }
 
+    // Not in upstream (router 2.2.0, 2.3.0): a router mounted at "/" on
+    // itself, directly or through routers mounted at "/", sends every request
+    // it doesn't answer round forever. Mounts at other paths consume a part
+    // of the path on each pass, so those cycles end and still work.
+    if (path === '/' && fn instanceof Router && mountsAtRoot(fn as Router, this, new Set())) {
+      throw new TypeError('argument handler would mount this router on itself at "/", which loops forever')
+    }
+
     // add the middleware
     debug('use %o %s', path, fn.name || '<anonymous>')
 
@@ -648,6 +669,35 @@ function mergeParams(params: Params, parent: Params | undefined): Params {
   }
 
   return Object.assign(obj, params)
+}
+
+/**
+ * Whether `router` is `target`, or mounts it through routers mounted at "/".
+ * Not in upstream (router 2.2.0, 2.3.0). Runs when a router is mounted,
+ * never per request; `seen` stops it at a router it has already walked.
+ *
+ * @private
+ */
+
+function mountsAtRoot(router: Router, target: Router, seen: Set<Router>): boolean {
+  if (router === target) {
+    return true
+  }
+
+  if (seen.has(router)) {
+    return false
+  }
+
+  seen.add(router)
+
+  for (let i = 0; i < router.stack.length; i++) {
+    const layer = router.stack[i] as LayerInstance
+    if (layer.slash && layer.handle instanceof Router && mountsAtRoot(layer.handle as Router, target, seen)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 /**

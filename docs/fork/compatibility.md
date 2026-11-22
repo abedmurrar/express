@@ -21,6 +21,8 @@ Every pull request has to pass all of these before it merges:
 | Ecosystem check | Runs body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport and express-rate-limit on both, including multi-request flows such as sessions, and requires byte-identical responses and log lines. |
 | Middleware test suites | Runs the own test suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests) against both. Every test that passes on 5.3.0 must pass on the fork. |
 | Security suite | Checks auth guards against path tricks, header injection, redirect targets, prototype pollution and path traversal. |
+| Robustness suite | Talks to a real server over raw sockets: clients that leave in the middle of a body or a response or before the handler runs (no crash, no file or socket left open, `req.signal` aborted), bodies sent one byte at a time, a slow reader of a large file (the server must hold back, not buffer the file), pipelined requests answered in order, nothing carried over between requests on a keep-alive connection, bodies at and over the parser limits, ranges of a large file, and 500 requests at once. |
+| Memory check | Sends batches of requests for each benchmark scenario and checks that the heap, after a full garbage collection, does not grow from one batch to the next. It also checks that it fails when every request is kept on purpose. |
 | Coverage gate | 100% of statements, branches, functions and lines of `lib/`. |
 | Test matrix | The full test suite on Node.js 22, 24 and 26, on Linux and Windows. |
 

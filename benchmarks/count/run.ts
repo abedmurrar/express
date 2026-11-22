@@ -35,7 +35,7 @@
 // the same way but exits with 0.
 
 import { execFileSync, spawn } from 'node:child_process'
-import { appendFileSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { appendFileSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -240,10 +240,35 @@ function addBaseline(sha: string): string {
   if (fill < 0) throw new Error(`${repo} is shorter than a temporary directory; pass --baseline`)
   const dir = mkdtempSync(prefix + 'b'.repeat(fill))
   git('worktree', 'add', '--detach', '--quiet', dir, sha)
-  // The same dependencies, at the same paths, for both.
-  symlinkSync(path.join(repo, 'node_modules'), path.join(dir, 'node_modules'))
+  if (sameDependencies(repo, dir)) {
+    // The same dependencies, at the same paths, for both.
+    symlinkSync(path.join(repo, 'node_modules'), path.join(dir, 'node_modules'))
+  } else {
+    // A PR that adds, removes or changes dependencies: the baseline needs its
+    // own, or it can neither build (missing type packages) nor run (missing
+    // runtime packages). The directory has the checkout's path length, so the
+    // installed files' paths are as long as the head's.
+    execFileSync('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--no-package-lock'], {
+      cwd: dir,
+      stdio: ['ignore', 'ignore', 'inherit']
+    })
+  }
   build(dir)
   return dir
+}
+
+// Whether two checkouts declare the same dependencies (all kinds, and the
+// overrides), so the baseline can share the head's node_modules.
+function sameDependencies(a: string, b: string): boolean {
+  const declared = (dir: string): string => {
+    const pkg = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as Record<string, unknown>
+    return JSON.stringify(
+      ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies', 'overrides'].map(
+        (key) => pkg[key]
+      )
+    )
+  }
+  return declared(a) === declared(b)
 }
 
 // Once the sources live in src/ (PR #30), `npm run build` writes the lib/ that

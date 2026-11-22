@@ -9,7 +9,7 @@ var express = require('../../')
 var { bug, request } = require('./support')
 
 describe('regressions: request, app and routing', function () {
-  bug('#7532 req.subdomains is empty for an IPv6 host', '`req.subdomains` splits IPv6 literals', async function () {
+  it('#7532 req.subdomains is empty for an IPv6 host', async function () {
     var app = express()
     app.get('/', function (req, res) {
       res.json(req.subdomains)
@@ -18,32 +18,24 @@ describe('regressions: request, app and routing', function () {
     assert.deepStrictEqual(JSON.parse(r.body), [])
   })
 
-  bug(
-    'PR #7317 req.hostname ignores userinfo in the Host header',
-    'Userinfo in the Host header becomes `req.hostname`',
-    async function () {
-      var app = express()
-      app.get('/', function (req, res) {
-        res.json(req.hostname)
-      })
-      var r = await request(app, { headers: { Host: 'evil.example:x@good.example' } })
-      assert.strictEqual(JSON.parse(r.body), 'good.example')
-    }
-  )
+  it('PR #7317 req.hostname ignores userinfo in the Host header', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.json(req.hostname)
+    })
+    var r = await request(app, { headers: { Host: 'evil.example:x@good.example' } })
+    assert.strictEqual(JSON.parse(r.body), 'good.example')
+  })
 
-  bug(
-    'PR #7330 a trusted X-Forwarded-Proto of HTTPS counts as secure',
-    'Uppercase `X-Forwarded-Proto: HTTPS` is not secure',
-    async function () {
-      var app = express()
-      app.set('trust proxy', true)
-      app.get('/', function (req, res) {
-        res.json([req.protocol, req.secure])
-      })
-      var r = await request(app, { headers: { 'X-Forwarded-Proto': 'HTTPS' } })
-      assert.deepStrictEqual(JSON.parse(r.body), ['https', true])
-    }
-  )
+  it('PR #7330 a trusted X-Forwarded-Proto of HTTPS counts as secure', async function () {
+    var app = express()
+    app.set('trust proxy', true)
+    app.get('/', function (req, res) {
+      res.json([req.protocol, req.secure])
+    })
+    var r = await request(app, { headers: { 'X-Forwarded-Proto': 'HTTPS' } })
+    assert.deepStrictEqual(JSON.parse(r.body), ['https', true])
+  })
 
   bug(
     'PR #7501 app.listen removes its startup error listener',

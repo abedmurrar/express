@@ -5,9 +5,18 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
-export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found'
+export type Scenario = 'hello' | 'json' | 'params' | 'mw10' | 'routes100' | 'post-json' | 'not-found' | 'query'
 
-export const SCENARIOS: readonly Scenario[] = ['hello', 'json', 'params', 'mw10', 'routes100', 'post-json', 'not-found']
+export const SCENARIOS: readonly Scenario[] = [
+  'hello',
+  'json',
+  'params',
+  'mw10',
+  'routes100',
+  'post-json',
+  'not-found',
+  'query'
+]
 
 export interface Request {
   method: 'GET' | 'POST'
@@ -21,6 +30,9 @@ export interface Request {
 
 export const PAYLOAD = { hello: 'world', n: 42, list: [1, 2, 3], nested: { a: true, b: 'x' } }
 const POST_BODY = JSON.stringify({ user: 'tobi', tags: ['a', 'b'], n: 7 })
+// a flat query string, read with the extended ("qs") query parser
+export const QUERY = 'q=express+router&page=2&sort=desc&limit=20&tag=a&tag=b'
+export const QUERY_RESULT = { q: 'express router', page: '2', sort: 'desc', limit: '20', tag: ['a', 'b'] }
 
 export const REQUESTS: Record<Scenario, Request> = {
   hello: { method: 'GET', path: '/', status: 200, text: 'Hello World!' },
@@ -29,7 +41,8 @@ export const REQUESTS: Record<Scenario, Request> = {
   mw10: { method: 'GET', path: '/', status: 200, text: 'Hello World!' },
   routes100: { method: 'GET', path: '/r99/abc', status: 200, text: 'abc' },
   'post-json': { method: 'POST', path: '/echo', body: POST_BODY, status: 200, text: POST_BODY },
-  'not-found': { method: 'GET', path: '/nope', status: 404 }
+  'not-found': { method: 'GET', path: '/nope', status: 404 },
+  query: { method: 'GET', path: `/search?${QUERY}`, status: 200, text: JSON.stringify(QUERY_RESULT) }
 }
 
 // The parts of Express these apps use. The harness loads Express from a
@@ -37,6 +50,7 @@ export const REQUESTS: Record<Scenario, Request> = {
 export interface ExpressRequest extends IncomingMessage {
   params: Record<string, string>
   body: unknown
+  query: unknown
 }
 
 export interface ExpressResponse extends ServerResponse {
@@ -49,6 +63,7 @@ type Handler = (req: ExpressRequest, res: ExpressResponse, next: () => void) => 
 
 export interface App {
   (req: IncomingMessage, res: ServerResponse): void
+  set(setting: string, value: unknown): void
   use(handler: Handler): void
   get(path: string, ...handlers: Handler[]): void
   post(path: string, ...handlers: Handler[]): void
@@ -92,6 +107,12 @@ export function createApp(express: ExpressModule, scenario: Scenario): App {
   if (scenario === 'post-json') {
     app.post('/echo', express.json(), (req, res) => {
       res.json(req.body)
+    })
+  }
+  if (scenario === 'query') {
+    app.set('query parser', 'extended')
+    app.get('/search', (req, res) => {
+      res.json(req.query)
     })
   }
   if (scenario === 'hello' || scenario === 'mw10') {

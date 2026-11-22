@@ -45,6 +45,10 @@ Unreleased (fork)
 * Vendor `router` 2.2.0 into `lib/router` and `send` 1.2.1 into `lib/send`, with their licences and test suites, so this fork can fix routing and file-sending bugs directly. They're the same versions Express 5.3.0 installs, so nothing changes. See `VENDORED.md`.
 * Add a differential test harness (`test/differential/`). It runs 143 scenarios on Express 5.3.0 and on this repository and requires byte-identical responses, except for differences listed on purpose. The method comes from [ultimate-express](https://github.com/dimdenGD/ultimate-express)'s test runner.
 
+## ⚡ Performance
+
+* With `query parser` set to `extended`, a flat query string (no `[`, `]`, `%5B` or `%5D`) is parsed without qs, 3x to 7x faster per call in an in-process timing (for example `id=42`, 902 to 130 ns, and 5 flat pairs, 2,615 to 509 ns), with exactly the result `qs.parse(str, { allowPrototypes: true })` gives: a plain object with keys in qs's order, repeated keys as arrays, `+` as a space, malformed escapes kept as they are, empty and `__proto__` keys dropped, and only the first 1,000 parts read. A key with more than 20 values, where qs switches to an object with numeric keys, and anything with brackets go to qs as before, and a URL with no query string gets a new `{}` without calling qs. A differential fuzz in `test/property/query.js` checks the result against qs 6.17.1 and Express 5.3.0 (values, prototypes and key order) and that qs is called exactly when needed. The instruction-count and framework benchmarks gain a `query` scenario that reads `req.query` with the extended parser (#56).
+
 5.3.0
 =====
 

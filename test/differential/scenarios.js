@@ -1998,6 +1998,31 @@ scenarios.push(
   }
 )
 
+// A view whose extension matches a registered engine in another case
+// (src/view.ts): 5.3.0 misses the "TMPL" engine for "user.tmpl" and fails
+// on require('tmpl'), a 500; the fork renders it.
+scenarios.push({
+  name: 'res.render engine registered in another case',
+  setup: function (app) {
+    app.engine('TMPL', tmpl)
+    app.set('views', FIXTURES)
+    app.get('/', function (req, res) {
+      res.render('user.tmpl', { user: { name: 'tobi' } })
+    })
+  },
+  req: get('/')
+})
+
+// A fully qualified Host with the DNS root dot (src/request.ts): 5.3.0 counts
+// the empty label after it, so "example" becomes a subdomain.
+scenarios.push({
+  name: 'req.subdomains trailing root dot',
+  setup: echo(function (req) {
+    return [req.hostname, req.subdomains]
+  }),
+  req: get('/', { host: 'tobi.ferrets.example.com.:3000' })
+})
+
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
 // A g-flag RegExp guard whose lastIndex the app left non-zero: Express 5.3.0
@@ -2133,6 +2158,72 @@ if (HAS_PROC) {
   })
 }
 
+// res.links with empty values, res.append with an existing empty value,
+// res.redirect with a status that has no standard message, and a quoted ";"
+// in a type parameter (src/response.ts, src/utils.ts acceptParams), so these
+// differ from 5.3.0 on purpose. The last one has no effect on a response
+// (res.format only uses the type before the parameters), so it shows what
+// each side's lib/utils parses.
+var UTILS = new Map([
+  [require('express-baseline'), require('express-baseline/lib/utils')],
+  [require('../..'), require('../../lib/utils')]
+])
+
+scenarios.push(
+  {
+    // 5.3.0 sends `</2>; rel="next", ` with a trailing comma
+    name: 'res.links with an empty relation',
+    setup: route('get', '/', function (req, res) {
+      res.links({ next: '/2', prev: [] }).end()
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 sends an empty Link header
+    name: 'res.links({}) on a fresh response',
+    setup: route('get', '/', function (req, res) {
+      res.links({}).end()
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 drops the empty value
+    name: 'res.append to an empty value',
+    setup: route('get', '/', function (req, res) {
+      res.set('X-A', '')
+      res.append('X-A', 'b')
+      res.end(JSON.stringify(res.get('X-A')))
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 says "undefined. Redirecting to /next"
+    name: 'res.redirect 399 text accept',
+    setup: route('get', '/', function (req, res) {
+      res.redirect(399, '/next')
+    }),
+    req: get('/', { accept: 'text/plain' })
+  },
+  {
+    name: 'res.redirect 399 html accept',
+    setup: route('get', '/', function (req, res) {
+      res.redirect(399, '/next')
+    }),
+    req: get('/', { accept: 'text/html' })
+  },
+  {
+    // 5.3.0 cuts foo at the quoted ";" and reads the quoted q=0 as the quality
+    name: 'lib/utils normalizeType with a quoted ";"',
+    setup: function (app, express) {
+      var utils = UTILS.get(express)
+      route('get', '/', function (req, res) {
+        res.json(utils.normalizeType('text/plain; foo="a;q=0"; bar=baz'))
+      })(app)
+    },
+    req: get('/')
+  }
+)
+
 var allowed = {
   'res.render with frozen options':
     "fixed in the fork: `res.render` mutates the caller's options (it now merges res.locals into a copy)",
@@ -2166,6 +2257,18 @@ var allowed = {
     'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
   'res.jsonp first callback sanitises to nothing':
     'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
+  'res.links with an empty relation':
+    'fixed in the fork: `res.links` with empty values (an empty array adds nothing, so no trailing comma)',
+  'res.links({}) on a fresh response':
+    'fixed in the fork: `res.links` with empty values (nothing to add leaves the header alone, so no empty Link)',
+  'res.append to an empty value':
+    'fixed in the fork: `res.append` keeps an existing empty header value (it is sent as its own header line)',
+  'res.redirect 399 text accept':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 399)',
+  'res.redirect 399 html accept':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 399)',
+  'lib/utils normalizeType with a quoted ";"':
+    'fixed in the fork: quoted `;` in `acceptParams` (a parameter ends at the next `;` outside quotes)',
   'req.hostname userinfo':
     'fixed in the fork: userinfo before an "@" in the Host header is dropped, so req.hostname is good.example, not evil.example (upstream PR #7317)',
   'req.hostname trusted X-Forwarded-Host userinfo':
@@ -2176,6 +2279,10 @@ var allowed = {
     'fixed in the fork: a trusted X-Forwarded-Proto is lowercased, so "HTTPS" gives req.protocol "https" and req.secure true (upstream PR #7330)',
   'req.subdomains IPv6 with dots':
     'fixed in the fork: an IPv6 host with dots has no subdomains, where 5.3.0 split "[::ffff:127.0.0.1]" on its dots (#7532, upstream PR #7533)',
+  'req.subdomains trailing root dot':
+    'fixed in the fork: a trailing DNS root dot is not a subdomain part, so "tobi.ferrets.example.com." gives ["ferrets", "tobi"], where 5.3.0 gave ["example", "ferrets", "tobi"] (upstream PR #7331)',
+  'res.render engine registered in another case':
+    'fixed in the fork: a view extension matches a registered engine ignoring case, so "user.tmpl" renders with the "TMPL" engine, where 5.3.0 tried require("tmpl") (#4594)',
 
   'app.use(stateful RegExp guard with lastIndex left at 3)':
     'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)',

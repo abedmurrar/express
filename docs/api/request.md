@@ -735,6 +735,10 @@ An IP address host has no subdomains: `Host: [::ffff:127.0.0.1]` gives `[]` (and
 `['[::ffff:127.0.0.1]']` with `subdomain offset` set to 0). Express 5.3.0 split an
 IPv6 address on its dots.
 
+A trailing root dot is not a part: `Host: tobi.ferrets.example.com.` gives
+`['ferrets', 'tobi']`, as without the dot (`req.hostname` keeps it). Express 5.3.0
+counted the empty label after the dot and gave `['example', 'ferrets', 'tobi']`.
+
 ### req.xhr
 
 **Type:** `Boolean`

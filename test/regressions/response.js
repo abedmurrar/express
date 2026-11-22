@@ -193,4 +193,54 @@ describe('regressions: response', function () {
     assert.match(r.headers['content-type'], /^application\/json/)
     assert.strictEqual(r.body.toString(), '{"a":1}')
   })
+
+  it('PR #7320 res.links leaves out a relation given an empty array', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.links({ next: 'http://example.com/2', prev: [] }).end()
+    })
+    var r = await request(app)
+    assert.strictEqual(r.headers.link, '<http://example.com/2>; rel="next"')
+  })
+
+  it('PR #7578 res.links({}) leaves the Link header as it is', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.links({ next: 'http://example.com/2' })
+      res.links({})
+      res.end()
+    })
+    var r = await request(app)
+    assert.strictEqual(r.headers.link, '<http://example.com/2>; rel="next"')
+  })
+
+  it('PR #7332 res.append keeps an existing empty header value', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.set('Warning', '')
+      res.append('Warning', '199 Miscellaneous warning')
+      res.end(JSON.stringify(res.get('Warning')))
+    })
+    var r = await request(app)
+    assert.strictEqual(r.body.toString(), '["","199 Miscellaneous warning"]')
+  })
+
+  it('PR #7407 res.redirect with a non-standard status names it by its number', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.redirect(399, 'http://example.com/')
+    })
+    var r = await request(app, { headers: { accept: 'text/plain' } })
+    assert.strictEqual(r.status, 399)
+    assert.strictEqual(r.body.toString(), '399. Redirecting to http://example.com/')
+  })
+
+  it('PR #7479 a quoted ";" in a type parameter stays in its value', function () {
+    var utils = require('../../lib/utils')
+    assert.deepStrictEqual(utils.normalizeType('text/plain; foo="a;q=0"; bar=baz'), {
+      value: 'text/plain',
+      quality: 1,
+      params: { foo: '"a;q=0"', bar: 'baz' }
+    })
+  })
 })

@@ -51,6 +51,28 @@ describe('differential: responses match Express 5.3.0', function () {
     })
   })
 
+  // The baseline's dependencies are pinned in package.json `overrides`, so
+  // every npm version compares against the same Express 5.3.0. Without the
+  // pins, npm 10 (Node 22) installed router 2.3.0, which differs from the
+  // router 2.2.0 that 5.3.0 shipped with and that src/router is based on.
+  it('runs Express 5.3.0 with its pinned dependencies', function () {
+    var path = require('node:path')
+    var root = path.join(__dirname, '..', '..')
+    var pins = require(path.join(root, 'package.json')).overrides['express-baseline']
+    var base = path.dirname(require.resolve('express-baseline/package.json'))
+    assert.strictEqual(require(path.join(base, 'package.json')).version, '5.3.0')
+    Object.keys(pins).forEach(function (name) {
+      if (name === '.') return
+      // the folder Node would load it from, starting at the baseline (some
+      // packages don't export ./package.json, so no require.resolve)
+      var fs = require('node:fs')
+      var dir = base
+      while (!fs.existsSync(path.join(dir, 'node_modules', name, 'package.json'))) dir = path.dirname(dir)
+      var installed = require(path.join(dir, 'node_modules', name, 'package.json')).version
+      assert.strictEqual(installed, pins[name], name + ' under express-baseline')
+    })
+  })
+
   it('has unique scenario names, and every allowed entry exists', function () {
     var names = scenarios.map(function (s) {
       return s.name

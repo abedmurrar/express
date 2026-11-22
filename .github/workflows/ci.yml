@@ -99,13 +99,24 @@ jobs:
           npm config set loglevel error
         shell: bash
 
+      # npm 10, bundled with Node 22, reads .npmrc's min-release-age but doesn't
+      # apply it, so it installed releases younger than 7 days (router 2.3.0,
+      # which made the comparisons with upstream differ on Node 22 only). Node
+      # 24 and 26 bundle npm 11, which applies it; use a pinned npm 11 here too.
+      - name: Use npm 11
+        shell: bash
+        run: |
+          if [ "$(npm -v | cut -d. -f1)" -lt 11 ]; then npm install -g npm@11.13.0; fi
+
       - name: Install dependencies
         run: npm install
 
       - name: Output Node and NPM versions
+        shell: bash
         run: |
           echo "Node.js version: $(node -v)"
           echo "NPM version: $(npm -v)"
+          npm ls router --all
 
       # Coverage must stay at 100% (see .c8rc.json)
       - name: Run tests with coverage

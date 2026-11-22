@@ -1880,6 +1880,24 @@ FAST_PATH_SETTINGS.forEach(function (variant) {
 
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
-var allowed = {}
+// A g-flag RegExp guard whose lastIndex the app left non-zero: Express 5.3.0
+// matches from that index, skips the guard and answers 404; the fork starts
+// every match at 0 and runs the guard (src/router/lib/layer.ts).
+scenarios.push({
+  name: 'app.use(stateful RegExp guard with lastIndex left at 3)',
+  setup: function (app) {
+    var re = /^\/admin/g
+    re.lastIndex = 3
+    app.use(re, function (req, res) {
+      res.status(401).send('denied')
+    })
+  },
+  req: get('/admin/secret')
+})
+
+var allowed = {
+  'app.use(stateful RegExp guard with lastIndex left at 3)':
+    'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)'
+}
 
 module.exports = { scenarios: scenarios, allowed: allowed }

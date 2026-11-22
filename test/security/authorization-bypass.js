@@ -346,8 +346,6 @@ describe('security: authorization bypass', function () {
   })
 
   describe('a stateful RegExp guard (g or y flag)', function () {
-    var ROW = 'A RegExp path with the `g` or `y` flag matches only every other request'
-
     function repeat(app, times) {
       var send = serve(app)
       var results = []
@@ -367,21 +365,21 @@ describe('security: authorization bypass', function () {
     }
 
     ;['g', 'y', 'gi', 'iy'].forEach(function (flags) {
-      bug('app.use(/^\\/admin/' + flags + ', auth) guards every request', ROW, async function () {
+      it('app.use(/^\\/admin/' + flags + ', auth) guards every request', async function () {
         var app = express()
         app.use(new RegExp('^/admin', flags), auth)
         app.get('/admin/secret', secret)
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))
       })
 
-      bug('app.all(/^\\/admin\\//' + flags + ', auth) guards every request', ROW, async function () {
+      it('app.all(/^\\/admin\\//' + flags + ', auth) guards every request', async function () {
         var app = express()
         app.all(new RegExp('^/admin/', flags), auth)
         app.get('/admin/secret', secret)
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))
       })
 
-      bug('router.use(/^\\/secret/' + flags + ', auth) guards every request', ROW, async function () {
+      it('router.use(/^\\/secret/' + flags + ', auth) guards every request', async function () {
         var app = express()
         var router = express.Router()
         router.use(new RegExp('^/secret', flags), auth)
@@ -390,7 +388,7 @@ describe('security: authorization bypass', function () {
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))
       })
 
-      bug('a route at /^\\/admin\\/secret$/' + flags + ' answers every request', ROW, async function () {
+      it('a route at /^\\/admin\\/secret$/' + flags + ' answers every request', async function () {
         var app = express()
         app.get(new RegExp('^/admin/secret$', flags), auth, secret)
         assert.deepStrictEqual(await repeat(app, 4), Array(4).fill('401 denied'))

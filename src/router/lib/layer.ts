@@ -113,7 +113,16 @@ function Layer(this: Layer, path: PathParams, options: LayerOptions | undefined,
         })
       }
 
+      // A RegExp with the g or y flag keeps state in lastIndex between calls,
+      // so the next request would be matched from where the last match ended
+      // and fail: a guard like app.use(/^\/admin/g, auth) was skipped on every
+      // other request. Not in upstream (router 2.2.0): start every match at 0,
+      // as on the first request, which keeps each flag's meaning (y stays
+      // anchored at the start).
+      const stateful = _path.global || _path.sticky
+
       return function regexpMatcher(p) {
+        if (stateful) _path.lastIndex = 0
         const match = _path.exec(p)
         if (!match) {
           return false

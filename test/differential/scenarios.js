@@ -1895,9 +1895,72 @@ scenarios.push({
   req: get('/admin/secret')
 })
 
+// A router mounted at "//" in front of a guard: Express 5.3.0 loosens "//"
+// to "", which matches every path, so the router answers "/secret" before
+// the guard runs; the fork keeps "//" (src/router/lib/layer.ts, loosen).
+scenarios.push({
+  name: 'router at "//" in front of a guarded "/secret"',
+  setup: function (app, express) {
+    var open = express.Router()
+    open.get('/secret', function (req, res) {
+      res.send('open')
+    })
+    app.use('//', open)
+    app.use(function (req, res) {
+      res.status(401).send('denied')
+    })
+  },
+  req: get('/secret')
+})
+
+// A router mounted on itself at "/": Express 5.3.0 accepts the mount (and
+// overflows the stack on any request the router doesn't answer); the fork's
+// router.use() throws a TypeError (src/router/index.ts, mountsAtRoot).
+scenarios.push({
+  name: 'router.use(router) on itself',
+  setup: function (app, express) {
+    var r = express.Router()
+    var result = 'mounted'
+    try {
+      r.use(r)
+    } catch (err) {
+      result = err.name + ': ' + err.message
+    }
+    app.get('/', function (req, res) {
+      res.send(result)
+    })
+  },
+  req: get('/')
+})
+
+// A "#" fragment after "//user@host/admin": Express 5.3.0 parses the target
+// with url.parse, reads "x@evil.example" as a host and routes "/admin"; the
+// fork drops the fragment first (src/router/index.ts, handle) and routes the
+// path the client sent.
+scenarios.push({
+  name: 'GET //x@evil.example/admin#z',
+  setup: function (app) {
+    app.get('/admin', function (req, res) {
+      res.send('admin')
+    })
+    app.get('*splat', function (req, res) {
+      res.json([req.url, req.originalUrl, req.path])
+    })
+  },
+  req: get('//x@evil.example/admin#z')
+})
+
 var allowed = {
   'app.use(stateful RegExp guard with lastIndex left at 3)':
-    'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)'
+    'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)',
+  'double slash mount':
+    'fixed in the fork: a `//` mount no longer also matches `/` (#4557), so "/secret" reaches the app route, not the router',
+  'router at "//" in front of a guarded "/secret"':
+    'fixed in the fork: a `//` mount no longer also matches `/` (#4557, an auth bypass in 5.3.0)',
+  'router.use(router) on itself':
+    'fixed in the fork: a router cycle gives a clear error instead of a stack overflow (#6809)',
+  'GET //x@evil.example/admin#z':
+    'fixed in the fork: a `#` fragment in the request target no longer changes the routed path'
 }
 
 module.exports = { scenarios: scenarios, allowed: allowed }

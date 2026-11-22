@@ -314,3 +314,168 @@ describe('property: remembered trust decisions match proxy-addr', function () {
     }
   })
 })
+
+// Our negotiator remembers each parsed Accept, Accept-Charset,
+// Accept-Encoding and Accept-Language header (capped maps, emptied when
+// full). For any header and any provided lists, it must answer exactly what
+// the npm negotiator 1.1.0 answers (or throw the same error), including when
+// one header is asked about several different lists in a row (the case the
+// cache serves) and after the maps have been emptied many times.
+describe('property: the remembering negotiator matches negotiator 1.1.0', function () {
+  this.timeout(120000)
+
+  var Negotiator = require('../../lib/negotiator')
+  var Upstream = require('negotiator')
+
+  function outcome(fn) {
+    try {
+      return { value: fn() }
+    } catch (err) {
+      return { error: err.constructor.name + ': ' + err.message }
+    }
+  }
+
+  var MEDIA = [
+    'text/html',
+    'TEXT/HTML',
+    'text/plain',
+    'application/json',
+    'application/*',
+    'text/*',
+    '*/*',
+    'image/png'
+  ]
+  var CHARSETS = ['utf-8', 'UTF-8', 'iso-8859-1', 'utf-7', '*']
+  var ENCODINGS = ['gzip', 'GZIP', 'deflate', 'br', 'identity', 'compress', '*']
+  var LANGUAGES = ['en', 'en-US', 'EN-us', 'en-GB', 'fr', 'fr-CA', 'de', '*']
+
+  var qValue = fc.oneof(
+    fc.constantFrom('0', '1', '1.0', '0.5', '.5', '0.001', '0.000', 'abc', '', '2', '-1', '"0.5"'),
+    fc.integer({ min: 0, max: 1000 }).map((n) => String(n / 1000))
+  )
+  var param = fc.oneof(
+    fc.constantFrom('level=1', 'level=2', 'charset=utf-8', 'charset=*', 'v=b3', 'LEVEL=1', 'foo="bar;baz"', 'x'),
+    fc.tuple(fc.stringMatching(/^[a-z]{1,3}$/), fc.stringMatching(/^[a-z0-9*]{0,3}$/)).map(([k, v]) => k + '=' + v)
+  )
+  var ows = fc.constantFrom('', ' ', '  ', '\t')
+  var junk = fc.oneof(
+    fc.constantFrom('', ';', ';;', '=', 'q=1', ';q=0.5', '"', 'text', 'a/b/c', '/', '*', ' , '),
+    fc.string({ maxLength: 8 })
+  )
+
+  function part(values) {
+    return fc
+      .oneof(
+        {
+          weight: 6,
+          arbitrary: fc.record({
+            value: fc.constantFrom.apply(fc, values),
+            params: fc.array(param, { maxLength: 2 }),
+            q: fc.option(qValue),
+            pre: ows,
+            post: ows
+          })
+        },
+        { weight: 1, arbitrary: junk }
+      )
+      .map(function (p) {
+        if (typeof p === 'string') return p
+        var s = p.pre + p.value
+        p.params.forEach(function (x) {
+          s += ';' + x
+        })
+        if (p.q !== null) s += (p.params.length % 2 ? ' ; q=' : ';q=') + p.q
+        return s + p.post
+      })
+  }
+
+  // undefined (no header), '' or a list of parts, some of them malformed
+  function header(values) {
+    return fc.oneof(
+      { weight: 1, arbitrary: fc.constantFrom(undefined, '') },
+      { weight: 8, arbitrary: fc.array(part(values), { minLength: 1, maxLength: 6 }).map((ps) => ps.join(',')) }
+    )
+  }
+
+  function lists(values) {
+    var item = fc.oneof(fc.constantFrom.apply(fc, values), fc.constantFrom('text', '', 'foo/bar;level=1', 'x-y'))
+    // undefined asks for the header's own values
+    return fc.array(fc.option(fc.array(item, { maxLength: 5 }), { nil: undefined }), { minLength: 2, maxLength: 4 })
+  }
+
+  var preferred = fc.option(fc.array(fc.constantFrom.apply(fc, ENCODINGS), { maxLength: 3 }), { nil: undefined })
+
+  var request = fc.record({
+    accept: header(MEDIA),
+    charset: header(CHARSETS),
+    encoding: header(ENCODINGS),
+    language: header(LANGUAGES),
+    mediaLists: lists(MEDIA),
+    charsetLists: lists(CHARSETS),
+    encodingLists: lists(ENCODINGS),
+    languageLists: lists(LANGUAGES),
+    preferred: preferred
+  })
+
+  // suffix, when given, is added to every header (an absent one becomes it)
+  function headersOf(r, suffix) {
+    var h = {}
+    var values = {
+      accept: r.accept,
+      'accept-charset': r.charset,
+      'accept-encoding': r.encoding,
+      'accept-language': r.language
+    }
+    Object.keys(values).forEach(function (name) {
+      if (values[name] !== undefined || suffix) h[name] = (values[name] || '') + suffix
+    })
+    return h
+  }
+
+  // Every answer for one request, each list asked twice, so the second and
+  // later calls (for this list or another) come from the cache.
+  function answersFor(Ctor, r, headers) {
+    var n = new Ctor({ headers: headers })
+    var out = []
+    for (var round = 0; round < 2; round++) {
+      r.mediaLists.forEach((l) => out.push(outcome(() => [n.mediaTypes(l), n.mediaType(l)])))
+      r.charsetLists.forEach((l) => out.push(outcome(() => [n.charsets(l), n.charset(l)])))
+      r.encodingLists.forEach((l) =>
+        out.push(outcome(() => [n.encodings(l), n.encoding(l), n.encodings(l, { preferred: r.preferred })]))
+      )
+      r.languageLists.forEach((l) => out.push(outcome(() => [n.languages(l), n.language(l)])))
+    }
+    return out
+  }
+
+  it('the same answers for any headers and provided lists, each header asked about several lists', function () {
+    check(
+      fc.property(request, function (r) {
+        var headers = headersOf(r, '')
+        assert.deepStrictEqual(answersFor(Negotiator, r, headers), answersFor(Upstream, r, headers), JSON.stringify(r))
+      })
+    )
+  })
+
+  it('the same answers over runs of 120 to 250 distinct headers, which empty every cache', function () {
+    check(
+      fc.property(fc.array(request, { minLength: 120, maxLength: 250 }), function (rs) {
+        // the index makes every header distinct: an "x-N" part is one more
+        // coding, charset or language that nothing provided matches (and,
+        // without a "/", no media range at all)
+        rs.forEach(function (r, i) {
+          var headers = headersOf(r, ', x-' + i)
+          assert.deepStrictEqual(
+            answersFor(Negotiator, r, headers),
+            answersFor(Upstream, r, headers),
+            JSON.stringify(r)
+          )
+          // and a header seen before, so cached and freshly parsed lists mix
+          var again = headersOf(rs[0], '')
+          assert.deepStrictEqual(answersFor(Negotiator, rs[0], again), answersFor(Upstream, rs[0], again))
+        })
+      }),
+      { numRuns: 10 }
+    )
+  })
+})

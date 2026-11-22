@@ -123,7 +123,7 @@ To report a security problem in this fork, see [SECURITY.md](SECURITY.md).
 
 Express was created by [TJ Holowaychuk](https://github.com/tj) and is maintained by the [Express team and its contributors](https://github.com/expressjs/express/graphs/contributors). Everything here builds on their work. Upstream pull requests taken into this fork keep their authors.
 
-The vendored copies of [`router`](https://github.com/pillarjs/router), [`send`](https://github.com/pillarjs/send), [`serve-static`](https://github.com/expressjs/serve-static), [`qs`](https://github.com/ljharb/qs) and [`body-parser`](https://github.com/expressjs/body-parser) keep their original licences, in `src/<package>/LICENSE` (copied into `lib/` when built).
+The vendored copies of [`router`](https://github.com/pillarjs/router), [`send`](https://github.com/pillarjs/send), [`serve-static`](https://github.com/expressjs/serve-static), [`qs`](https://github.com/ljharb/qs), [`body-parser`](https://github.com/expressjs/body-parser), [`negotiator`](https://github.com/jshttp/negotiator) and [`accepts`](https://github.com/jshttp/accepts) keep their original licences, in `src/<package>/LICENSE` (copied into `lib/` when built).
 
 The TypeScript types in `typings/` are ported from [`@types/express`](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express) (by Boris Yankov, Puneet Arora, Dylan Frankland and Sebastian Beltran) and [`@types/express-serve-static-core`](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/express-serve-static-core) (by Boris Yankov, Satana Charuwichitratana, Jose Luis Leon, David Stephens and Shin Ando), with the other DefinitelyTyped contributors. They are MIT licensed; each file keeps the licence header and lists what changed.
 

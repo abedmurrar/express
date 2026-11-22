@@ -121,7 +121,11 @@ export interface SendStream extends NodeStream {
    * it overrides; `res` must be an HTTP response (`ServerResponse`).
    */
   pipe<T extends NodeJS.WritableStream>(res: T): T
-  send(path: string, stat: Stats): void
+  /**
+   * `sizeUnknown` is set by `send` itself, once it has read the first byte of
+   * a regular file that stats as 0 bytes: true when that file has content.
+   */
+  send(path: string, stat: Stats, sizeUnknown?: boolean): void
   sendFile(path: string): void
   sendIndex(path: string): void
   stream(path: string, options: SendOptions): void
@@ -594,7 +598,7 @@ proto.pipe = function pipe(res) {
  * @api public
  */
 
-proto.send = function sendPath(path, stat) {
+proto.send = function sendPath(path, stat, sizeUnknown) {
   var len = stat.size
   var options = this.options
   var opts: SendOptions = {}
@@ -602,6 +606,20 @@ proto.send = function sendPath(path, stat) {
   var req = this.req
   var ranges: string | undefined | RangeResult | Ranges = req.headers.range
   var offset = options.start || 0
+
+  // A regular file that stats as 0 bytes may still have content: Linux /proc
+  // and /sys files report 0 and are made as they're read (express#4944).
+  // Node's fs.readFile() reads such a file to EOF for the same reason. Its
+  // first byte tells the two apart: an empty file is sent as before, and one
+  // with content is streamed to EOF with no Content-Length and no ranges.
+  if (sizeUnknown === undefined && len === 0 && stat.isFile()) {
+    var self = this
+    hasContent(path, function onprobe(err, content) {
+      if (err) return self.onStatError(err)
+      self.send(path, stat, content)
+    })
+    return
+  }
 
   if (res.headersSent) {
     // impossible to send now
@@ -646,8 +664,9 @@ proto.send = function sendPath(path, stat) {
     if (len > bytes) len = bytes
   }
 
-  // Range support
-  if (this._acceptRanges && BYTES_RANGE_REGEXP.test(ranges as string)) {
+  // Range support (a file of unknown size is always sent whole, as RFC 9110
+  // section 14.2 allows)
+  if (!sizeUnknown && this._acceptRanges && BYTES_RANGE_REGEXP.test(ranges as string)) {
     // parse
     ranges = parseRange(len, ranges as string, {
       combine: true
@@ -693,10 +712,17 @@ proto.send = function sendPath(path, stat) {
 
   // set read options
   opts.start = offset
-  opts.end = Math.max(offset, offset + len - 1)
 
-  // content-length
-  res.setHeader('Content-Length', len)
+  if (sizeUnknown) {
+    // read to EOF (or to the end option); the body is chunked, or ends with
+    // the connection
+    res.removeHeader('Content-Length')
+  } else {
+    opts.end = Math.max(offset, offset + len - 1)
+
+    // content-length
+    res.setHeader('Content-Length', len)
+  }
 
   // HEAD support
   if (req.method === 'HEAD') {
@@ -998,6 +1024,27 @@ function decode(path: string): string | -1 {
   } catch {
     return -1
   }
+}
+
+/**
+ * Read the first byte of the file at `path`, and call back with whether there
+ * was one.
+ *
+ * @param {string} path
+ * @param {function} callback
+ * @private
+ */
+
+function hasContent(path: string, callback: (err: NodeJS.ErrnoException | null, content: boolean) => void): void {
+  fs.open(path, 'r', function onopen(err, fd) {
+    if (err) return callback(err, false)
+    fs.read(fd, Buffer.alloc(1), 0, 1, 0, function onread(err, bytesRead) {
+      // a failed close leaves nothing to undo, and the read's answer stands
+      fs.close(fd, function onclose() {
+        callback(err, bytesRead > 0)
+      })
+    })
+  })
 }
 
 /**

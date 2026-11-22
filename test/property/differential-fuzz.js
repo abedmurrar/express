@@ -138,8 +138,9 @@ var target = fc
 // (An empty Host is left out: Node's client replaces it with the server's
 // address, which differs between the two servers. So are the inputs whose
 // answers the fork changed on purpose: a Host with userinfo or a non-numeric
-// port (upstream PR #7317), an IPv6 host with dots (#7532) and an uppercase
-// X-Forwarded-Proto (upstream PR #7330). The `allowed` scenarios in
+// port (upstream PR #7317), an IPv6 host with dots (#7532), a host ending in
+// the root dot (upstream PR #7331) and an uppercase X-Forwarded-Proto
+// (upstream PR #7330). The `allowed` scenarios in
 // test/differential/scenarios.js show those differences, and
 // test/fork-request-getters.js covers them.)
 var host = fc.oneof(

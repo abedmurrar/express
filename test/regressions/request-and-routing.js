@@ -5,6 +5,7 @@
 // test/regressions/support.js.
 
 var assert = require('node:assert')
+var path = require('node:path')
 var express = require('../../')
 var { bug, request } = require('./support')
 
@@ -16,6 +17,35 @@ describe('regressions: request, app and routing', function () {
     })
     var r = await request(app, { headers: { Host: '[::ffff:127.0.0.1]:3000' } })
     assert.deepStrictEqual(JSON.parse(r.body), [])
+  })
+
+  it('PR #7331 req.subdomains ignores a trailing root dot', async function () {
+    var app = express()
+    app.get('/', function (req, res) {
+      res.json(req.subdomains)
+    })
+    var r = await request(app, { headers: { Host: 'tobi.ferrets.example.com.' } })
+    assert.deepStrictEqual(JSON.parse(r.body), ['ferrets', 'tobi'])
+  })
+
+  it('#4594 an engine registered as "HTML" renders "user.html"', function (done) {
+    var app = express()
+    app.set('views', path.join(__dirname, '..', 'fixtures'))
+    app.engine('HTML', function (file, options, cb) {
+      cb(null, 'rendered ' + path.basename(file))
+    })
+    var threw = null
+    try {
+      app.render('user.html', function (err, str) {
+        if (err) return done(err)
+        assert.strictEqual(str, 'rendered user.html')
+        done()
+      })
+    } catch (e) {
+      threw = e
+    }
+    // 5.3.0 misses the engine and throws from require('html')
+    if (threw) done(new Error('threw synchronously: ' + threw.message.split('\n')[0]))
   })
 
   it('PR #7317 req.hostname ignores userinfo in the Host header', async function () {
@@ -181,6 +211,42 @@ describe('regressions: request, app and routing', function () {
       app.use('/strict/', r)
       assert.strictEqual((await request(app, { path: '/strict' })).status, 200)
       assert.strictEqual((await request(app, { path: '/strict/' })).status, 200)
+    })
+
+    // Why the async view lookup (upstream PR #2653) is on 6.x: a missing view
+    // is reported to the callback before app.render returns, so the common
+    // `if (err) throw err` in a render callback reaches the route's caller and
+    // the error handler. An async lookup would report it from an fs callback,
+    // where the same throw ends the process.
+    it('PR #2653 a missing view reaches the render callback before app.render returns (6.x changes this)', async function () {
+      var app = express()
+      app.set('views', path.join(__dirname, '..', 'fixtures'))
+      app.engine('tmpl', function (file, options, cb) {
+        cb(null, 'unused')
+      })
+      var order = []
+      try {
+        app.render('missing.tmpl', function (err) {
+          order.push('callback')
+          throw err
+        })
+      } catch (e) {
+        order.push('caught: ' + e.message.split(' in views')[0])
+      }
+      assert.deepStrictEqual(order, ['callback', 'caught: Failed to lookup view "missing.tmpl"'])
+
+      app.get('/', function (req, res) {
+        res.render('missing.tmpl', function (err, html) {
+          if (err) throw err
+          res.send(html)
+        })
+      })
+      app.use(function (err, req, res, next) {
+        res.status(500).send('handled')
+      })
+      var r = await request(app)
+      assert.strictEqual(r.status, 500)
+      assert.strictEqual(r.body.toString(), 'handled')
     })
 
     it('#5878 query parsers keep the first 1000 parameters without an error (6.x changes this)', async function () {

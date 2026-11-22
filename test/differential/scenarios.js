@@ -8,6 +8,7 @@
 // express.json(), express.Router() and the rest come from the matching side.
 
 var path = require('node:path')
+var util = require('node:util')
 var { Buffer } = require('node:buffer')
 var tmpl = require('../support/tmpl')
 
@@ -37,6 +38,22 @@ function echo(fn) {
   return route('get', '*splat', function (req, res) {
     res.json(fn(req))
   })
+}
+
+// The extended query parser (qs) on a query string. The response shows
+// req.query as JSON and through util.inspect, which also shows null
+// prototypes, array holes and own `__proto__` keys.
+function extendedQueryScenario(name, query) {
+  return {
+    name: 'req.query extended: ' + name,
+    setup: function (app) {
+      app.set('query parser', 'extended')
+      echo(function (req) {
+        return { json: req.query, inspect: util.inspect(req.query, { depth: 20 }) }
+      })(app)
+    },
+    req: get('/?' + query)
+  }
 }
 
 // express.static(FIXTURES, options), with an error handler that shows the
@@ -654,6 +671,22 @@ var scenarios = [
     },
     req: get('/?a[b]=1&c[]=2&c[]=3')
   },
+  extendedQueryScenario('nested objects and arrays', 'a[b][c]=1&a[b][d][]=2&a[b][d][]=3&e[0]=x&e[1]=y'),
+  extendedQueryScenario('deeper than depth 5', 'a[b][c][d][e][f][g][h]=1'),
+  extendedQueryScenario('an index past arrayLimit', 'a[0]=x&a[25]=y&b[19]=p&b[20]=q&b[21]=r'),
+  extendedQueryScenario('more than 20 repeated keys', Array.from({ length: 25 }, (_, i) => 'a=' + i).join('&')),
+  extendedQueryScenario(
+    'prototype keys (allowPrototypes)',
+    '__proto__[x]=1&constructor[prototype][y]=2&toString=3&hasOwnProperty[a]=4&a[__proto__][b]=5&valueOf'
+  ),
+  extendedQueryScenario('dots, encoded brackets and plus signs', 'a.b=1&c%5Bd%5D=2&e%5b%5d=3&f+g=h+i&j%2Ek=l'),
+  extendedQueryScenario('mixed keys: scalar, index and brackets', 'a=1&a[0]=2&a[]=3&a[b]=4&c[]=1&c=2&c[x]=3'),
+  extendedQueryScenario('bad escapes and empty parts', '%=1&a=%E9&b=%ZZ&&=&c&d=&[]=e&[x]=f&g[=h&i]=j'),
+  extendedQueryScenario('utf8 sentinel and numeric entities', 'utf8=%26%2310003%3B&a=%E9&b=%26%239786%3B'),
+  extendedQueryScenario(
+    '1200 parameters (parameterLimit 1000)',
+    Array.from({ length: 1200 }, (_, i) => 'k[' + i + ']=1').join('&')
+  ),
   {
     name: 'req.query disabled',
     setup: function (app) {

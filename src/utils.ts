@@ -23,7 +23,7 @@ import querystring from 'node:querystring'
 const contentType = require('content-type') as typeof import('content-type')
 const mime = require('mime-types') as typeof import('mime-types')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
-const qs = require('qs') as typeof import('qs')
+const qs = require('./qs') as import('./qs').Qs
 
 /** A body ETag generator: the body and, for strings, its encoding. */
 export type ETagFunction = (body: string | Buffer, encoding?: BufferEncoding) => string

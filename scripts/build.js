@@ -18,6 +18,6 @@ execFileSync(
   { cwd: root, stdio: 'inherit' }
 )
 
-for (var dir of ['router', 'send', 'serve-static']) {
+for (var dir of ['qs', 'router', 'send', 'serve-static']) {
   fs.copyFileSync(path.join(root, 'src', dir, 'LICENSE'), path.join(lib, dir, 'LICENSE'))
 }

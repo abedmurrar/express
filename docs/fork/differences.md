@@ -46,6 +46,12 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **Built-in TypeScript types.** The package ships types ported from `@types/express` 5.0.6 and `@types/express-serve-static-core` 5.1.3, so `@types/express` is no longer needed and code written for it compiles unchanged. See [Install the fork](./install#typescript).
 - **An ES module entry.** `import` loads `index.mjs`, a thin wrapper over the CommonJS build with the same named exports Node gives Express 5.3.0, so `import` and `require` share one copy of Express. `package.json` now has an `exports` map; it keeps `require('express')`, `require('express/lib/...')` and `require('express/package.json')` working, and other paths inside the package can no longer be required.
 
+## Additions
+
+Opt-in: an app that doesn't use them behaves as on Express 5.3.0.
+
+- **The `view engines` setting.** `app.set('view engines', ['pug', 'html'])` lets `res.render('page')` render `page.pug` or `page.html`, whichever exists first, after the `view engine` extension. A name with an extension that has no engine, such as `user.profile`, gets one added. When nothing is found, the error lists the extensions tried. See [Several template engines](/api/application#several-template-engines).
+
 ## Tests that guard the drop-in promise
 
 - **Differential harness.** Thousands of scenarios (143 written by hand and 3,306 generated from every `res` method and `req` property) run on Express 5.3.0 and on the fork, and must give byte-identical responses and error logs. The method comes from [ultimate-express](https://github.com/dimdenGD/ultimate-express)'s test runner.

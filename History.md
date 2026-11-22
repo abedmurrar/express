@@ -1,6 +1,10 @@
 Unreleased (fork)
 =================
 
+## ✨ Additions
+
+* Add the `view engines` setting (expressjs/express#2708, #3485; PR #3569 by boycce, reworked): a view name without a known extension tries the `view engine` extension, then each listed one, in order, and renders the first file found, so `app.set('view engines', ['pug', 'html'])` renders `page.pug` or `page.html` with `res.render('page')`. It's opt-in: without it, nothing changes, including the "No default engine was specified" error. Each extension is tried in every `views` folder before the next one, so an app that sets `view engine` keeps rendering the same file. An extension with no engine and not listed is part of the name (`user.profile` renders `user.profile.pug`), and when nothing is found, the error lists the extensions tried. Sub-apps inherit the setting, and with `view cache` on the file found is cached under the name.
+
 ## 🐞 Bug fixes
 
 * `res.send` sends the bytes of an ArrayBuffer, a SharedArrayBuffer, a DataView and every typed array, exactly the view's `byteOffset` and `byteLength` window, with or without an ETag. Express 5.3.0 sent an ArrayBuffer as the JSON `{}`, a DataView as an empty body, and other typed arrays one byte per element (a `Uint16Array` lost its high bytes), or answered 500 when ETags were off and the array was small. `Buffer` and `Uint8Array` bodies are unchanged, and a view of a detached buffer still sends an empty body (#7362, #7510, #7538). Ported from PR #7574 by Jasper (jipeng6036-del), which builds on PR #7542 by Prince Jain; ArrayBuffer and SharedArrayBuffer support from PR #7363 by Siddharth Mehta, detected with `util.types.isAnyArrayBuffer` instead of `Symbol.toStringTag`, which any object can fake. Thanks also to Nikhil Jangid (PR #7511) and Oubaida Awaw (PR #7410).

@@ -53,6 +53,8 @@ html
 
 Create a route to render the `index.pug` file. If the `view engine` property is not set,
 you must specify the extension of the `view` file. Otherwise, you can omit it.
+To omit it for views of several engines, list their extensions in the fork's `view engines`
+setting; see [Several template engines](/api/application#several-template-engines).
 
 ::: code-group
 

@@ -1,6 +1,10 @@
 Unreleased (fork)
 =================
 
+## ✨ Additions
+
+* Add `req.originalRoute` (#2501): the full path pattern of the route that matched, the path of every router and sub-app it is mounted under followed by its own, so `router.get('/users/:id')` under `app.use('/api', router)` gives `'/api/users/:id'` for `GET /api/users/7`. Mount paths are joined as `req.baseUrl` joins them, a path array gives the entry that matched, and a RegExp route or mount gives `undefined`, since it has no path form. It is set and kept exactly as long as `req.route` is, so error handlers see the route that failed, and a 404 handler sees `undefined` unless a route matched and passed the request on. The router records the mounts and the route as it goes, and the string is built only when read; the request prototype's enumerable keys are unchanged. Upstream's proposals (pillarjs/router#34 and #86, `req.matchedRoutes`) built an array of every matched path on every request and were never finished.
+
 ## 🐞 Bug fixes
 
 * `res.send` sends the bytes of an ArrayBuffer, a SharedArrayBuffer, a DataView and every typed array, exactly the view's `byteOffset` and `byteLength` window, with or without an ETag. Express 5.3.0 sent an ArrayBuffer as the JSON `{}`, a DataView as an empty body, and other typed arrays one byte per element (a `Uint16Array` lost its high bytes), or answered 500 when ETags were off and the array was small. `Buffer` and `Uint8Array` bodies are unchanged, and a view of a detached buffer still sends an empty body (#7362, #7510, #7538). Ported from PR #7574 by Jasper (jipeng6036-del), which builds on PR #7542 by Prince Jain; ArrayBuffer and SharedArrayBuffer support from PR #7363 by Siddharth Mehta, detected with `util.types.isAnyArrayBuffer` instead of `Symbol.toStringTag`, which any object can fake. Thanks also to Nikhil Jangid (PR #7511) and Oubaida Awaw (PR #7410).

@@ -799,6 +799,16 @@ export interface Request<
 
   originalUrl: string
 
+  /**
+   * The full path pattern of the route that matched: the path of every
+   * router and sub-app it is mounted under, then its own path, for example
+   * `'/api/users/:id'` for `router.get('/users/:id')` under
+   * `app.use('/api', router)`. `undefined` while no route has matched, and
+   * when one of those paths is a RegExp. Like `req.route`, it stays set after
+   * the route calls `next()`. Added by this fork (expressjs/express#2501).
+   */
+  readonly originalRoute?: string | undefined
+
   url: string
 
   baseUrl: string

@@ -21,6 +21,9 @@ const { METHODS } = require('node:http') as typeof import('node:http')
 const { Buffer } = require('node:buffer') as typeof import('node:buffer')
 const parseUrl = require('parseurl') as typeof import('parseurl')
 const Route = require('./lib/route') as RouteConstructor
+const symbols = require('./lib/symbols') as typeof import('./lib/symbols')
+const mountMatch: typeof symbols.mountMatch = symbols.mountMatch
+const routeMatch: typeof symbols.routeMatch = symbols.routeMatch
 const debug = (require('debug') as typeof import('debug'))('router')
 const deprecate = (require('depd') as typeof import('depd'))('router')
 
@@ -35,6 +38,7 @@ import type {
   RouterResponse
 } from './lib/layer'
 import type { HandlerList, HttpMethod, HttpMethods, Route as RouteInstance, RouteConstructor } from './lib/route'
+import type { MatchedRequest, MatchRecord } from './lib/symbols'
 
 export type {
   ErrorRequestHandler,
@@ -267,6 +271,7 @@ proto.handle = function handleRequest(req, res, callback) {
 
   debug('dispatching %s %s', req.method, req.url)
 
+  let entered: MatchRecord | undefined
   let idx = 0
   let methods: string[] | undefined
   const protohost = getProtohost(req.url) || ''
@@ -313,6 +318,12 @@ proto.handle = function handleRequest(req, res, callback) {
     if (slashMarked) {
       addedSlashUrl.delete(req)
       slashMarked = false
+    }
+
+    // leave the mount this router entered (see trimPrefix)
+    if (entered !== undefined) {
+      ;(req as RouterRequest & MatchedRequest)[mountMatch] = entered.parent
+      entered = undefined
     }
 
     // restore altered req.url
@@ -401,6 +412,16 @@ proto.handle = function handleRequest(req, res, callback) {
     // store route for dispatch on change
     if (route) {
       req.route = route
+
+      // Not in upstream (router 2.2.0, 2.3.0): what req.originalRoute is built
+      // from when it is read (lib/original-route), kept as long as req.route
+      // is, with the mounts the request is in at this moment
+      ;(req as RouterRequest & MatchedRequest)[routeMatch] = {
+        layer,
+        path,
+        noSlash,
+        parent: (req as RouterRequest & MatchedRequest)[mountMatch]
+      }
     }
 
     // Capture one-time layer values
@@ -457,6 +478,14 @@ proto.handle = function handleRequest(req, res, callback) {
       // Setup base URL (no trailing slash)
       req.baseUrl =
         parentUrl + (removed[removed.length - 1] === '/' ? removed.substring(0, removed.length - 1) : removed)
+    }
+
+    // Not in upstream (router 2.2.0, 2.3.0): record the mount the request
+    // enters, for req.originalRoute (see the route record in next()), until
+    // it comes back to next(). A "/" mount adds nothing to the route.
+    if (!layer.slash) {
+      entered = { layer, path, noSlash: false, parent: (req as RouterRequest & MatchedRequest)[mountMatch] }
+      ;(req as RouterRequest & MatchedRequest)[mountMatch] = entered
     }
 
     debug('%s %s : %s', layer.name, layerPath, req.originalUrl)

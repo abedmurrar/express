@@ -130,7 +130,12 @@ var target = fc
   .map((t) => t[0] + (t[1] === undefined ? '' : '?' + t[1]) + (t[2] === undefined ? '' : t[2]))
 
 // (An empty Host is left out: Node's client replaces it with the server's
-// address, which differs between the two servers.)
+// address, which differs between the two servers. So are the inputs whose
+// answers the fork changed on purpose: a Host with userinfo or a non-numeric
+// port (upstream PR #7317), an IPv6 host with dots (#7532) and an uppercase
+// X-Forwarded-Proto (upstream PR #7330). The `allowed` scenarios in
+// test/differential/scenarios.js show those differences, and
+// test/fork-request-getters.js covers them.)
 var host = fc.oneof(
   fc.constantFrom(
     'localhost',
@@ -142,8 +147,7 @@ var host = fc.oneof(
     '127.0.0.1:3000',
     '[::1]',
     '[::1]:3000',
-    '[::ffff:127.0.0.1]:80',
-    'user@example.com',
+    '[::ffff:7f00:1]:80',
     'example.com:',
     'a..b',
     '.example.com'
@@ -158,7 +162,7 @@ var ip = fc.oneof(
   fc.constantFrom('127.0.0.1', '10.0.0.1', '::1', 'fd00::1', 'unknown', '', ' 10.0.0.2 ', '1.2.3.4:80')
 )
 var forwardedFor = fc.array(ip, { minLength: 1, maxLength: 4 }).map((l) => l.join(', '))
-var forwardedProto = fc.constantFrom('https', 'http', 'HTTPS', 'https, http', 'http,https', 'ftp', '', ' https ')
+var forwardedProto = fc.constantFrom('https', 'http', 'https, http', 'http,https', 'ftp', '', ' https ')
 var forwardedHost = fc.oneof(
   host,
   fc.tuple(host, fc.constantFrom(',', ', ', ' , ', '  ,'), host).map((t) => t.join(''))

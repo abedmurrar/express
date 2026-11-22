@@ -38,6 +38,13 @@ const parseRange = require('range-parser') as typeof import('range-parser')
 const parse = require('parseurl') as typeof import('parseurl')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
 
+/**
+ * The port of a Host header: digits only, possibly none (RFC 3986 section 3.2.3).
+ * @private
+ */
+
+const PORT_REGEXP = /^[0-9]*$/
+
 /** A `next` function: call it to pass control on, or with an error to skip to the error handlers. */
 export type NextFunction = (err?: unknown) => void
 
@@ -386,7 +393,9 @@ defineGetter(req, 'protocol', function protocol() {
   var header = this.get('X-Forwarded-Proto') || proto
   var index = header.indexOf(',')
 
-  return index !== -1 ? header.substring(0, index).trim() : header.trim()
+  // A URI scheme is case-insensitive (RFC 3986 section 3.1), so a proxy that
+  // sends "HTTPS" means https, and req.secure must say so
+  return (index !== -1 ? header.substring(0, index).trim() : header.trim()).toLowerCase()
 })
 
 /**
@@ -461,7 +470,11 @@ defineGetter(req, 'subdomains', function subdomains() {
   if (!hostname) return []
 
   var offset = this.app.get('subdomain offset')
-  var subdomains = !isIP(hostname) ? hostname.split('.').reverse() : [hostname]
+
+  // An IPv6 literal keeps its brackets in req.hostname, and net.isIP() needs
+  // them gone, or "[::ffff:127.0.0.1]" is split on its dots
+  var address = hostname[0] === '[' ? hostname.slice(1, -1) : hostname
+  var subdomains = !isIP(address) ? hostname.split('.').reverse() : [hostname]
 
   return subdomains.slice(offset)
 })
@@ -484,6 +497,9 @@ defineGetter(req, 'path', function path() {
  * address, the "X-Forwarded-Host" header field will
  * be trusted.
  *
+ * Userinfo before an "@" is dropped, and a value whose
+ * port is not all digits gives `undefined`.
+ *
  * @return {String}
  * @public
  */
@@ -499,6 +515,21 @@ defineGetter(req, 'host', function host() {
     //       single value, but this is to be safe.
     val = val.substring(0, val.indexOf(',')).trimEnd()
   }
+
+  if (!val) return undefined
+
+  // A host has no userinfo ("user@" or "user:pass@", RFC 3986 section 3.2.1),
+  // and a client must not send it (RFC 9110 section 4.2.4). Without this,
+  // "evil.example:x@good.example" gave req.hostname "evil.example". The host
+  // is what follows the last "@".
+  var at = val.lastIndexOf('@')
+  if (at !== -1) val = val.substring(at + 1)
+
+  // The port is digits only (RFC 3986 section 3.2.3). Anything else is not a
+  // host, for example an encoded "@" in "evil.example:x%40good.example".
+  var offset = val[0] === '[' ? val.indexOf(']') + 1 : 0
+  var colon = val.indexOf(':', offset)
+  if (colon !== -1 && !PORT_REGEXP.test(val.substring(colon + 1))) return undefined
 
   return val || undefined
 })

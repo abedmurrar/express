@@ -231,9 +231,9 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | A view name ending in `.` throws synchronously | #7350, PRs #7351, #7392 | master | Small | repro 7350 | |
 | [ ] | `app.listen` leaves its error listener attached | PR #7501 | master | Small | repros 7501, 7501b | |
 | [ ] | A JSONP callback that sanitises to nothing gives broken JS | PR #7161 | master | Small | repro 7161 | |
-| [ ] | `req.subdomains` splits IPv6 literals | #7532, PR #7533 | master | Small | repro 7532 | |
-| [ ] | Userinfo in the Host header becomes `req.hostname` | PR #7317 | master | Small | repro 7317 | |
-| [ ] | Uppercase `X-Forwarded-Proto: HTTPS` is not secure | PR #7330 | master | Small | repro 7330 | |
+| [x] | `req.subdomains` splits IPv6 literals | #7532, PR #7533 | master | Small | repro 7532 passes; tests for `[::1]`, `[::ffff:127.0.0.1]` and `[2001:db8::192.0.2.33]` with and without a port, with userinfo, and with `subdomain offset` 0; a differential scenario that differs from 5.3.0 on purpose. Removing the fix fails 12 tests | |
+| [x] | Userinfo in the Host header becomes `req.hostname` (a host-guard bypass: `Host: admin.example:x@public.example` gave `admin.example`) | PR #7317 | master | Small | repro 7317 and the security-suite host-guard test pass; tests for `@` in odd places (several, leading, inside brackets, before an IPv6 literal, nothing after it), non-numeric ports, and a trusted `X-Forwarded-Host` with userinfo; 3 differential scenarios that differ from 5.3.0 on purpose. Removing the userinfo step fails 23 tests, removing the port check fails 8 | |
+| [x] | Uppercase `X-Forwarded-Proto: HTTPS` is not secure | PR #7330 | master | Small | repro 7330 passes; tests for mixed case, spaces and comma lists, a hop-count trust and an untrusted proxy; the differential scenario that differs from 5.3.0 on purpose. Removing the fix fails 12 tests | |
 | [ ] | A `//` mount also matches `/` | #4557, PR #7286, router#190 | master | Medium | repro 4557 | |
 | [ ] | A `req.url` rewrite in a mounted router loses a slash | #4059 | master | Small | repro 4059; fixed by the router 2.3.0 re-sync | |
 | [ ] | A router cycle gives a stack overflow instead of a clear error | #6809, router#183 | master | Small | repro 6809 | |

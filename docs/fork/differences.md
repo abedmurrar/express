@@ -51,6 +51,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 Opt-in: an app that doesn't use them behaves as on Express 5.3.0.
 
 - **`req.originalRoute`.** The full path pattern of the route that matched, mount paths included: `'/api/users/:id'` for `router.get('/users/:id')` under `app.use('/api', router)`, through nested routers and sub-apps. It is `undefined` before a route matches and when a RegExp path was involved, and stays set as long as `req.route` does, so error and 404 handlers see the route that failed or passed the request on. It is built when read. See [req.originalRoute](/api/request#reqoriginalroute).
+- **Route warnings.** With `DEBUG=express:router`, the router warns when a path no request can match is registered (a raw space, control or non-ASCII character, `?` or `#`, or no leading `/`), and when the same method and path is registered twice on one router. See [Route warnings](/guide/debugging#route-warnings).
 
 ## Tests that guard the drop-in promise
 

@@ -22,6 +22,7 @@ const { Buffer } = require('node:buffer') as typeof import('node:buffer')
 const parseUrl = require('parseurl') as typeof import('parseurl')
 const Route = require('./lib/route') as RouteConstructor
 const symbols = require('./lib/symbols') as typeof import('./lib/symbols')
+const { checkPath, trackRoute } = require('./lib/warnings') as typeof import('./lib/warnings')
 const mountMatch: typeof symbols.mountMatch = symbols.mountMatch
 const routeMatch: typeof symbols.routeMatch = symbols.routeMatch
 const debug = (require('debug') as typeof import('debug'))('router')
@@ -572,6 +573,10 @@ proto.use = function use(handler) {
     this.stack.push(layer)
   }
 
+  // Not in upstream (router 2.2.0, 2.3.0): warn about a path no request can
+  // match (lib/warnings), on the express:router debug namespace
+  checkPath(path, 'use')
+
   return this
 }
 
@@ -608,6 +613,12 @@ proto.route = function route(path) {
   layer.route = route
 
   this.stack.push(layer)
+
+  // Not in upstream (router 2.2.0, 2.3.0): the express:router warnings
+  // (lib/warnings) about a path no request can match and duplicate routes
+  checkPath(path, 'route')
+  trackRoute(this, route, this.stack.length - 1)
+
   return route
 }
 

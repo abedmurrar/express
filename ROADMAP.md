@@ -282,13 +282,13 @@ These are opt-in, and nothing existing changes.
 | [ ] | `app.listRoutes()` | PR #7531, router#174 | master | Medium | new tests; router part arrives with the 2.3.0 re-sync | |
 | [ ] | Explicit error-handler API (`app.error`, `router.error`); counting arguments still works | #2896, #3367, router#59 | master | Medium | new tests | |
 | [ ] | Clearer error when a response is sent twice | #7560 | master | Small | new tests | |
-| [ ] | `debug` warning for duplicate routes at startup | | master | Small | new tests | |
+| [x] | `debug` warning for duplicate routes at startup | | master | Small | `express:router` line naming both routes (stack index and handler name) when the same method and identical path (strings, arrays, RegExp source and flags) is registered twice on one router, through `router.METHOD()`, `route()` and `.all()`; worked out at registration and only while the namespace is enabled. 9 new tests; disabling the warning fails 5 | [#PR](https://github.com/abedmurrar/express/pull/PR) |
 | [ ] | Opt-in strict routing on mount paths | #2281 | master | Medium | repro 2281 | |
 | [ ] | Deprecation warnings for every 6.x removal below | | master | Small | warning tests | |
 | [ ] | Deprecation warning for `res.send(object)` (it keeps working) | #2249, PR #7553 | master | Small | warning test | |
 | [ ] | Stable `code` on every error Express throws | #6951, PR #6982 | master | Medium | new tests | |
 | [x] | Full matched route path on the request (`req.originalRoute`) | #2501 | master | Small | built when read, from a record the router keeps per mount entered and per route matched; mount patterns joined as `req.baseUrl` joins paths, the matched entry of a path array, `undefined` for RegExp paths, kept as long as `req.route`. 39 new tests (nested routers, arrays, RegExp, middleware, sub-apps, `route()`, error and 404 handlers, strict `''` routes); removing the route record fails 30, the mount record 21. Instruction count (valgrind, local): +0.05% to +0.17% on route scenarios | [#73](https://github.com/abedmurrar/express/pull/73) |
-| [ ] | Warn about route paths that can never match | #2511 | master | Small | new tests | |
+| [x] | Warn about route paths that can never match | #2511 | master | Small | `express:router` line, at registration and only while the namespace is enabled, for literal text (outside optional groups) with a space, control or non-ASCII character (Node's HTTP parser rejects them raw, checked byte by byte), `?` or `#` (never in a pathname), or no leading `/`, with the encoded form. Only what the path string proves. 14 new tests; removing the warning fails 11 | [#PR](https://github.com/abedmurrar/express/pull/PR) |
 | [ ] | View lookup tries every registered engine for names without a known extension | #2708, #3485, PR #3569 | master | Medium | new tests | |
 
 ## Our 6.0

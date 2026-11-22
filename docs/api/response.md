@@ -973,6 +973,11 @@ resolve within the given `root` option.
 
 :::
 
+A file whose size is reported as 0 but that has content, such as a Linux `/proc` or `/sys`
+file, is streamed to its end with no `Content-Length`, and a `Range` request gets the whole
+file. A really empty file is sent with `Content-Length: 0`. (Express 5.3.0 sent such files
+empty.)
+
 The method invokes the callback function `fn(err)` when the transfer is complete
 or when an error occurs. If the callback function is specified and an error occurs,
 the callback function must explicitly handle the response process either by

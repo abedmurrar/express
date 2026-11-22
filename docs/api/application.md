@@ -681,8 +681,11 @@ app.get('/', (req: Request, res: Response) => {
 
 - **`callback`** · `Function` · optional
 
-  A function called once the server is listening. If the server emits an `error` event (for
-  example `EADDRINUSE`), the error is passed to this callback as its argument.
+  A function called once the server is listening. If the server fails to start listening (for
+  example with `EADDRINUSE`), the error is passed to this callback as its argument. Errors
+  after the server is listening are not: they go to the server's own `error` listeners, as on
+  a server made with `http.createServer()`. (Express 5.3.0 left its listener attached, so the
+  first later error was silently dropped.)
 
 **Returns:** `http.Server`
 

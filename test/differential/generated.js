@@ -259,7 +259,10 @@ var REQUEST = {
   ]),
   host: header('host', ['example.com:8080', 'tobi.ferrets.example.com', '[::1]:3000', 'EXAMPLE.COM']),
   forwardedFor: header('x-forwarded-for', ['10.0.0.1', '203.0.113.5, 10.0.0.2', 'not-an-ip']),
-  forwardedProto: header('x-forwarded-proto', ['https', 'https, http', 'HTTP']),
+  // No uppercase value: the fork lowercases a trusted X-Forwarded-Proto on
+  // purpose (upstream PR #7330), and the `allowed` scenario
+  // 'req.protocol uppercase forwarded' in ./scenarios.js shows that difference.
+  forwardedProto: header('x-forwarded-proto', ['https', 'https, http', 'http, https']),
   forwardedHost: header('x-forwarded-host', ['proxy.example.com', 'a.example.com:9000, b.example.com']),
   contentType: header('content-type', [
     'application/json',

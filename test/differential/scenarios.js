@@ -788,6 +788,30 @@ var scenarios = [
     req: get('/', { host: 'evil.example:x@good.example' })
   },
   {
+    name: 'req.hostname trusted X-Forwarded-Host userinfo',
+    setup: function (app) {
+      app.set('trust proxy', true)
+      echo(function (req) {
+        return [req.host, req.hostname, req.subdomains]
+      })(app)
+    },
+    req: get('/', { 'x-forwarded-host': 'admin.example:x@tobi.ferrets.example.com:8443, other.example' })
+  },
+  {
+    name: 'req.host non-numeric port',
+    setup: echo(function (req) {
+      return [req.host === undefined, req.hostname === undefined]
+    }),
+    req: get('/', { host: 'evil.example:x%40good.example' })
+  },
+  {
+    name: 'req.subdomains IPv6 with dots',
+    setup: echo(function (req) {
+      return [req.hostname, req.subdomains]
+    }),
+    req: get('/', { host: '[::ffff:127.0.0.1]:3000' })
+  },
+  {
     name: 'req.protocol untrusted',
     setup: echo(function (req) {
       return [req.protocol, req.secure, req.ip, req.ips]
@@ -2016,6 +2040,34 @@ scenarios.push({
   req: get('//x@evil.example/admin#z')
 })
 
+// The error listeners on the server at request time. app.listen(port, cb) in
+// Express 5.3.0 leaves its startup error listener attached; the fork removes
+// it once the server is listening (src/application.ts). On
+// http.createServer(app) both have none, so only the app.listen() mode is in
+// `allowed`.
+scenarios.push({
+  name: 'server error listeners after a successful start',
+  setup: echo(function (req) {
+    return req.socket.server.listenerCount('error')
+  }),
+  req: get('/')
+})
+
+// A regular file that stats as 0 bytes but has content: Express 5.3.0 sends
+// it empty with Content-Length 0; the fork streams it to EOF
+// (src/send/index.ts). Only where /proc exists.
+var PROC_FILE = '/proc/version'
+var HAS_PROC = require('node:fs').existsSync(PROC_FILE)
+if (HAS_PROC) {
+  scenarios.push({
+    name: 'res.sendFile /proc file (size 0 with content)',
+    setup: route('get', '/', function (req, res) {
+      res.sendFile(PROC_FILE)
+    }),
+    req: get('/')
+  })
+}
+
 var allowed = {
   'res.sendFile etag false option':
     'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
@@ -2045,6 +2097,17 @@ var allowed = {
     'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
   'res.jsonp first callback sanitises to nothing':
     'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
+  'req.hostname userinfo':
+    'fixed in the fork: userinfo before an "@" in the Host header is dropped, so req.hostname is good.example, not evil.example (upstream PR #7317)',
+  'req.hostname trusted X-Forwarded-Host userinfo':
+    'fixed in the fork: userinfo is dropped from a trusted X-Forwarded-Host too, so req.host, req.hostname and req.subdomains come from tobi.ferrets.example.com:8443 (upstream PR #7317)',
+  'req.host non-numeric port':
+    'fixed in the fork: a Host whose port is not all digits (an encoded "@" here) gives no req.host or req.hostname, where 5.3.0 gave evil.example (upstream PR #7317)',
+  'req.protocol uppercase forwarded':
+    'fixed in the fork: a trusted X-Forwarded-Proto is lowercased, so "HTTPS" gives req.protocol "https" and req.secure true (upstream PR #7330)',
+  'req.subdomains IPv6 with dots':
+    'fixed in the fork: an IPv6 host with dots has no subdomains, where 5.3.0 split "[::ffff:127.0.0.1]" on its dots (#7532, upstream PR #7533)',
+
   'app.use(stateful RegExp guard with lastIndex left at 3)':
     'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)',
   'double slash mount':
@@ -2054,7 +2117,15 @@ var allowed = {
   'router.use(router) on itself':
     'fixed in the fork: a router cycle gives a clear error instead of a stack overflow (#6809)',
   'GET //x@evil.example/admin#z':
-    'fixed in the fork: a `#` fragment in the request target no longer changes the routed path'
+    'fixed in the fork: a `#` fragment in the request target no longer changes the routed path',
+
+  'app.listen(): server error listeners after a successful start':
+    'fixed in the fork: app.listen() removes its startup error listener once the server listens, so a later error is not swallowed (upstream PR #7501)'
+}
+
+if (HAS_PROC) {
+  allowed['res.sendFile /proc file (size 0 with content)'] =
+    'fixed in the fork: a file that stats as 0 bytes but has content is streamed to EOF instead of sent empty (#4944)'
 }
 
 module.exports = { scenarios: scenarios, allowed: allowed }

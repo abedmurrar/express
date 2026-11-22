@@ -271,8 +271,17 @@ If there is more than one `X-Forwarded-Host` header in the request, the
 value of the first header is used. This includes a single header with
 comma-separated values, in which the first value is used.
 
+Userinfo before an `@` is not part of the host, so it's dropped. A value
+whose port is not all digits is not a host, and gives `undefined`. Express
+5.3.0 kept both, so `Host: evil.example:x@good.example` gave the hostname
+`evil.example`.
+
 ```js
 // Host: "example.com:3000"
+console.dir(req.hostname);
+// => 'example.com'
+
+// Host: "user:pass@example.com:3000"
 console.dir(req.hostname);
 // => 'example.com'
 ```
@@ -301,6 +310,8 @@ console.dir(req.host);
 console.dir(req.host);
 // => '[::1]:3000'
 ```
+
+Userinfo and non-numeric ports are handled as for [`req.hostname`](#reqhostname).
 
 ### req.ip
 
@@ -524,7 +535,9 @@ Contains the request protocol string: either `http` or (for TLS requests) `https
 
 When the [`trust proxy` setting](/api/application#options-for-trust-proxy-setting) does not evaluate to `false`,
 this property will use the value of the `X-Forwarded-Proto` header field if present.
-This header can be set by the client or by the proxy.
+This header can be set by the client or by the proxy. The value is lowercased, since a
+scheme is case-insensitive, so `X-Forwarded-Proto: HTTPS` gives `https` (and
+[`req.secure`](#reqsecure) is `true`). Express 5.3.0 kept the case.
 
 ```js
 console.dir(req.protocol);
@@ -717,6 +730,10 @@ console.dir(req.subdomains);
 The application property `subdomain offset`, which defaults to 2, is used for determining the
 beginning of the subdomain segments. To change this behavior, change its value
 using [app.set](/api/application#appset).
+
+An IP address host has no subdomains: `Host: [::ffff:127.0.0.1]` gives `[]` (and
+`['[::ffff:127.0.0.1]']` with `subdomain offset` set to 0). Express 5.3.0 split an
+IPv6 address on its dots.
 
 ### req.xhr
 

@@ -247,7 +247,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `req.subdomains` ignores a trailing root dot | PR #7331 | master | Small | repro needed first | |
 | [ ] | `res.append` keeps an existing empty header value | PR #7332 | master | Small | repro needed first | |
 | [ ] | `res.redirect` body says `undefined` for non-standard status codes | PRs #7407, #7045 | master | Small | repro needed first | |
-| [x] | A RegExp path with the `g` or `y` flag matches only every other request (an auth bypass: `app.use(/^\/admin/g, auth)` was skipped on every other request) | | master | Small | the 16 security-suite tests (app.use, app.all, router.use and a route, with g, y, gi and iy) pass; router tests for params, path arrays, router.route, a lastIndex left by the app, y staying anchored; a differential scenario that differs from 5.3.0 on purpose. Removing the fix fails 27 tests | #PR |
+| [x] | A RegExp path with the `g` or `y` flag matches only every other request (an auth bypass: `app.use(/^\/admin/g, auth)` was skipped on every other request) | | master | Small | the 16 security-suite tests (app.use, app.all, router.use and a route, with g, y, gi and iy) pass; router tests for params, path arrays, router.route, a lastIndex left by the app, y staying anchored; a differential scenario that differs from 5.3.0 on purpose. Removing the fix fails 27 tests | [#62](https://github.com/abedmurrar/express/pull/62) |
 
 ## Performance on the compatible line
 

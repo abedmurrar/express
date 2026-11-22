@@ -12,7 +12,6 @@ var fs = require('node:fs')
 var { Buffer } = require('node:buffer')
 var { Readable, pipeline } = require('node:stream')
 var express = require('../..')
-var { bug } = require('../regressions/support')
 var support = require('./support')
 
 var aborted = support.aborted
@@ -159,34 +158,30 @@ describe('robustness: client aborts', function () {
     // a later layer is left that doesn't match (it waits a turn only after
     // the last layer), so the 400 for the aborted body is written to the
     // closed connection before Node emits the response's 'close'. req.signal
-    // then sees a finished response and never aborts, although the client
-    // left first. Without the later route, the 400 comes a turn later and the
-    // signal aborts. Express 5.3.0 has no req.signal of its own.
-    bug(
-      'req.signal aborts when the error for an aborted body is written before the response closes',
-      '`req.signal` does not abort when the response is ended after the client left but before Node emits its `close`',
-      async function () {
-        var app = tracked()
-        var started = deferred()
-        app.onRequest = started.resolve
-        app.post('/upload', express.json(), function (req, res) {
-          res.send('parsed')
-        })
-        app.get('/', function (req, res) {
-          res.send('home')
-        })
-        server = await support.listen(app)
+    // used to see a finished response there and never abort, although the
+    // client left first; it now counts a response as finished only if it
+    // finished while the connection was open.
+    it('req.signal aborts when the error for an aborted body is written before the response closes', async function () {
+      var app = tracked()
+      var started = deferred()
+      app.onRequest = started.resolve
+      app.post('/upload', express.json(), function (req, res) {
+        res.send('parsed')
+      })
+      app.get('/', function (req, res) {
+        res.send('home')
+      })
+      server = await support.listen(app)
 
-        var socket = connect(server)
-        socket.write(rawRequest('POST', '/upload', { 'Content-Type': 'application/json', 'Content-Length': 100 }, '{'))
-        var entry = await started.promise
-        socket.destroy()
-        await entry.closed.promise
-        await settled(server)
+      var socket = connect(server)
+      socket.write(rawRequest('POST', '/upload', { 'Content-Type': 'application/json', 'Content-Length': 100 }, '{'))
+      var entry = await started.promise
+      socket.destroy()
+      await entry.closed.promise
+      await settled(server)
 
-        assert.strictEqual(entry.signal.aborted, true)
-      }
-    )
+      assert.strictEqual(entry.signal.aborted, true)
+    })
   })
 
   describe('in the middle of the response', function () {

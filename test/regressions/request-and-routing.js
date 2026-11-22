@@ -45,19 +45,15 @@ describe('regressions: request, app and routing', function () {
     }
   )
 
-  bug(
-    'PR #7501 app.listen removes its startup error listener',
-    '`app.listen` leaves its error listener attached',
-    function (done) {
-      var app = express()
-      var server = app.listen(0, '127.0.0.1', function () {
-        var count = server.listenerCount('error')
-        server.close()
-        assert.strictEqual(count, 0)
-        done()
-      })
-    }
-  )
+  it('PR #7501 app.listen removes its startup error listener', function (done) {
+    var app = express()
+    var server = app.listen(0, '127.0.0.1', function () {
+      var count = server.listenerCount('error')
+      server.close()
+      assert.strictEqual(count, 0)
+      done()
+    })
+  })
 
   bug('#4557 a router mounted at "//" does not answer "/"', 'A `//` mount also matches `/`', async function () {
     var app = express()

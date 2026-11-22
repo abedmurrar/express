@@ -43,7 +43,7 @@ function run(args) {
   })
 }
 
-var SCENARIOS = ['hello', 'json', 'params', 'mw10', 'routes100', 'post-json', 'not-found', 'query', 'signal']
+var SCENARIOS = ['hello', 'json', 'params', 'mw10', 'routes100', 'post-json', 'not-found', 'query', 'format', 'signal']
 
 describe('robustness: memory', function () {
   it('keeps the heap flat over a long run of each scenario', async function () {

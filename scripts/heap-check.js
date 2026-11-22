@@ -82,6 +82,12 @@ function send(app, request) {
   req.httpVersionMinor = 1
   req.headers = { host: 'localhost' }
   req.rawHeaders = ['Host', 'localhost']
+  var extra = request.headers || {}
+  for (var name in extra) {
+    // a new string from the bytes, as Node's parser makes for each request (and as benchmarks/count/worker.ts does)
+    req.headers[name] = Buffer.from(extra[name], 'latin1').toString('latin1')
+    req.rawHeaders.push(name, extra[name])
+  }
   if (request.body !== undefined) {
     var length = String(Buffer.byteLength(request.body))
     req.headers['content-type'] = 'application/json'

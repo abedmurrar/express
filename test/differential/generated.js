@@ -1042,7 +1042,11 @@ var allowed = {
     'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
   'res.send Float64Array': BINARY,
   'res.send ArrayBuffer': BINARY,
-  'res.send DataView': BINARY
+  'res.send DataView': BINARY,
+  'res.redirect 999, "/foo"':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 999)',
+  'res.links {}':
+    'fixed in the fork: `res.links` with empty values (an empty object leaves the header alone, so no empty Link)'
 }
 
 module.exports = { scenarios: scenarios, groups: groups, allPairs: allPairs, allowed: allowed }

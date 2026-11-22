@@ -188,26 +188,26 @@ res.status = function status(this: ExpressResponse, code: unknown) {
  */
 
 res.links = function (this: ExpressResponse, links: Record<string, string | string[]>) {
+  var values: string[] = []
+  Object.keys(links).forEach(function (rel) {
+    var targets = links[rel]
+    // Allow multiple links if links[rel] is an array
+    if (Array.isArray(targets)) {
+      targets.forEach(function (target) {
+        values.push(`<${target}>; rel="${rel}"`)
+      })
+    } else {
+      values.push(`<${targets}>; rel="${rel}"`)
+    }
+  })
+
+  // Nothing to add (an empty object, or only empty arrays): leave the header
+  // as it is, rather than sending an empty Link or a trailing ", "
+  if (values.length === 0) return this
+
   var link = this.get('Link') || ''
   if (link) link += ', '
-  return this.set(
-    'Link',
-    link +
-      Object.keys(links)
-        .map(function (rel) {
-          // Allow multiple links if links[rel] is an array
-          if (Array.isArray(links[rel])) {
-            return links[rel]
-              .map(function (singleLink: string) {
-                return `<${singleLink}>; rel="${rel}"`
-              })
-              .join(', ')
-          } else {
-            return `<${links[rel]}>; rel="${rel}"`
-          }
-        })
-        .join(', ')
-  )
+  return this.set('Link', link + values.join(', '))
 }
 
 /**
@@ -786,7 +786,9 @@ res.append = function append(this: ExpressResponse, field: string, val: string |
   var prev = this.get(field)
   var value: string | string[] | (string | number)[] = val
 
-  if (prev) {
+  // an existing empty value (or a number 0 set through res.setHeader) is
+  // still a value: keep it
+  if (prev !== undefined) {
     // concat the new and prev vals
     value = Array.isArray(prev) ? prev.concat(val) : Array.isArray(val) ? [prev].concat(val) : [prev, val]
   }
@@ -993,10 +995,12 @@ res.redirect = function redirect(this: ExpressResponse, url: unknown) {
   // above, and encodeurl turns it into a string)
   address = this.location(address as string).get('Location')
 
-  // Support text/{plain,html} by default
+  // Support text/{plain,html} by default. A status without a standard
+  // message is named by its number, as in res.sendStatus
+  var message = statuses.message[status as number] || String(status)
   this.format({
     text: function () {
-      body = statuses.message[status as number] + '. Redirecting to ' + address
+      body = message + '. Redirecting to ' + address
     },
 
     html: function () {
@@ -1004,10 +1008,10 @@ res.redirect = function redirect(this: ExpressResponse, url: unknown) {
       var u = escapeHtml(address as string)
       body =
         '<!DOCTYPE html><head><title>' +
-        statuses.message[status as number] +
+        message +
         '</title></head>' +
         '<body><p>' +
-        statuses.message[status as number] +
+        message +
         '. Redirecting to ' +
         u +
         '</p></body>'

@@ -690,7 +690,9 @@ res.status(500).jsonp({ error: 'message' });
 **Returns:** `Response`
 
 Joins the `links` provided as properties of the parameter to populate the response's
-`Link` HTTP header field.
+`Link` HTTP header field. Each call adds to an existing `Link` header. A relation whose value is
+an empty array adds nothing, and a call with nothing to add (such as `res.links({})`) leaves the
+header as it is.
 
 For example, the following call:
 

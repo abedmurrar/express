@@ -27,6 +27,10 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **`res.render` leaves its options object alone.** `res.locals` is merged into a copy, so a frozen options object works and a shared one isn't changed.
 - **A view name ending in `.` gets the usual lookup error** through the callback, where Express 5.3.0 threw a `require('')` error synchronously.
 - **View extensions match engines whatever their case.** An engine registered as `HTML` renders `user.html`; Express 5.3.0 missed it and tried `require('html')`. An engine registered in the same case still wins, `app.engines` keeps the keys as registered, and file names keep their case.
+- **`res.links` with nothing to add leaves the `Link` header alone.** `res.links({})` sends no `Link` header, and a relation given an empty array adds no entry. Express 5.3.0 sent an empty `Link` header, or one ending in `, `.
+- **`res.append` keeps an existing empty header value.** After `res.set('X-A', '')`, `res.append('X-A', 'b')` sends both values, as two header lines. Express 5.3.0 replaced the empty value.
+- **`res.redirect` names a status without a standard message by its number.** `res.redirect(399, '/next')` says `399. Redirecting to /next`, where Express 5.3.0 said `undefined. Redirecting to /next`.
+- **A quoted `;` in a type parameter stays in its value.** `normalizeType('text/plain; foo="a;b"')` from `express/lib/utils` gives `foo` `"a;b"`, where Express 5.3.0 gave `"a`. Responses don't change.
 - **RegExp paths with `g` or `y` match on every request.** In Express 5.3.0 such a RegExp kept its `lastIndex` between requests and matched only every other request, which let requests past a guard like `app.use(/^\/admin/g, auth)`. The fork starts every match at index 0.
 - **A mount path made only of slashes keeps its slashes.** In Express 5.3.0, `app.use('//', router)` (or `///`) matched every request, because the trailing slashes were trimmed to an empty path, so the router answered `/secret` before the app's own guards. In the fork a `//` mount answers only `//` and `//` followed by `/...`, and `app.get('//', ...)` no longer answers `/`.
 - **Mounting a router on itself at `/` throws.** `router.use(router)`, or a cycle through other routers mounted at `/`, throws a `TypeError` at mount time. Express 5.3.0 accepts it, and any request the router doesn't answer then overflows the stack. Cycles through a mount at another path, which end, still work.
@@ -47,7 +51,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **Middleware's own test suites.** The test suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests) run against Express 5.3.0 and against the fork. Every test that passes on 5.3.0 must pass on the fork, and today all of them do.
 - **Security test suite.** Checks that an auth guard always runs before the route it protects however the path is spelled, that CR and LF never inject a header, where redirects point, that no request pollutes `Object.prototype`, and that file serving never leaves its root.
 - **100% coverage.** Statements, branches, functions and lines of `lib/` are measured with c8 and must stay at 100%, or CI fails.
-- **Regression tests for 22 confirmed bugs.** Each one asserts the correct behaviour and stays skipped until its fix lands.
+- **Regression tests for 27 confirmed bugs.** Each one asserts the correct behaviour and stays skipped until its fix lands.
 - **Upstream test PRs.** Eight upstream test-coverage pull requests are ported, keeping their authors.
 
 ## Tooling

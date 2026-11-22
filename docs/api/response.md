@@ -116,6 +116,34 @@ app.get('/', (req: Request, res: Response) => {
 
 :::
 
+Once the headers are sent, a method that sets a header (`res.send()`, `res.json()`, `res.jsonp()`,
+`res.sendStatus()`, `res.redirect()`, `res.render()`, `res.set()`, `res.append()`, `res.cookie()`,
+`res.clearCookie()`, `res.location()`, `res.type()`, `res.attachment()`, `res.links()`, `res.vary()`
+and `res.format()`) throws Node's `ERR_HTTP_HEADERS_SENT` error. The message names the method that
+was called, which is usually the second response in a handler that forgot a `return`:
+
+```js
+app.get('/user/:id', async (req, res) => {
+  const user = await users.find(req.params.id);
+  if (!user) res.status(404).send('Not found'); // no return
+  res.json(user);
+  // Error [ERR_HTTP_HEADERS_SENT]: Cannot set headers after they are sent to the client:
+  // res.json() was called after the response headers were sent
+});
+```
+
+::: info
+
+Not in Express 5.3.0, where the message is Node's "Cannot set headers after they are sent to
+the client" alone. Only the message changes: the error is the same object (same class, same
+`code`, same stack frames), thrown from the same place, so code that checks
+`err.code === 'ERR_HTTP_HEADERS_SENT'` keeps working, and so does a check that the message
+starts with or includes Node's text. `res.render()` without a callback passes it to `next(err)`.
+Aliases are named by their main name: `res.header()` as `res.set()` and `res.contentType()` as
+`res.type()`.
+
+:::
+
 ### res.locals
 
 **Type:** `Object`

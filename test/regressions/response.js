@@ -8,7 +8,7 @@ var os = require('node:os')
 var path = require('node:path')
 var { Buffer } = require('node:buffer')
 var express = require('../../')
-var { bug, request } = require('./support')
+var { request } = require('./support')
 
 function tmpViews(files) {
   var dir = fs.mkdtempSync(path.join(os.tmpdir(), 'express-regression-'))
@@ -113,84 +113,76 @@ describe('regressions: response', function () {
     assert.ok(r.body.length > 0, 'expected the file contents, got an empty body')
   })
 
-  bug(
-    '#7560 res.render after a send reports the error instead of throwing it',
-    '`res.render` after a send crashes the process',
-    async function () {
-      var dir = tmpViews({ 'index.tmpl': 'hi' })
-      var seen
-      var app = express()
-      app.engine('tmpl', function (file, opts, cb) {
-        cb(null, fs.readFileSync(file, 'utf8'))
+  // The crash is in res.render's default callback (no callback given): its
+  // res.send throws from the engine's deferred callback, so on 5.3.0 this
+  // test fails with an uncaught ERR_HTTP_HEADERS_SENT.
+  it('#7560 res.render after a send reports the error instead of throwing it', async function () {
+    var dir = tmpViews({ 'index.tmpl': 'hi' })
+    var seen
+    var app = express()
+    app.engine('tmpl', function (file, opts, cb) {
+      cb(null, fs.readFileSync(file, 'utf8'))
+    })
+    app.set('views', dir)
+    app.set('view engine', 'tmpl')
+    app.get('/', function (req, res) {
+      res.send('already sent')
+      res.render('index')
+    })
+    app.use(function (err, req, res, next) {
+      seen = err.code
+    })
+    try {
+      var r = await request(app)
+      await new Promise(function (resolve) {
+        setTimeout(resolve, 50)
       })
-      app.set('views', dir)
-      app.set('view engine', 'tmpl')
-      app.get('/', function (req, res, next) {
-        res.send('already sent')
-        res.render('index', function (err) {
-          seen = err && err.code
-        })
-      })
-      try {
-        var r = await request(app)
-        await new Promise(function (resolve) {
-          setTimeout(resolve, 50)
-        })
-        assert.strictEqual(r.body.toString(), 'already sent')
-        assert.strictEqual(seen, 'ERR_HTTP_HEADERS_SENT')
-      } finally {
-        fs.rmSync(dir, { recursive: true })
-      }
+      assert.strictEqual(r.body.toString(), 'already sent')
+      assert.strictEqual(seen, 'ERR_HTTP_HEADERS_SENT')
+    } finally {
+      fs.rmSync(dir, { recursive: true })
     }
-  )
+  })
 
-  bug(
-    'PR #7541 res.render does not change the options object it is given',
-    "`res.render` mutates the caller's options",
-    async function () {
-      var dir = tmpViews({ 'v.tmpl': 'x' })
-      var app = express()
-      app.engine('tmpl', function (f, o, cb) {
-        cb(null, 'ok')
-      })
-      app.set('views', dir)
-      app.set('view engine', 'tmpl')
-      var shared = { title: 't' }
-      app.get('/a', function (req, res) {
-        res.render('v', shared)
-      })
-      app.get('/b', function (req, res) {
-        res.render('v', Object.freeze({ title: 't' }))
-      })
-      try {
-        await request(app, { path: '/a' })
-        var b = await request(app, { path: '/b' })
-        assert.deepStrictEqual(Object.keys(shared), ['title'])
-        assert.strictEqual(b.status, 200)
-      } finally {
-        fs.rmSync(dir, { recursive: true })
-      }
+  it('PR #7541 res.render does not change the options object it is given', async function () {
+    var dir = tmpViews({ 'v.tmpl': 'x' })
+    var app = express()
+    app.engine('tmpl', function (f, o, cb) {
+      cb(null, 'ok')
+    })
+    app.set('views', dir)
+    app.set('view engine', 'tmpl')
+    var shared = { title: 't' }
+    app.get('/a', function (req, res) {
+      res.render('v', shared)
+    })
+    app.get('/b', function (req, res) {
+      res.render('v', Object.freeze({ title: 't' }))
+    })
+    try {
+      await request(app, { path: '/a' })
+      var b = await request(app, { path: '/b' })
+      assert.deepStrictEqual(Object.keys(shared), ['title'])
+      assert.strictEqual(b.status, 200)
+    } finally {
+      fs.rmSync(dir, { recursive: true })
     }
-  )
+  })
 
-  bug(
-    '#7350 app.render reports a view name ending in "." through the callback',
-    'A view name ending in `.` throws synchronously',
-    function (done) {
-      var app = express()
-      app.set('view engine', 'ejs')
-      var threw = null
-      try {
-        app.render('index.', function (err) {
-          assert.ok(err instanceof Error)
-          done()
-        })
-      } catch (e) {
-        threw = e
-      }
-      if (threw) done(new Error('threw synchronously: ' + threw.message.split('\n')[0]))
+  it('#7350 app.render reports a view name ending in "." through the callback', function (done) {
+    var app = express()
+    app.set('view engine', 'ejs')
+    var threw = null
+    try {
+      app.render('index.', function (err) {
+        assert.ok(err instanceof Error)
+        done()
+      })
+    } catch (e) {
+      threw = e
     }
-  )
+    if (threw) done(new Error('threw synchronously: ' + threw.message.split('\n')[0]))
+  })
 
   it('PR #7161 res.jsonp with a callback that sanitises to nothing sends plain JSON', async function () {
     var app = express()

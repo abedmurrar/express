@@ -95,6 +95,14 @@ function View(this: View, name: string, options: ViewOptions) {
   this.name = name
   this.root = opts.root
 
+  // a name ending in "." has the extension "." (extname('index.')), which
+  // would load the engine module require(''). Unless an engine is
+  // registered for ".", it is a name without an extension, so it gets the
+  // default engine's, or the usual error when there is none.
+  if (this.ext === '.' && !opts.engines['.']) {
+    this.ext = ''
+  }
+
   if (!this.ext && !this.defaultEngine) {
     throw new Error('No default engine was specified and no extension was provided.')
   }

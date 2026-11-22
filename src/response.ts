@@ -1080,15 +1080,25 @@ res.render = function render(
     opts = {}
   }
 
-  // merge res.locals
-  opts._locals = self.locals
+  // merge res.locals, into a copy: the caller's object may be shared between
+  // requests (it would keep the last request's res.locals) or frozen (the
+  // assignment would throw). app.render copies its own enumerable properties
+  // either way, so the engine gets the same options.
+  opts = { ...opts, _locals: self.locals }
 
-  // default callback to respond
+  // default callback to respond. It runs from the engine's callback, which
+  // View#render always defers, so nothing up the stack would catch a throw
+  // from res.send (such as ERR_HTTP_HEADERS_SENT after another response was
+  // sent): it goes to next(err) instead of ending the process.
   done =
     done ||
     function (err: Error | null | undefined, str?: string) {
       if (err) return req.next(err)
-      self.send(str)
+      try {
+        self.send(str)
+      } catch (sendErr) {
+        req.next(sendErr)
+      }
     }
 
   // render

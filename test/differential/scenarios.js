@@ -1968,6 +1968,36 @@ scenarios.push({
   req: get('/')
 })
 
+// Rendering fixes (src/response.ts render, src/view.ts), so these differ
+// from 5.3.0 on purpose too. res.render after another response was sent has
+// no scenario: on 5.3.0 it throws from a deferred callback and ends the
+// process, which would take the harness down with it.
+scenarios.push(
+  {
+    // 5.3.0 assigns _locals onto the frozen object: a 500
+    name: 'res.render with frozen options',
+    setup: function (app) {
+      views(app)
+      app.get('/', function (req, res) {
+        res.render('user.tmpl', Object.freeze({ user: { name: 'tobi' } }))
+      })
+    },
+    req: get('/')
+  },
+  {
+    // 5.3.0 calls require(''): a 500 with an ERR_INVALID_ARG_VALUE message
+    name: 'res.render view name ending in a dot',
+    setup: function (app) {
+      views(app)
+      app.set('view engine', 'tmpl')
+      app.get('/', function (req, res) {
+        res.render('user.')
+      })
+    },
+    req: get('/')
+  }
+)
+
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
 // A g-flag RegExp guard whose lastIndex the app left non-zero: Express 5.3.0
@@ -2069,6 +2099,10 @@ if (HAS_PROC) {
 }
 
 var allowed = {
+  'res.render with frozen options':
+    "fixed in the fork: `res.render` mutates the caller's options (it now merges res.locals into a copy)",
+  'res.render view name ending in a dot':
+    'fixed in the fork: a view name ending in `.` throws synchronously (it now gets the usual lookup error)',
   'res.sendFile etag false option':
     'fixed in the fork: `sendFile` ignores a per-call `etag: false` (the app setting is now only the default)',
   'res.sendFile etag true option with etag disabled':

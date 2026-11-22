@@ -2095,6 +2095,41 @@ scenarios.push({
   req: get('//x@evil.example/admin#z')
 })
 
+// A strict router mounted at "/dir" with a route for "": Express 5.3.0 only
+// ever shows that router "/" (the slash it adds so req.url is never empty),
+// so the route never matches and the request is a 404; the fork's strict
+// router tries "" for that slash (src/router/index.ts, addedSlashUrl).
+scenarios.push({
+  name: 'strict router at "/dir" with a "" route: GET /dir',
+  setup: function (app, express) {
+    var router = express.Router({ strict: true })
+    router.get('', function (req, res) {
+      res.send('no slash ' + req.url)
+    })
+    app.use('/dir', router)
+  },
+  req: get('/dir')
+})
+
+// A sub-app mounted with router.use() that passes the request on: Express
+// 5.3.0 leaves req and res with the sub-app's prototypes, so the parent's
+// next middleware sees the sub-app's req.app and settings; the fork's
+// app.handle gives the parent's back (src/application.ts).
+scenarios.push({
+  name: 'router.use(subApp) then a parent middleware',
+  setup: function (app, express) {
+    app.set('trust proxy', true)
+    var sub = express()
+    var router = express.Router()
+    router.use('/sub', sub)
+    app.use(router)
+    app.use(function (req, res) {
+      res.json([req.app === app, res.app === app, req.ip])
+    })
+  },
+  req: get('/sub/x', { 'X-Forwarded-For': '203.0.113.9' })
+})
+
 // The error listeners on the server at request time. app.listen(port, cb) in
 // Express 5.3.0 leaves its startup error listener attached; the fork removes
 // it once the server is listening (src/application.ts). On
@@ -2259,6 +2294,10 @@ var allowed = {
     'fixed in the fork: a router cycle gives a clear error instead of a stack overflow (#6809)',
   'GET //x@evil.example/admin#z':
     'fixed in the fork: a `#` fragment in the request target no longer changes the routed path',
+  'strict router at "/dir" with a "" route: GET /dir':
+    'fixed in the fork: mount-path edge case from #3798 (a strict router\'s "" route now answers "/dir")',
+  'router.use(subApp) then a parent middleware':
+    "fixed in the fork: `router.use(subApp)` restores req/res prototypes like `app.use` (the parent's req.app and trust proxy apply again)",
 
   'app.listen(): server error listeners after a successful start':
     'fixed in the fork: app.listen() removes its startup error listener once the server listens, so a later error is not swallowed (upstream PR #7501)'

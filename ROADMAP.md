@@ -92,7 +92,7 @@ Of the 64 packages Express installs today, 33 are forked (below), 30 are shims a
 | [ ] | `encodeurl` | pillarjs/encodeurl | Fork |
 | [ ] | `parseurl` | pillarjs/parseurl | Fork |
 | [ ] | `iconv-lite` | pillarjs/iconv-lite | Fork; drop `safer-buffer` (Node's `Buffer` is safe) |
-| [ ] | `body-parser` | expressjs/body-parser | Fork |
+| [~] | `body-parser` | expressjs/body-parser | Fork. 2.4.0 (`b4744d7`) is vendored into `src/body-parser` with `require('../../../qs')`, so `express.urlencoded({ extended: true })` uses our `qs` and the npm `qs` chain drops out (20 fewer production packages, 58 to 38). Its 277 tests pass on the copy, and 57 new body differential scenarios match 5.3.0 ([#PR_NUMBER](https://github.com/abedmurrar/express/pull/PR_NUMBER)). Still to do: fork the repository so it becomes the source of `lib/body-parser` |
 | [~] | `serve-static` | expressjs/serve-static | Fork; uses our `send`. Forked to https://github.com/abedmurrar/serve-static (no code pushed yet), and 2.2.1 (`76312e1`) is vendored into `src/serve-static` with `require('../send')`, so `express.static` uses our `send`: serve-static's 92 tests pass on the copy, and 24 `express.static` differential scenarios match 5.3.0 ([#54](https://github.com/abedmurrar/express/pull/54)). Still to do: push our copy to the fork so it becomes the source of `lib/serve-static` |
 | [ ] | `express-generator` | expressjs/generator | Fork; generates TypeScript apps and points at our package and docs |
 | [ ] | `accepts` | jshttp/accepts | Fork |
@@ -118,7 +118,7 @@ Of the 64 packages Express installs today, 33 are forked (below), 30 are shims a
 | [ ] | `cookie-signature` | visionmedia/node-cookie-signature | Fork |
 | [ ] | `escape-html` | component/escape-html | Fork |
 | [ ] | `ipaddr.js` | whitequark/ipaddr.js | Fork |
-| [~] | `qs` | ljharb/qs | Vendored 6.17.1 into `src/qs` ([#57](https://github.com/abedmurrar/express/pull/57)): the `side-channel` chain is replaced by `WeakMap` (and `Map` for `stringify`'s cycle detection) and `es-define-property` by `Object.defineProperty`. The 17 packages drop when body-parser is vendored |
+| [~] | `qs` | ljharb/qs | Vendored 6.17.1 into `src/qs` ([#57](https://github.com/abedmurrar/express/pull/57)): the `side-channel` chain is replaced by `WeakMap` (and `Map` for `stringify`'s cycle detection) and `es-define-property` by `Object.defineProperty`. With body-parser vendored too ([#PR_NUMBER](https://github.com/abedmurrar/express/pull/PR_NUMBER)), `qs` and the 18 packages under it are gone from the production install |
 | [ ] | Docs site | expressjs/expressjs.com | Fork; see Docs and identity |
 
 Removed rather than forked, using what Node 24 has: `debug` (`util.debuglog`), `depd` (`util.deprecate`), `once`, `wrappy`, `inherits`, `setprototypeof`, `toidentifier`, `merge-descriptors`, `ee-first`, `unpipe`, `safer-buffer`, `is-promise`, `function-bind`, and the `qs` chain (`side-channel`, `side-channel-list`, `side-channel-map`, `side-channel-weakmap`, `get-intrinsic`, `call-bind-apply-helpers`, `call-bound`, `es-define-property`, `es-errors`, `es-object-atoms`, `get-proto`, `dunder-proto`, `gopd`, `has-symbols`, `hasown`, `math-intrinsics`, `object-inspect`). Each removal that could change behaviour on the compatible line is checked by the differential harness. `debug` and `depd` change warning and debug output, so their removal stays on 6.x (Dependencies section).
@@ -182,7 +182,8 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | Status | Package | Now | Latest (published) | Plan | Line |
 |---|---|---|---|---|---|
 | [ ] | `accepts` | ^2.0.0 | 2.0.0 | Keep | master |
-| [ ] | `body-parser` | ^2.4.0 | 2.4.0 (2026-10-22) | Keep; vendor on 6.x for the JSON `__proto__` check | 6.x |
+| [~] | `body-parser` | vendored 2.4.0 | 2.4.0 (2026-10-22) | Vendored ([#PR_NUMBER](https://github.com/abedmurrar/express/pull/PR_NUMBER)) on our `qs`; its `bytes`, `iconv-lite` and `raw-body` became Express dependencies. The JSON `__proto__` check stays on 6.x | master |
+| [ ] | `bytes` | ^3.1.2 | 3.1.2 | Keep (body-parser's `limit` parser) | master |
 | [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
@@ -195,14 +196,16 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
 | [ ] | `fresh` | ^2.0.0 | 2.0.0 | Keep | master |
 | [ ] | `http-errors` | ^2.0.0 | 2.0.1 | Update | master |
+| [ ] | `iconv-lite` | ^0.7.3 | 0.7.3 | Keep (body-parser's charset decoding; was a dev dependency); fork to drop `safer-buffer` (Forks section) | master |
 | [x] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Dropped (#24): a three-line `mixin` with `Object.getOwnPropertyNames` and `Object.defineProperty`, same semantics (skips names the app already has) | master |
 | [ ] | `mime-types` | ^3.0.0 | 3.0.2 | Update | master |
 | [ ] | `on-finished` | ^2.4.1 | 2.4.2 | Update | master |
 | [x] | `once` | ^1.4.0 | 1.4.0 | Dropped (#24): a small local `once` in `app.listen`; this also removes `wrappy` | master |
 | [ ] | `parseurl` | ^1.3.3 | 1.3.3 | Keep (WHATWG `URL` parses differently) | master |
 | [ ] | `proxy-addr` | ^2.0.8 | 2.0.8 | Keep | master |
-| [~] | `qs` | vendored 6.17.1 | 6.17.1 | Vendored ([#57](https://github.com/abedmurrar/express/pull/57)), with no dependencies; packages drop when body-parser is vendored (the npm `body-parser` still uses the npm `qs`) | master |
+| [x] | `qs` | vendored 6.17.1 | 6.17.1 | Vendored ([#57](https://github.com/abedmurrar/express/pull/57)), with no dependencies. With body-parser vendored on it ([#PR_NUMBER](https://github.com/abedmurrar/express/pull/PR_NUMBER)), the npm `qs` and its 18 packages are no longer installed in production | master |
 | [ ] | `range-parser` | ^1.2.1 | 2.0.0 (2026-11-18, inside the window until 2026-11-25) | Update after the window, harness-checked | master |
+| [ ] | `raw-body` | ^3.0.2 | 4.0.0 (2026-07-12) | Stays on 3.x, the range body-parser 2.4.0 uses; 4.0.0 not yet checked, so it goes through the harness first | master |
 | [ ] | `router` | vendored 2.2.0 | 2.3.0 (2026-11-17) | Re-sync after the window (Foundation row) | master |
 | [ ] | `send` | vendored 1.2.1 | 1.2.1 | Vendored | master |
 | [x] | `serve-static` | vendored 2.2.1 | 2.2.1 | Vendored ([#54](https://github.com/abedmurrar/express/pull/54)): `express.static` needed the `send` fixes (a throwing `setHeaders` crashed the process). The dependency is removed; 2 security tests fail with an uncaught error on the npm package and pass on the copy | master |

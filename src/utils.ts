@@ -101,6 +101,9 @@ export function normalizeTypes(types: string[]): NormalizedType[] {
  * Parse accept params `str` returning an
  * object with `.value`, `.quality` and `.params`.
  *
+ * A parameter value may be a quoted string (RFC 9110 section 5.6.4), which
+ * can itself contain ";", so a parameter ends at the next ";" outside quotes.
+ *
  * @param {String} str
  * @return {Object}
  * @api private
@@ -112,31 +115,64 @@ function acceptParams(str: string): NormalizedType {
   var index = colonIndex === -1 ? length : colonIndex
   var ret: NormalizedType & { quality: number } = { value: str.slice(0, index).trim(), quality: 1, params: {} }
 
+  // the first "=" at or after the current parameter's start, kept across
+  // parameters without one so the string is scanned once
+  var splitIndex = -1
+
   while (index < length) {
-    var splitIndex = str.indexOf('=', index)
+    var start = index + 1
+    index = paramEnd(str, start)
+
+    if (splitIndex < start) splitIndex = str.indexOf('=', start)
     if (splitIndex === -1) break
+    // a parameter without "=" is skipped
+    if (splitIndex > index) continue
 
-    colonIndex = str.indexOf(';', index)
-    var endIndex = colonIndex === -1 ? length : colonIndex
-
-    if (splitIndex > endIndex) {
-      index = str.lastIndexOf(';', splitIndex - 1) + 1
-      continue
-    }
-
-    var key = str.slice(index, splitIndex).trim()
-    var value = str.slice(splitIndex + 1, endIndex).trim()
+    var key = str.slice(start, splitIndex).trim()
+    var value = str.slice(splitIndex + 1, index).trim()
 
     if (key === 'q') {
       ret.quality = parseFloat(value)
     } else {
       ret.params[key] = value
     }
-
-    index = endIndex + 1
   }
 
   return ret
+}
+
+/**
+ * The index of the first ";" at or after `from` that is not inside a quoted
+ * string, or the length of `str` when there is none. Inside quotes a
+ * backslash escapes the next character (a quoted-pair), so `\"` doesn't end
+ * the string and `\\"` does.
+ *
+ * @param {String} str
+ * @param {Number} from
+ * @return {Number}
+ * @api private
+ */
+
+function paramEnd(str: string, from: number): number {
+  var quoted = false
+
+  for (var i = from; i < str.length; i++) {
+    var c = str[i]
+
+    if (quoted) {
+      if (c === '\\') {
+        i++
+      } else if (c === '"') {
+        quoted = false
+      }
+    } else if (c === '"') {
+      quoted = true
+    } else if (c === ';') {
+      return i
+    }
+  }
+
+  return str.length
 }
 
 /**

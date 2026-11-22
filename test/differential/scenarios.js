@@ -2098,6 +2098,72 @@ if (HAS_PROC) {
   })
 }
 
+// res.links with empty values, res.append with an existing empty value,
+// res.redirect with a status that has no standard message, and a quoted ";"
+// in a type parameter (src/response.ts, src/utils.ts acceptParams), so these
+// differ from 5.3.0 on purpose. The last one has no effect on a response
+// (res.format only uses the type before the parameters), so it shows what
+// each side's lib/utils parses.
+var UTILS = new Map([
+  [require('express-baseline'), require('express-baseline/lib/utils')],
+  [require('../..'), require('../../lib/utils')]
+])
+
+scenarios.push(
+  {
+    // 5.3.0 sends `</2>; rel="next", ` with a trailing comma
+    name: 'res.links with an empty relation',
+    setup: route('get', '/', function (req, res) {
+      res.links({ next: '/2', prev: [] }).end()
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 sends an empty Link header
+    name: 'res.links({}) on a fresh response',
+    setup: route('get', '/', function (req, res) {
+      res.links({}).end()
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 drops the empty value
+    name: 'res.append to an empty value',
+    setup: route('get', '/', function (req, res) {
+      res.set('X-A', '')
+      res.append('X-A', 'b')
+      res.end(JSON.stringify(res.get('X-A')))
+    }),
+    req: get('/')
+  },
+  {
+    // 5.3.0 says "undefined. Redirecting to /next"
+    name: 'res.redirect 399 text accept',
+    setup: route('get', '/', function (req, res) {
+      res.redirect(399, '/next')
+    }),
+    req: get('/', { accept: 'text/plain' })
+  },
+  {
+    name: 'res.redirect 399 html accept',
+    setup: route('get', '/', function (req, res) {
+      res.redirect(399, '/next')
+    }),
+    req: get('/', { accept: 'text/html' })
+  },
+  {
+    // 5.3.0 cuts foo at the quoted ";" and reads the quoted q=0 as the quality
+    name: 'lib/utils normalizeType with a quoted ";"',
+    setup: function (app, express) {
+      var utils = UTILS.get(express)
+      route('get', '/', function (req, res) {
+        res.json(utils.normalizeType('text/plain; foo="a;q=0"; bar=baz'))
+      })(app)
+    },
+    req: get('/')
+  }
+)
+
 var allowed = {
   'res.render with frozen options':
     "fixed in the fork: `res.render` mutates the caller's options (it now merges res.locals into a copy)",
@@ -2131,6 +2197,18 @@ var allowed = {
     'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
   'res.jsonp first callback sanitises to nothing':
     'fixed in the fork: a JSONP callback that sanitises to nothing gives broken JS (it now sends plain JSON)',
+  'res.links with an empty relation':
+    'fixed in the fork: `res.links` with empty values (an empty array adds nothing, so no trailing comma)',
+  'res.links({}) on a fresh response':
+    'fixed in the fork: `res.links` with empty values (nothing to add leaves the header alone, so no empty Link)',
+  'res.append to an empty value':
+    'fixed in the fork: `res.append` keeps an existing empty header value (it is sent as its own header line)',
+  'res.redirect 399 text accept':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 399)',
+  'res.redirect 399 html accept':
+    'fixed in the fork: `res.redirect` body says `undefined` for non-standard status codes (it now says 399)',
+  'lib/utils normalizeType with a quoted ";"':
+    'fixed in the fork: quoted `;` in `acceptParams` (a parameter ends at the next `;` outside quotes)',
   'req.hostname userinfo':
     'fixed in the fork: userinfo before an "@" in the Host header is dropped, so req.hostname is good.example, not evil.example (upstream PR #7317)',
   'req.hostname trusted X-Forwarded-Host userinfo':

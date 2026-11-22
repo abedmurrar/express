@@ -106,6 +106,33 @@ When a request is then made to the app, you will see the logs specified in the E
 
 To see the logs only from the router implementation, set the value of `DEBUG` to `router,router:*`. Likewise, to see logs only from the application implementation, set the value of `DEBUG` to `express:application`, and so on.
 
+## Route warnings
+
+This is a fork addition; Express 5.3.0 has no `express:router` namespace.
+
+With `express:router` enabled (`DEBUG=express:router`, or `DEBUG=express:*`), the router warns when a
+path or route is registered and can't work as written. Nothing is printed otherwise, and the checks
+run only while the namespace is enabled, so they cost nothing per request, or at startup when it is
+off.
+
+- **A path no request can match** (expressjs/express#2511): the router matches the path of
+  `req.url` as Node's HTTP server gives it, still percent-encoded. So a path whose literal text has
+  a space, a control character or a non-ASCII character (clients send those percent-encoded, and
+  Node rejects them raw), a `?` (it starts the query string) or a `#` (it starts the fragment), or
+  that doesn't start with `/`, never matches. The warning names the character and its encoded form.
+  Text inside an optional `{...}` group isn't checked, since a request can match without it.
+- **A duplicate route**: the same method and the same path registered twice on the same router. The
+  warning names both, by their index in the router's stack and their handler's name. The second only
+  runs when the first calls `next()`, which may be what you want, so it is a warning.
+
+```bash
+$ DEBUG=express:router node index.js
+  express:router route path '/foo bar' can never match: " " (U+0020) is never sent unencoded: clients percent-encode it and Node rejects it raw; write "%20" +0ms
+  express:router duplicate route GET '/users/:id': registered at stack index 1 (getUser) and again at stack index 3 (getUserAgain); the second runs only when the first calls next() +1ms
+```
+
+Only routes registered while the namespace is enabled are compared.
+
 ## Using `debug` in your own code
 
 The same [debug](https://www.npmjs.com/package/debug) module that Express uses internally is available for your application code. Install it, create one or more loggers scoped to a namespace of your choosing, and call them wherever you would otherwise use `console.log`:

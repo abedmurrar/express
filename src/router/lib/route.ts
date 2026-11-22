@@ -18,6 +18,7 @@
 const debug = (require('debug') as typeof import('debug'))('router:route')
 const Layer = require('./layer') as LayerConstructor
 const { METHODS } = require('node:http') as typeof import('node:http')
+const { methodAdded } = require('./warnings') as typeof import('./warnings')
 
 import type {
   Layer as LayerInstance,
@@ -288,6 +289,9 @@ proto.all = function all(handler) {
     this.stack.push(layer)
   }
 
+  // Not in upstream (router 2.2.0, 2.3.0): the duplicate-route warning
+  methodAdded(this, 'all')
+
   return this
 }
 
@@ -314,6 +318,9 @@ methods.forEach(function (method) {
       this.methods[method] = true
       this.stack.push(layer)
     }
+
+    // Not in upstream (router 2.2.0, 2.3.0): the duplicate-route warning
+    methodAdded(this, method)
 
     return this
   }

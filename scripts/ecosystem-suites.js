@@ -37,6 +37,9 @@ var PACKAGES = {
   'http-proxy-middleware': { repo: 'chimurai/http-proxy-middleware', runner: 'vitest', args: [] },
   'express-basic-auth': { repo: 'LionC/express-basic-auth', runner: 'mocha', args: ['test.js'] },
   // Its tests need the versions in its lock file (js-yaml 3, TypeScript 5.8).
+  // ts-node only strips types here: this repository ships its own, which, like
+  // @types/express-serve-static-core 5.1, its sources don't compile against
+  // (its lock file has 5.0), and this suite compares runtime behaviour.
   'express-openapi-validator': {
     repo: 'cdimascio/express-openapi-validator',
     runner: 'mocha',
@@ -45,7 +48,7 @@ var PACKAGES = {
       '--require',
       'source-map-support/register',
       '--require',
-      'ts-node/register',
+      'ts-node/register/transpile-only',
       '--files',
       '--recursive',
       'test/**/*.spec.ts',

@@ -39,6 +39,21 @@ function echo(fn) {
   })
 }
 
+// express.static(FIXTURES, options), with an error handler that shows the
+// error's status and message (finalhandler's page would show its stack).
+function staticScenario(name, options, req) {
+  return {
+    name: name,
+    setup: function (app, express) {
+      app.use(express.static(FIXTURES, options))
+      app.use(function (err, req, res, next) {
+        res.status(err.status || 500).send(err.status + ' ' + err.message)
+      })
+    },
+    req: req
+  }
+}
+
 function views(app) {
   app.engine('tmpl', tmpl)
   app.set('views', FIXTURES)
@@ -494,6 +509,48 @@ var scenarios = [
       app.use(express.static(FIXTURES))
     },
     req: get('/missing.txt')
+  },
+  // express.static options and requests (our copy of serve-static and send)
+  staticScenario('express.static HEAD', {}, { method: 'HEAD', path: '/todo.txt', headers: {} }),
+  staticScenario('express.static POST falls through', {}, post('/todo.txt', '')),
+  staticScenario('express.static POST without fallthrough is 405', { fallthrough: false }, post('/todo.txt', '')),
+  staticScenario('express.static missing without fallthrough', { fallthrough: false }, get('/missing.txt')),
+  staticScenario('express.static directory without redirect', { redirect: false }, get('/users')),
+  staticScenario('express.static directory index', {}, get('/users/')),
+  staticScenario('express.static index off', { index: false }, get('/users/')),
+  staticScenario('express.static extensions', { extensions: ['html'] }, get('/todo')),
+  staticScenario('express.static maxAge string and immutable', { maxAge: '1d', immutable: true }, get('/todo.txt')),
+  staticScenario('express.static maxAge number', { maxAge: 5000 }, get('/todo.txt')),
+  staticScenario('express.static cacheControl off', { cacheControl: false }, get('/todo.txt')),
+  staticScenario('express.static etag and lastModified off', { etag: false, lastModified: false }, get('/todo.txt')),
+  staticScenario('express.static range', {}, get('/nums.txt', { range: 'bytes=0-3' })),
+  staticScenario('express.static unsatisfiable range', {}, get('/nums.txt', { range: 'bytes=100-200' })),
+  staticScenario('express.static acceptRanges off', { acceptRanges: false }, get('/nums.txt', { range: 'bytes=0-3' })),
+  staticScenario('express.static dotfiles deny', { dotfiles: 'deny', fallthrough: false }, get('/.hidden')),
+  staticScenario('express.static traversal', { fallthrough: false }, get('/../name.txt')),
+  staticScenario('express.static encoded path', {}, get('/snow%20%E2%98%83/')),
+  staticScenario(
+    'express.static setHeaders',
+    {
+      setHeaders: function (res, filePath, stat) {
+        res.setHeader('X-File', path.basename(filePath) + ' ' + stat.size)
+      }
+    },
+    get('/todo.txt')
+  ),
+  {
+    name: 'express.static mounted directory redirect',
+    setup: function (app, express) {
+      app.use('/static', express.static(FIXTURES))
+    },
+    req: get('/static/users?a=1')
+  },
+  {
+    name: 'express.static mounted at its root without a slash',
+    setup: function (app, express) {
+      app.use('/static', express.static(FIXTURES))
+    },
+    req: get('/static')
   },
 
   // content negotiation and views

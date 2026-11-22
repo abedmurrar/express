@@ -1,0 +1,14 @@
+{
+  "name": "express-benchmark-count",
+  "private": true,
+  "description": "Counts the CPU instructions Express runs per request, against the merge-base",
+  "type": "module",
+  "scripts": {
+    "count": "node run.ts",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "typescript": "7.0.2"
+  }
+}

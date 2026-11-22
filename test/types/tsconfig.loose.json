@@ -1,0 +1,21 @@
+{
+  // Loose type tests: strict off, as many older apps compile, with a bundler's
+  // module resolution. Expected errors that only strict mode reports are in
+  // *.strict.ts files, which this config leaves out.
+  "compilerOptions": {
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "types": ["node"],
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": false,
+    "noEmit": true,
+    "paths": {
+      "express-serve-static-core": ["../../typings/core.d.ts"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.mts", "**/*.cts"],
+  "exclude": ["**/*.strict.ts"]
+}

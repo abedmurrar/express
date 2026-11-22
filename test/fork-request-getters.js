@@ -5,7 +5,8 @@
 // - userinfo in the Host or X-Forwarded-Host header is dropped (from
 //   upstream PR #7317), and a non-numeric port gives no host;
 // - a trusted X-Forwarded-Proto is lowercased (from upstream PR #7330);
-// - an IPv6 literal with dots has no subdomains (from upstream PR #7533).
+// - an IPv6 literal with dots has no subdomains (from upstream PR #7533);
+// - a trailing DNS root dot is not a subdomain part (from upstream PR #7331).
 
 var assert = require('node:assert')
 var express = require('../')
@@ -158,6 +159,69 @@ describe('fork: request getters', function () {
         hostApp({ 'subdomain offset': 0 }),
         { Host: '[a.b]' },
         { host: '[a.b]', hostname: '[a.b]', subdomains: ['b]', '[a'] }
+      )
+    })
+  })
+
+  describe('a trailing root dot', function () {
+    // [Host, subdomains, subdomains with "subdomain offset" 0]; req.hostname
+    // keeps the dot, as in Express 5.3.0
+    var cases = [
+      ['tobi.ferrets.example.com.', ['ferrets', 'tobi'], ['com', 'example', 'ferrets', 'tobi']],
+      ['tobi.ferrets.example.com.:3000', ['ferrets', 'tobi'], ['com', 'example', 'ferrets', 'tobi']],
+      ['user@tobi.ferrets.example.com.:3000', ['ferrets', 'tobi'], ['com', 'example', 'ferrets', 'tobi']],
+      ['example.com.', [], ['com', 'example']],
+      ['localhost.', [], ['localhost']],
+      ['127.0.0.1.', [], ['127.0.0.1']],
+      ['.', [], []]
+    ]
+
+    cases.forEach(function (c) {
+      var hostname = c[0].replace(/^.*@/, '').replace(/:\d+$/, '')
+
+      it('Host "' + c[0] + '" gives ' + JSON.stringify(c[1]), function () {
+        return request(hostApp())
+          .get('/')
+          .set('Host', c[0])
+          .expect(200)
+          .then(function (res) {
+            assert.strictEqual(res.body.hostname, hostname)
+            assert.deepStrictEqual(res.body.subdomains, c[1])
+          })
+      })
+
+      it('Host "' + c[0] + '" gives ' + JSON.stringify(c[2]) + ' with "subdomain offset" 0', function () {
+        return request(hostApp({ 'subdomain offset': 0 }))
+          .get('/')
+          .set('Host', c[0])
+          .expect(200)
+          .then(function (res) {
+            assert.deepStrictEqual(res.body.subdomains, c[2])
+          })
+      })
+    })
+
+    it('drops only one dot, so an empty label before it still counts', function () {
+      return expectHost(
+        hostApp({ 'subdomain offset': 0 }),
+        { Host: 'tobi.example..' },
+        { host: 'tobi.example..', hostname: 'tobi.example..', subdomains: ['', 'example', 'tobi'] }
+      )
+    })
+
+    it('uses the subdomains of a trusted X-Forwarded-Host with a root dot', function () {
+      return expectHost(
+        hostApp({ 'trust proxy': true }),
+        { Host: 'proxy.internal', 'X-Forwarded-Host': 'tobi.ferrets.example.com.' },
+        { host: 'tobi.ferrets.example.com.', hostname: 'tobi.ferrets.example.com.', subdomains: ['ferrets', 'tobi'] }
+      )
+    })
+
+    it('is the same with "subdomain offset" 3 as without the dot', function () {
+      return expectHost(
+        hostApp({ 'subdomain offset': 3 }),
+        { Host: 'tobi.ferrets.example.com.' },
+        { host: 'tobi.ferrets.example.com.', hostname: 'tobi.ferrets.example.com.', subdomains: ['tobi'] }
       )
     })
   })

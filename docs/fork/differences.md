@@ -26,6 +26,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **`res.render` after another response no longer crashes the process.** Without a callback, the "headers already sent" error goes to the error handler. Express 5.3.0 threw it from a deferred callback and ended the process.
 - **`res.render` leaves its options object alone.** `res.locals` is merged into a copy, so a frozen options object works and a shared one isn't changed.
 - **A view name ending in `.` gets the usual lookup error** through the callback, where Express 5.3.0 threw a `require('')` error synchronously.
+- **View extensions match engines whatever their case.** An engine registered as `HTML` renders `user.html`; Express 5.3.0 missed it and tried `require('html')`. An engine registered in the same case still wins, `app.engines` keeps the keys as registered, and file names keep their case.
 - **`res.links` with nothing to add leaves the `Link` header alone.** `res.links({})` sends no `Link` header, and a relation given an empty array adds no entry. Express 5.3.0 sent an empty `Link` header, or one ending in `, `.
 - **`res.append` keeps an existing empty header value.** After `res.set('X-A', '')`, `res.append('X-A', 'b')` sends both values, as two header lines. Express 5.3.0 replaced the empty value.
 - **`res.redirect` names a status without a standard message by its number.** `res.redirect(399, '/next')` says `399. Redirecting to /next`, where Express 5.3.0 said `undefined. Redirecting to /next`.
@@ -37,6 +38,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **Userinfo in the `Host` header is dropped.** In Express 5.3.0, `Host: admin.example:x@public.example` gave `req.hostname` `admin.example`, which let a request past a host-based guard. The fork uses the host after the last `@`, for the `Host` header and a trusted `X-Forwarded-Host`, and a host whose port is not all digits gives `req.host` and `req.hostname` `undefined`.
 - **A trusted `X-Forwarded-Proto` is lowercased.** `HTTPS` gives `req.protocol` `https` and `req.secure` `true`. Express 5.3.0 kept the case, so `req.secure` was `false`.
 - **An IPv6 host has no subdomains.** `Host: [::ffff:127.0.0.1]` gives `req.subdomains` `[]`. Express 5.3.0 split the address on its dots.
+- **A trailing root dot is not a subdomain.** `Host: tobi.ferrets.example.com.` gives `req.subdomains` `["ferrets", "tobi"]`, as without the dot. Express 5.3.0 counted the empty label after it and gave `["example", "ferrets", "tobi"]`.
 - **Fewer dependencies.** The `merge-descriptors`, `once` and `wrappy` packages are gone, replaced by short built-in equivalents with the same behaviour. With `body-parser` and `qs` vendored, `qs` and the 18 packages it brought (`side-channel` and its chain) are gone too: a production install has 38 packages instead of 58.
 - **Project links** in `package.json` point to the fork, and upstream's `funding` entry is removed.
 - **Built-in TypeScript types.** The package ships types ported from `@types/express` 5.0.6 and `@types/express-serve-static-core` 5.1.3, so `@types/express` is no longer needed and code written for it compiles unchanged. See [Install the fork](./install#typescript).
@@ -49,7 +51,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **Middleware's own test suites.** The test suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests) run against Express 5.3.0 and against the fork. Every test that passes on 5.3.0 must pass on the fork, and today all of them do.
 - **Security test suite.** Checks that an auth guard always runs before the route it protects however the path is spelled, that CR and LF never inject a header, where redirects point, that no request pollutes `Object.prototype`, and that file serving never leaves its root.
 - **100% coverage.** Statements, branches, functions and lines of `lib/` are measured with c8 and must stay at 100%, or CI fails.
-- **Regression tests for 19 confirmed bugs.** Each one asserts the correct behaviour and stays skipped until its fix lands.
+- **Regression tests for 22 confirmed bugs.** Each one asserts the correct behaviour and stays skipped until its fix lands.
 - **Upstream test PRs.** Eight upstream test-coverage pull requests are ported, keeping their authors.
 
 ## Tooling

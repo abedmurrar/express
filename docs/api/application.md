@@ -570,6 +570,12 @@ the same signature that Express expects: `(path, options, callback)`,
 though note that it aliases this method as `ejs.__express` internally
 so if you're using ".ejs" extensions you don't need to do anything.
 
+The extension of a view matches a registered engine whatever its case: an engine
+registered as `HTML` renders `user.html`, and one registered as `html` renders
+`page.HTML`. An engine registered in the same case wins. File names keep their case,
+so with `app.set('view engine', 'Html')`, `res.render('page')` looks for `page.Html`.
+Express 5.3.0 matched the case exactly and tried `require()` for any other case.
+
 Some template engines do not follow this convention. The
 [consolidate.js](https://github.com/tj/consolidate.js) library maps Node template engines to follow this convention,
 so they work seamlessly with Express.

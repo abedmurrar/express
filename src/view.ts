@@ -117,7 +117,11 @@ function View(this: View, name: string, options: ViewOptions) {
     fileName += this.ext
   }
 
-  if (!opts.engines[this.ext]) {
+  // the engine registered for this extension, or one registered in another
+  // case ("Eta" for "search.eta"); the file name keeps its own case
+  var engine = opts.engines[this.ext] || engineIgnoringCase(opts.engines, this.ext)
+
+  if (!engine) {
     // load engine
     var mod = this.ext.slice(1)
     debug('require "%s"', mod)
@@ -129,11 +133,11 @@ function View(this: View, name: string, options: ViewOptions) {
       throw new Error('Module "' + mod + '" does not provide a view engine.')
     }
 
-    opts.engines[this.ext] = fn as Engine
+    engine = opts.engines[this.ext] = fn as Engine
   }
 
-  // store loaded engine (loaded above when it was missing)
-  this.engine = opts.engines[this.ext] as Engine
+  // store loaded engine
+  this.engine = engine
 
   // lookup path
   this.path = this.lookup(fileName)
@@ -230,6 +234,31 @@ proto.resolve = function resolve(dir, file) {
 
   if (stat && stat.isFile()) {
     return path
+  }
+
+  return undefined
+}
+
+/**
+ * Find an engine registered for `ext` in another case, such as `.Eta` for
+ * `.eta`. `for...in` also walks the engines a sub-app inherits from its
+ * parent, after its own. Undefined when there is none.
+ *
+ * @param {object} engines
+ * @param {string} ext
+ * @return {function}
+ * @private
+ */
+
+function engineIgnoringCase(engines: Record<string, Engine>, ext: string): Engine | undefined {
+  var wanted = ext.toLowerCase()
+
+  for (var key in engines) {
+    var engine = engines[key]
+
+    if (engine && key.toLowerCase() === wanted) {
+      return engine
+    }
   }
 
   return undefined

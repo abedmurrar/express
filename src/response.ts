@@ -538,8 +538,11 @@ res.sendFile = function sendFile(
   // create file stream
   var pathname = encodeURI(path)
 
-  // wire application etag option to send
-  opts.etag = this.app.enabled('etag')
+  // wire application etag option to send, as the default: a per-call etag
+  // option wins, and the caller's object is left as it is (send reads the
+  // inherited options, as res.download already relies on)
+  opts = Object.create(opts) as SendFileOptions
+  opts.etag ??= this.app.enabled('etag')
   var file = send(req, pathname, opts)
 
   // transfer

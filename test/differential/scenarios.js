@@ -1998,6 +1998,31 @@ scenarios.push(
   }
 )
 
+// A view whose extension matches a registered engine in another case
+// (src/view.ts): 5.3.0 misses the "TMPL" engine for "user.tmpl" and fails
+// on require('tmpl'), a 500; the fork renders it.
+scenarios.push({
+  name: 'res.render engine registered in another case',
+  setup: function (app) {
+    app.engine('TMPL', tmpl)
+    app.set('views', FIXTURES)
+    app.get('/', function (req, res) {
+      res.render('user.tmpl', { user: { name: 'tobi' } })
+    })
+  },
+  req: get('/')
+})
+
+// A fully qualified Host with the DNS root dot (src/request.ts): 5.3.0 counts
+// the empty label after it, so "example" becomes a subdomain.
+scenarios.push({
+  name: 'req.subdomains trailing root dot',
+  setup: echo(function (req) {
+    return [req.hostname, req.subdomains]
+  }),
+  req: get('/', { host: 'tobi.ferrets.example.com.:3000' })
+})
+
 // Differences we expect on purpose. Each key is a scenario name, and the
 // value names the ROADMAP.md item whose fix changes that response.
 // A g-flag RegExp guard whose lastIndex the app left non-zero: Express 5.3.0
@@ -2141,6 +2166,10 @@ var allowed = {
     'fixed in the fork: a trusted X-Forwarded-Proto is lowercased, so "HTTPS" gives req.protocol "https" and req.secure true (upstream PR #7330)',
   'req.subdomains IPv6 with dots':
     'fixed in the fork: an IPv6 host with dots has no subdomains, where 5.3.0 split "[::ffff:127.0.0.1]" on its dots (#7532, upstream PR #7533)',
+  'req.subdomains trailing root dot':
+    'fixed in the fork: a trailing DNS root dot is not a subdomain part, so "tobi.ferrets.example.com." gives ["ferrets", "tobi"], where 5.3.0 gave ["example", "ferrets", "tobi"] (upstream PR #7331)',
+  'res.render engine registered in another case':
+    'fixed in the fork: a view extension matches a registered engine ignoring case, so "user.tmpl" renders with the "TMPL" engine, where 5.3.0 tried require("tmpl") (#4594)',
 
   'app.use(stateful RegExp guard with lastIndex left at 3)':
     'fixed in the fork: a g or y RegExp path is matched from index 0 on every request (an auth bypass in 5.3.0)',

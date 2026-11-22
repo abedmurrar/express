@@ -467,6 +467,11 @@ defineGetter(req, 'ips', function ips() {
 defineGetter(req, 'subdomains', function subdomains() {
   var hostname = this.hostname
 
+  // A fully qualified name ends in the DNS root's empty label
+  // ("tobi.example.com."), the same host as "tobi.example.com". Left in, the
+  // empty label counts as a part and shifts every subdomain by one
+  if (hostname?.endsWith('.')) hostname = hostname.slice(0, -1)
+
   if (!hostname) return []
 
   var offset = this.app.get('subdomain offset')

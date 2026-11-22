@@ -241,10 +241,9 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | Mount-path edge case from #3798 | #3798, router#206 | master | Small | new test | |
 | [ ] | `res.links` with empty values | PRs #7320, #7578 | master | Small | new test | |
 | [ ] | Quoted `;` in `acceptParams` | PR #7479 | master | Small | new test | |
-| [ ] | Async view lookup (no sync file I/O after startup) | PR #2653 | master | Medium | existing view tests | |
-| [ ] | View engine extension matching ignores case | #4594, PR #7051 | master | Small | new test | |
+| [x] | View engine extension matching ignores case | #4594, PR #7051 | master | Small | repro 4594 passes; tests for an engine registered in uppercase, a file extension in uppercase, a `view engine` in another case than the engine, the same-case engine winning, `app.engines` left unchanged, an engine inherited by a sub-app (after its own), an empty entry and the module fallback; 1 differential scenario differs on purpose. File names keep their case (`view engine` `Html` still looks for `.Html` files), so lookups don't depend on the file system; PR #7051 is not taken, because it lowercases the stored keys and the added file extension. Removing the fix fails 10 tests | [#69](https://github.com/abedmurrar/express/pull/69) |
 | [ ] | `router.use(subApp)` restores req/res prototypes like `app.use` | #7427 | master | Small | new test | |
-| [ ] | `req.subdomains` ignores a trailing root dot | PR #7331 | master | Small | repro needed first | |
+| [x] | `req.subdomains` ignores a trailing root dot | PR #7331 | master | Small | reproduced first: `Host: tobi.ferrets.example.com.` gives `["example", "ferrets", "tobi"]` on 5.3.0 and on master. Repro 7331 passes; tests for a port, userinfo, `example.com.`, `localhost.`, `127.0.0.1.`, `.`, a double dot (only one is dropped), a trusted `X-Forwarded-Host` and `subdomain offset` 0 and 3; `req.hostname` keeps the dot; 1 differential scenario differs on purpose. Removing the fix fails 18 tests | [#69](https://github.com/abedmurrar/express/pull/69) |
 | [ ] | `res.append` keeps an existing empty header value | PR #7332 | master | Small | repro needed first | |
 | [ ] | `res.redirect` body says `undefined` for non-standard status codes | PRs #7407, #7045 | master | Small | repro needed first | |
 | [x] | A RegExp path with the `g` or `y` flag matches only every other request (an auth bypass: `app.use(/^\/admin/g, auth)` was skipped on every other request) | | master | Small | the 16 security-suite tests (app.use, app.all, router.use and a route, with g, y, gi and iy) pass; router tests for params, path arrays, router.route, a lastIndex left by the app, y staying anchored; a differential scenario that differs from 5.3.0 on purpose. Removing the fix fails 27 tests | [#62](https://github.com/abedmurrar/express/pull/62) |
@@ -325,6 +324,7 @@ These are opt-in, and nothing existing changes.
 | [ ] | Router: order-preserving static-path index, from EriksRemess/express 51eb5cbb | | 6.x | Large | bench, harness, auth-bypass tests | |
 | [ ] | `MIGRATING-6.md` and the History.md breaking-changes section | | 6.x | Medium | | |
 | [ ] | Default error logger skips 4xx errors | #2263 | 6.x | Small | tests | |
+| [ ] | Async view lookup (no sync file I/O after startup), moved from the compatible line | PR #2653 | 6.x | Medium | not compatible, checked against 5.3.0: a missing view reaches the render callback before `app.render` returns, so the common `if (err) throw err` in a render callback goes to the caller (and through the router to the error handler, a 500). An async lookup can only report it from an `fs.stat` callback, where the same throw ends the process; no wrapper can hand it back to a caller that has already returned. It would also leave `view.path` unset after `new View()`, which a subclass that calls `View` and then reads `this.path` relies on (upstream's version also makes `lookup` callback-based and removes `resolve`). The pinned regression test (PR #2653, test/regressions/request-and-routing.js) fails when the error is deferred. On master only renders with `view cache` off (it is on in production) stat on every render. 6.x proof: upstream PR #2653's tests, a no-`fs.*Sync` spy test, and the pinned test flipped | |
 
 ## HTTP/2
 
@@ -518,12 +518,12 @@ Already fixed 2, Duplicate 1, Roadmap 56, Support question 7, Upstream process 3
 
 ### Pull requests (149)
 
-Already fixed 2, Cherry-pick 41, Duplicate 9, Roadmap 46, Upstream process 10, Won't do 41.
+Already fixed 2, Cherry-pick 40, Duplicate 9, Roadmap 47, Upstream process 10, Won't do 41.
 
 | PR | Title | Decision | Item or reason |
 |---|---|---|---|
 | [#2422](https://github.com/expressjs/express/pull/2422) | Optional custom json replacer/spaces per response | Roadmap | `json serializer` setting, so plugins can use fast-json-stringify |
-| [#2653](https://github.com/expressjs/express/pull/2653) | Resolve paths for views asynchronously | Cherry-pick | Async view lookup (no sync file I/O after startup) |
+| [#2653](https://github.com/expressjs/express/pull/2653) | Resolve paths for views asynchronously | Roadmap | Async view lookup (no sync file I/O after startup), moved from the compatible line (Our 6.0) |
 | [#2738](https://github.com/expressjs/express/pull/2738) | feat: Add array support to res.links() | Cherry-pick | `res.links()` accepts arrays |
 | [#2935](https://github.com/expressjs/express/pull/2935) | Add support for overriding settings per request | Won't do | Per-request settings overrides add hidden state; pass options to the call instead. |
 | [#3114](https://github.com/expressjs/express/pull/3114) | Options for Engines | Won't do | A custom View class via app.set('view') already bypasses the file system. |

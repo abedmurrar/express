@@ -9,6 +9,7 @@
 'use strict'
 
 import type { Application } from './application'
+import type { BodyParser } from './body-parser'
 import type { Request } from './request'
 import type { ExpressResponse } from './response'
 import type { NextFunction, RouterConstructor } from './router'
@@ -21,7 +22,7 @@ import type { ServeStaticFunction } from './serve-static'
  * output calls them directly, with no interop helpers in between.
  */
 
-const bodyParser = require('body-parser') as typeof import('body-parser')
+const bodyParser = require('./body-parser') as BodyParser
 const EventEmitter = (require('node:events') as typeof import('node:events')).EventEmitter
 const proto = require('./application') as Application
 const Router = require('./router') as RouterConstructor

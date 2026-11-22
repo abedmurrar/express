@@ -597,6 +597,55 @@ app.engine('html', engines.hogan);
 
 :::
 
+#### Several template engines
+
+This is a fork addition; Express 5.3.0 has no `view engines` setting.
+
+Without it, a view name with no extension uses the `view engine` extension, and
+`res.render('page')` throws "No default engine was specified" when `view engine` is not set,
+whatever engines are registered. To render views of several engines by name alone, list their
+extensions in the `view engines` setting:
+
+```js
+app.engine('pug', require('pug').__express);
+app.engine('html', require('ejs').renderFile);
+app.set('view engine', 'pug');
+app.set('view engines', ['html', 'ejs']);
+
+app.render('page', callback); // page.pug, else page.html, else page.ejs
+```
+
+A name without a known extension then tries these extensions, in this order, and renders the
+first file found:
+
+1. the `view engine` extension, when set: an app that renders a file today renders the same one;
+2. each extension in `view engines`, in the order listed (with or without the leading dot;
+   one already tried is skipped).
+
+Each extension is tried in every `views` folder, in order, before the next extension, so the
+`view engine` file in the second folder wins over a `view engines` file in the first. A folder's
+`index` file counts for its extension, as with `view engine`.
+
+An extension is known when an engine is registered for it (in any case), or when it is the
+`view engine` extension or one in `view engines` (in any case). A name with a known extension
+is looked up as before. Any other extension is part of the name: with
+`app.set('view engines', ['pug'])`, `res.render('user.profile')` renders `user.profile.pug`,
+where Express 5.3.0 tries to load a `profile` module.
+
+The engine of the file found is the registered one, matched in any case, or else the module
+named after the extension, loaded with `require()`, as for `view engine`. Only the found file's
+engine is loaded.
+
+When no file is found, the error lists the extensions tried, in order:
+
+```
+Failed to lookup view "page" in views directory "/app/views" with extension ".pug", ".html" or ".ejs"
+```
+
+With the `view cache` setting on, the file found is cached under the view name, so adding a
+file for an earlier extension later has no effect until restart. A failed lookup is not cached.
+Sub-apps inherit `view engines` and the parent's engines, but not `views`, which has a default.
+
 ### app.get(name)
 
 **Parameters**
@@ -1537,6 +1586,17 @@ Sub-apps will not inherit the value of `view cache` in production (when `NODE_EN
 - **`view engine`** · `String` · default: N/A (undefined)
 
   The default engine extension to use when omitted.
+
+  ::: info
+
+  Sub-apps will inherit the value of this setting.
+
+  :::
+
+- **`view engines`** · `String | Array` · default: N/A (undefined) · fork addition
+
+  More engine extensions to try, in order, for a view name without a known extension.
+  Off unless it lists at least one extension. See [Several template engines](#several-template-engines).
 
   ::: info
 

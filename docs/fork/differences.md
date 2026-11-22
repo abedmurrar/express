@@ -50,6 +50,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 
 Opt-in: an app that doesn't use them behaves as on Express 5.3.0.
 
+- **The `view engines` setting.** `app.set('view engines', ['pug', 'html'])` lets `res.render('page')` render `page.pug` or `page.html`, whichever exists first, after the `view engine` extension. A name with an extension that has no engine, such as `user.profile`, gets one added. When nothing is found, the error lists the extensions tried. See [Several template engines](/api/application#several-template-engines).
 - **`req.originalRoute`.** The full path pattern of the route that matched, mount paths included: `'/api/users/:id'` for `router.get('/users/:id')` under `app.use('/api', router)`, through nested routers and sub-apps. It is `undefined` before a route matches and when a RegExp path was involved, and stays set as long as `req.route` does, so error and 404 handlers see the route that failed or passed the request on. It is built when read. See [req.originalRoute](/api/request#reqoriginalroute).
 
 ## Tests that guard the drop-in promise

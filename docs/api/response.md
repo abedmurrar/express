@@ -821,7 +821,7 @@ Optional parameters:
 - `locals`, an object whose properties define local variables for the view.
 - `callback`, a callback function. If provided, the method returns both the possible error and rendered string, but does not perform an automated response. When an error occurs, the method invokes `next(err)` internally.
 
-The `view` argument is a string that is the file path of the view file to render. This can be an absolute path, or a path relative to the `views` setting. If the path does not contain a file extension, then the `view engine` setting determines the file extension. If the path does contain a file extension, then Express will load the module for the specified template engine (via `require()`) and render it using the loaded module's `__express` function.
+The `view` argument is a string that is the file path of the view file to render. This can be an absolute path, or a path relative to the `views` setting. If the path does not contain a file extension, then the `view engine` setting determines the file extension. With the fork's `view engines` setting, a name without a known extension tries the `view engine` extension, then each listed one, and renders the first file found; see [Several template engines](/api/application#several-template-engines). If the path does contain a file extension, then Express will load the module for the specified template engine (via `require()`) and render it using the loaded module's `__express` function.
 
 For more information, see [Using template engines with Express](/guide/using-template-engines).
 

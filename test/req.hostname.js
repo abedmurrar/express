@@ -56,6 +56,16 @@ describe('req', function () {
       request(app).post('/').set('Host', '[::1]:3000').expect('[::1]', done)
     })
 
+    it('should work with an IPv6 Host ending in "::" and a port', function (done) {
+      var app = express()
+
+      app.use(function (req, res) {
+        res.end(req.hostname)
+      })
+
+      request(app).post('/').set('Host', '[::]:3000').expect('[::]', done)
+    })
+
     describe('when "trust proxy" is enabled', function () {
       it('should respect X-Forwarded-Host', function (done) {
         var app = express()

@@ -11,6 +11,8 @@
       "!research",
       "!benchmarks/compare/node_modules",
       "!benchmarks/compare/.refs",
+      "!stryker-tmp",
+      "!reports",
       "!benchmarks/count/node_modules",
       "!docs/node_modules",
       "!docs/.vitepress/cache",

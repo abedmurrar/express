@@ -29,6 +29,11 @@ research/raw/
 research/bench/node_modules/
 research/bench/express-*/
 
+# mutation testing (Stryker): sandbox and raw reports; the summary is committed
+stryker-tmp
+reports/*
+!reports/mutation-baseline.md
+
 # docs site build output and cache (docs/node_modules is covered above)
 docs/.vitepress/cache/
 docs/.vitepress/dist/

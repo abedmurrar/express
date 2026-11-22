@@ -43,7 +43,7 @@ describe('res', function () {
 
       request(app)
         .get('/')
-        .expect(500, /does not provide a view engine/, done)
+        .expect(500, /Error: Module &quot;send&quot; does not provide a view engine\./, done)
     })
 
     it('should error without "view engine" set and no file extension', function (done) {

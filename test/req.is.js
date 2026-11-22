@@ -16,6 +16,16 @@ describe('req.is()', function () {
     request(app).get('/').type('application/json').expect(200, 'null', done)
   })
 
+  it('should accept the types as separate arguments', function (done) {
+    var app = express()
+
+    app.use(function (req, res) {
+      res.json(req.is('text/html', 'application/json'))
+    })
+
+    request(app).post('/').type('application/json').send('{}').expect(200, '"application/json"', done)
+  })
+
   describe('when given a mime type', function () {
     it('should return the type when matching', function (done) {
       var app = express()

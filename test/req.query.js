@@ -32,6 +32,12 @@ describe('req', function () {
 
         request(app).get('/?user.name=tj').expect(200, '{"user.name":"tj"}', done)
       })
+
+      it('should keep keys named like Object.prototype properties', function (done) {
+        var app = createApp('extended')
+
+        request(app).get('/?hasOwnProperty=yes&toString=1').expect(200, '{"hasOwnProperty":"yes","toString":"1"}', done)
+      })
     })
 
     describe('when "query parser" is simple', function () {

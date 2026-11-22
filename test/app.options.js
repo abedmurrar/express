@@ -14,6 +14,23 @@ describe('OPTIONS', function () {
     request(app).options('/users').expect('Allow', 'GET, HEAD, PUT').expect(200, 'GET, HEAD, PUT', done)
   })
 
+  it('should sort the methods', function (done) {
+    var app = express()
+
+    app.put('/users', function (req, res) {})
+    app.get('/users', function (req, res) {})
+
+    request(app).options('/users').expect('Allow', 'GET, HEAD, PUT').expect(200, 'GET, HEAD, PUT', done)
+  })
+
+  it('should not add HEAD to a route without GET', function (done) {
+    var app = express()
+
+    app.post('/users', function (req, res) {})
+
+    request(app).options('/users').expect('Allow', 'POST').expect(200, 'POST', done)
+  })
+
   it('should only include each method once', function (done) {
     var app = express()
 

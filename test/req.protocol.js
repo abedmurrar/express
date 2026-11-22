@@ -28,6 +28,18 @@ describe('req', function () {
         request(app).get('/').set('X-Forwarded-Proto', 'https').expect('https', done)
       })
 
+      it('should trim the first X-Forwarded-Proto value', function (done) {
+        var app = express()
+
+        app.enable('trust proxy')
+
+        app.use(function (req, res) {
+          res.end('[' + req.protocol + ']')
+        })
+
+        request(app).get('/').set('X-Forwarded-Proto', 'https  , http').expect('[https]', done)
+      })
+
       it('should default to the socket addr if X-Forwarded-Proto not present', function (done) {
         var app = express()
 

@@ -94,7 +94,7 @@ All four copies are the same versions Express 5.3.0 installs here, and match the
 ### send tests
 
 - `require('..')` changed to `require('../../lib/send')`.
-- `test/send/fork-additions.js` is ours, not upstream's: it covers a trailing-separator path that stats as a file (possible on Windows).
+- `test/send/fork-additions.js` is ours, not upstream's: it covers a trailing-separator path that stats as a file (possible on Windows). It also pins send's own error page and redirect, conditional GETs on non-2xx statuses and `If-Match` weak and strong forms, which mutation testing showed were unchecked.
 
 ### qs
 

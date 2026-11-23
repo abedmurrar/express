@@ -461,7 +461,8 @@ proto.handle = function handleRequest(req, res, callback) {
       if (err) {
         next(layerError || err)
       } else if (route) {
-        layer.handleRequest(req, res, next, traced)
+        // a route's own layer: route.dispatch traces its handlers
+        layer.handleRequest(req, res, next)
       } else {
         trimPrefix(layer, layerError, layerPath, path)
       }
@@ -519,9 +520,11 @@ proto.handle = function handleRequest(req, res, callback) {
     debug('%s %s : %s', layer.name, layerPath, req.originalUrl)
 
     if (layerError) {
-      layer.handleError(layerError, req, res, next, traced)
+      if (traced) layer.traceError(layerError, req, res, next)
+      else layer.handleError(layerError, req, res, next)
     } else {
-      layer.handleRequest(req, res, next, traced)
+      if (traced) layer.traceRequest(req, res, next)
+      else layer.handleRequest(req, res, next)
     }
   }
 }

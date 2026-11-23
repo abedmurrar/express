@@ -69,8 +69,10 @@ export interface Layer {
   rawMatchers: Array<MatchFunction<Params>> // one per rawPath entry
   method?: string | undefined // set by the route
   route?: Route | undefined // set by the router
-  handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction, traced?: boolean): void
-  handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction, traced?: boolean): void
+  handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  traceError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  traceRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
   match(path: string | null | undefined): boolean
 }
 
@@ -194,20 +196,12 @@ const proto = Layer.prototype as Layer
  * @api private
  */
 
-proto.handleError = function handleError(error, req, res, next, traced = requestChannel.hasSubscribers) {
+proto.handleError = function handleError(error, req, res, next) {
   const fn = this.handle as ErrorRequestHandler
 
   if (fn.length !== 4) {
     // not a standard error handler
     return next(error)
-  }
-
-  // Not in router 2.2.0: router 2.3.0's tracing (lib/tracing), only while the
-  // channel has subscribers, so nothing is allocated otherwise. Not in 2.3.0:
-  // the router and the route pass whether it has (`traced`), checked once as
-  // they start, instead of a check per handler.
-  if (traced) {
-    return traceErrorHandler(this, fn, error, req, res, next)
   }
 
   try {
@@ -238,21 +232,12 @@ proto.handleError = function handleError(error, req, res, next, traced = request
  * @api private
  */
 
-proto.handleRequest = function handleRequest(req, res, next, traced = requestChannel.hasSubscribers) {
+proto.handleRequest = function handleRequest(req, res, next) {
   const fn = this.handle as RequestHandler
 
   if (fn.length > 3) {
     // not a standard request handler
     return next()
-  }
-
-  // Not in router 2.2.0: router 2.3.0's tracing (lib/tracing), only while the
-  // channel has subscribers (`traced`, as in handleError), so nothing is
-  // allocated otherwise. A route's own layer (this.route is set) only calls
-  // route.dispatch, and the handlers in the route are traced one by one, so it
-  // isn't traced itself.
-  if (traced && this.route === undefined) {
-    return traceHandler(this, fn, req, res, next)
   }
 
   try {
@@ -275,20 +260,26 @@ proto.handleRequest = function handleRequest(req, res, next, traced = requestCha
 }
 
 /**
- * Router 2.3.0's traced calls from handleError and handleRequest, moved out of
- * them: a closure inside handleRequest would make every call allocate a
- * context for the variables it captures, traced or not.
- * @private
+ * Not in router 2.2.0: handleError and handleRequest traced through router
+ * 2.3.0's request TracingChannel (lib/tracing). The router and the route call
+ * these instead when the channel has subscribers, which they check once as
+ * they start on a request. Router 2.3.0 has the traced path inside
+ * handleError and handleRequest, behind a subscriber check before every
+ * handler; here those two stay as in 2.2.0. A route's own layer only calls
+ * route.dispatch, which traces the route's handlers one by one, so the router
+ * always calls its handleRequest, never traceRequest.
+ *
+ * @api private
  */
 
-function traceErrorHandler(
-  layer: Layer,
-  fn: ErrorRequestHandler,
-  error: unknown,
-  req: RouterRequest,
-  res: RouterResponse,
-  next: NextFunction
-): void {
+proto.traceError = function traceError(error, req, res, next) {
+  const fn = this.handle as ErrorRequestHandler
+
+  if (fn.length !== 4) {
+    // not a standard error handler
+    return next(error)
+  }
+
   invokeWithTrace(
     function invokeErrorHandler(wrappedNext) {
       return fn(error, req, res, wrappedNext)
@@ -297,7 +288,7 @@ function traceErrorHandler(
       req,
       res,
       incomingError: error,
-      layer,
+      layer: this,
       handler: fn,
       route: (req as RouterRequest & MatchedRequest)[matchedRoute],
       errorHandler: true
@@ -306,13 +297,14 @@ function traceErrorHandler(
   )
 }
 
-function traceHandler(
-  layer: Layer,
-  fn: RequestHandler,
-  req: RouterRequest,
-  res: RouterResponse,
-  next: NextFunction
-): void {
+proto.traceRequest = function traceRequest(req, res, next) {
+  const fn = this.handle as RequestHandler
+
+  if (fn.length > 3) {
+    // not a standard request handler
+    return next()
+  }
+
   invokeWithTrace(
     function invokeHandler(wrappedNext) {
       return fn(req, res, wrappedNext)
@@ -320,7 +312,7 @@ function traceHandler(
     {
       req,
       res,
-      layer,
+      layer: this,
       handler: fn,
       route: (req as RouterRequest & MatchedRequest)[matchedRoute]
     },

@@ -196,7 +196,8 @@ proto.dispatch = function dispatch(req, res, done) {
   req.route = this
 
   // Not in router 2.2.0 or 2.3.0: whether the tracing channel (./tracing) has
-  // subscribers, checked once per dispatch and passed to each handler's layer
+  // subscribers, checked once per dispatch, which picks each layer's traced
+  // or untraced method
   const traced = requestChannel.hasSubscribers
 
   next()
@@ -237,9 +238,12 @@ proto.dispatch = function dispatch(req, res, done) {
     }
 
     if (err) {
-      layer.handleError(err, req, res, next, traced)
+      if (traced) layer.traceError(err, req, res, next)
+      else layer.handleError(err, req, res, next)
+    } else if (traced) {
+      layer.traceRequest(req, res, next)
     } else {
-      layer.handleRequest(req, res, next, traced)
+      layer.handleRequest(req, res, next)
     }
 
     sync = 0

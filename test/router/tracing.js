@@ -1435,8 +1435,9 @@ describeTracing('TracingChannel', function () {
         router.use(forward)
         const received = await new Promise(function (resolve) {
           // Exercise an error handler directly, without a router boundary that
-          // could already have recorded the incoming error.
-          router.stack[0].handleError(error, {}, {}, resolve)
+          // could already have recorded the incoming error. (traceError: in
+          // this copy the router calls it instead of handleError when traced.)
+          router.stack[0].traceError(error, {}, {}, resolve)
         })
 
         assert.strictEqual(received, forwarding === 'replace' ? replacement : error)

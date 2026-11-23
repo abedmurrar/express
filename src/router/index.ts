@@ -292,21 +292,14 @@ proto.handle = function handleRequest(req, res, callback) {
   // manage inter-router variables
   const parentParams = req.params
   const parentUrl = req.baseUrl || ''
+  let done = restore(callback, req, 'baseUrl', 'next', 'params')
+
   // Not in router 2.2.0 or 2.3.0: whether the tracing channel (lib/tracing)
   // has subscribers, checked once here rather than for every layer. Only a
   // traced router keeps the matched pattern, so only it restores it (2.3.0
   // always restores it, with baseUrl, next and params).
   const traced = requestChannel.hasSubscribers
-  let done = traced
-    ? restore<RouterRequest & MatchedRequest, 'baseUrl' | 'next' | 'params' | typeof matchedRoute>(
-        callback,
-        req,
-        'baseUrl',
-        'next',
-        'params',
-        matchedRoute
-      )
-    : restore(callback, req, 'baseUrl', 'next', 'params')
+  if (traced) done = restore(done, req as RouterRequest & MatchedRequest, matchedRoute)
 
   // setup next layer
   req.next = next
@@ -457,11 +450,7 @@ proto.handle = function handleRequest(req, res, callback) {
     // param callbacks can yield. Not in 2.3.0: only while traced, and the
     // pattern comes from rawPath (see matchedPattern), since match() returns
     // true here rather than 2.3.0's match object.
-    if (traced) {
-      ;(req as RouterRequest & MatchedRequest)[matchedRoute] = Array.isArray(layer.rawPath)
-        ? matchedPattern(layer, path, noSlash && route !== undefined)
-        : layer.rawPath
-    }
+    if (traced) setMatchedRoute(req, layer, path, noSlash && route !== undefined)
 
     // Capture one-time layer values
     req.params = self.mergeParams ? mergeParams(layer.params as Params, parentParams) : (layer.params as Params)
@@ -739,6 +728,20 @@ function matchLayer(layer: LayerInstance, path: string): unknown {
   } catch (err) {
     return err
   }
+}
+
+/**
+ * Router 2.3.0's `req[matchedRoute] = match.pattern` (tracing): the pattern
+ * the layer matched with. Not in 2.3.0: taken from `rawPath`, since match()
+ * returns true here, not a match object (pillarjs/router#216).
+ *
+ * @private
+ */
+
+function setMatchedRoute(req: RouterRequest, layer: LayerInstance, path: string, noSlash: boolean | undefined) {
+  ;(req as RouterRequest & MatchedRequest)[matchedRoute] = Array.isArray(layer.rawPath)
+    ? matchedPattern(layer, path, noSlash)
+    : layer.rawPath
 }
 
 /**

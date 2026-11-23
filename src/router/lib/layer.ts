@@ -207,21 +207,7 @@ proto.handleError = function handleError(error, req, res, next, traced = request
   // the router and the route pass whether it has (`traced`), checked once as
   // they start, instead of a check per handler.
   if (traced) {
-    return invokeWithTrace(
-      function invokeErrorHandler(wrappedNext) {
-        return fn(error, req, res, wrappedNext)
-      },
-      {
-        req,
-        res,
-        incomingError: error,
-        layer: this,
-        handler: fn,
-        route: (req as RouterRequest & MatchedRequest)[matchedRoute],
-        errorHandler: true
-      },
-      next
-    )
+    return traceErrorHandler(this, fn, error, req, res, next)
   }
 
   try {
@@ -266,19 +252,7 @@ proto.handleRequest = function handleRequest(req, res, next, traced = requestCha
   // route.dispatch, and the handlers in the route are traced one by one, so it
   // isn't traced itself.
   if (traced && this.route === undefined) {
-    return invokeWithTrace(
-      function invokeHandler(wrappedNext) {
-        return fn(req, res, wrappedNext)
-      },
-      {
-        req,
-        res,
-        layer: this,
-        handler: fn,
-        route: (req as RouterRequest & MatchedRequest)[matchedRoute]
-      },
-      next
-    )
+    return traceHandler(this, fn, req, res, next)
   }
 
   try {
@@ -298,6 +272,60 @@ proto.handleRequest = function handleRequest(req, res, next, traced = requestCha
   } catch (err) {
     next(err)
   }
+}
+
+/**
+ * Router 2.3.0's traced calls from handleError and handleRequest, moved out of
+ * them: a closure inside handleRequest would make every call allocate a
+ * context for the variables it captures, traced or not.
+ * @private
+ */
+
+function traceErrorHandler(
+  layer: Layer,
+  fn: ErrorRequestHandler,
+  error: unknown,
+  req: RouterRequest,
+  res: RouterResponse,
+  next: NextFunction
+): void {
+  invokeWithTrace(
+    function invokeErrorHandler(wrappedNext) {
+      return fn(error, req, res, wrappedNext)
+    },
+    {
+      req,
+      res,
+      incomingError: error,
+      layer,
+      handler: fn,
+      route: (req as RouterRequest & MatchedRequest)[matchedRoute],
+      errorHandler: true
+    },
+    next
+  )
+}
+
+function traceHandler(
+  layer: Layer,
+  fn: RequestHandler,
+  req: RouterRequest,
+  res: RouterResponse,
+  next: NextFunction
+): void {
+  invokeWithTrace(
+    function invokeHandler(wrappedNext) {
+      return fn(req, res, wrappedNext)
+    },
+    {
+      req,
+      res,
+      layer,
+      handler: fn,
+      route: (req as RouterRequest & MatchedRequest)[matchedRoute]
+    },
+    next
+  )
 }
 
 /**

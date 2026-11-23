@@ -15,7 +15,7 @@ Express 5.3.0.
 | `express.initialization` | channel | once per `express()` call, sub-apps included, after the app is set up and before it is returned | `{ app }` |
 
 Nothing is published, and no payload is built, unless the channel has subscribers: with none, each
-handler costs one `hasSubscribers` check. A subscriber that throws doesn't break the request:
+router and each route checks `hasSubscribers` once as it starts on a request. A subscriber that throws doesn't break the request:
 `diagnostics_channel` calls each subscriber in a `try`/`catch` and rethrows its error on the next tick,
 as an uncaught exception, while the app answers as it would without it.
 
@@ -93,6 +93,10 @@ What runs is traced:
 - a mounted router or sub-app is middleware: its mount is one trace (`layer.name` is `'router'` for a
   router and `'mounted_app'` for an app, `route` the mount path), and the handlers inside it are traced
   inside it.
+
+Each router and each route checks for subscribers when it starts on a request, so a subscriber that
+attaches while a request is already being routed sees its handlers from the next router or route it
+enters.
 
 What doesn't run isn't traced: a layer whose path doesn't match, a route whose method doesn't, a normal
 handler while an error is pending, or an error handler while none is. A request no handler matches (a

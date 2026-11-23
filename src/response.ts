@@ -77,21 +77,33 @@ function sendJson(res: ExpressResponse, body: unknown): ExpressResponse {
 }
 
 /**
- * mimeContentType, for res.set('Content-Type', value), with a deprecation
- * (once per process) when the value is a file extension that the lookup
- * turns into a type, such as "json": 6.x sets the value as given (#7145).
- * Not in Express 5.3.0. The check lives here and not in res.set, which runs
- * on every response: code added to res.set changed how V8 optimized it and
- * its callers (0.1% to 0.3% more instructions per request).
+ * mimeContentType, for res.set('Content-Type', value), remembered per value
+ * here, with a deprecation (once per process) when the value is a file
+ * extension that the lookup turns into a type, such as "json": 6.x sets the
+ * value as given (#7145). Not in Express 5.3.0. The check runs only when a
+ * value is first seen: scanning every value for a "/" on every res.set cost
+ * 0.3% more instructions per JSON response (two res.set calls each).
+ * At most 100 values, emptied when full, as utils' caches.
  * @private
  */
 
+const setContentTypeCache = new Map<string, string | false>()
+
 function setContentType(value: string): string | false {
-  var type = mimeContentType(value)
-  if (type && !warnedSetTypeShorthand && value.indexOf('/') === -1) {
-    warnedSetTypeShorthand = true
-    deprecate("res.set('Content-Type', '" + value + "'): Use res.type('" + value + "') instead")
+  var type = setContentTypeCache.get(value)
+
+  if (type === undefined) {
+    type = mimeContentType(value)
+
+    if (type && !warnedSetTypeShorthand && value.indexOf('/') === -1) {
+      warnedSetTypeShorthand = true
+      deprecate("res.set('Content-Type', '" + value + "'): Use res.type('" + value + "') instead")
+    }
+
+    if (setContentTypeCache.size >= 100) setContentTypeCache.clear()
+    setContentTypeCache.set(value, type)
   }
+
   return type
 }
 

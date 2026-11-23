@@ -127,6 +127,7 @@ describe('deprecations', function () {
           "  res.set('content-type', 'application/json; charset=utf-8')",
           "  res.set('Content-Type', 'not-a-type')",
           "  res.set('X-Kind', 'json')",
+          "  for (var i = 0; i < 101; i++) res.set('Content-Type', 'x/y' + i)",
           "  res.type('json')",
           "  res.send('{}')",
           '})',

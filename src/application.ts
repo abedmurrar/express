@@ -134,7 +134,6 @@ export interface Application extends EventEmitter, Omit<HttpMethods<ApplicationM
  * @private
  */
 
-var slice = Array.prototype.slice
 var flatten = Array.prototype.flat
 
 /**
@@ -309,7 +308,7 @@ app.handle = function handle(this: Application, req: Request, res: ExpressRespon
  * @public
  */
 
-app.use = function use(this: Application, fn: unknown) {
+app.use = function use(this: Application, fn: unknown, ...rest: unknown[]) {
   var offset = 0
   var path: PathParams = '/'
 
@@ -330,7 +329,7 @@ app.use = function use(this: Application, fn: unknown) {
   }
 
   // middleware functions, and express apps (told apart below by having handle and set)
-  var fns = flatten.call(slice.call(arguments, offset), Infinity) as Array<LayerHandler & Partial<Application>>
+  var fns = flatten.call(offset === 0 ? [fn, ...rest] : rest, Infinity) as Array<LayerHandler & Partial<Application>>
 
   if (fns.length === 0) {
     throw new TypeError('app.use() requires a middleware function')
@@ -584,14 +583,15 @@ app.disable = function disable(this: Application, setting: string) {
 
 methods.forEach(function (method) {
   // assigned through a plain map of methods: `get` is also the setting reader
-  ;(app as HttpMethods<unknown>)[method] = function (this: Application, path: PathParams) {
+  ;(app as HttpMethods<unknown>)[method] = function (this: Application, path: PathParams, ...handlers: HandlerList[]) {
+    // arguments.length, not handlers.length: app.get() with no arguments is a route, as in Express
     if (method === 'get' && arguments.length === 1) {
       // app.get(setting)
       return this.set(path as string)
     }
 
     var route = this.route(path)
-    route[method].apply(route, slice.call(arguments, 1))
+    route[method].apply(route, handlers)
     return this
   }
 })
@@ -606,9 +606,8 @@ methods.forEach(function (method) {
  * @public
  */
 
-app.all = function all(this: Application, path: PathParams) {
+app.all = function all(this: Application, path: PathParams, ...args: HandlerList[]) {
   var route = this.route(path)
-  var args = slice.call(arguments, 1)
 
   for (var i = 0; i < methods.length; i++) {
     route[methods[i] as HttpMethod].apply(route, args)
@@ -734,7 +733,7 @@ app.render = function render(
  * @public
  */
 
-app.listen = function listen(this: Application) {
+app.listen = function listen(this: Application, ...args: unknown[]) {
   var server = http.createServer(
     {
       IncomingMessage: withPrototype(http.IncomingMessage, this.request),
@@ -742,7 +741,6 @@ app.listen = function listen(this: Application) {
     },
     this
   )
-  var args = slice.call(arguments)
   if (typeof args[args.length - 1] === 'function') {
     var done = args[args.length - 1] as ListenCallback
     // The error listener only reports a failed start. Once the server is

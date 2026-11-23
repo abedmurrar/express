@@ -258,4 +258,11 @@ app.use((err: Error, _req: Request, res: Response, next: express.NextFunction) =
   res.status(500).send(err.message)
 })
 
+// error codes (a fork addition): the union of the codes Express gives its errors
+const viewNotFound: express.ErrorCode = 'EXPRESS_ERR_VIEW_NOT_FOUND'
+app.use((err: Error & { code?: string }, _req: Request, res: Response, next: express.NextFunction) => {
+  if (err.code === viewNotFound) res.status(404).send('not found')
+  else next(err)
+})
+
 void [asApplication, setting, enabled, disabled, settings, mountpath, path, servers, stack, route, reqProto, resProto]

@@ -19,6 +19,7 @@ const debug = (require('debug') as typeof import('debug'))('router:route')
 const Layer = require('./layer') as LayerConstructor
 const { METHODS } = require('node:http') as typeof import('node:http')
 const { methodAdded } = require('./warnings') as typeof import('./warnings')
+const { withCode } = require('../../error-code') as typeof import('../../error-code')
 
 import type {
   Layer as LayerInstance,
@@ -272,14 +273,14 @@ proto.all = function all(handler) {
   const callbacks: unknown[] = flatten.call(slice.call(arguments), Infinity)
 
   if (callbacks.length === 0) {
-    throw new TypeError('argument handler is required')
+    throw withCode(new TypeError('argument handler is required'), 'EXPRESS_ERR_HANDLER_REQUIRED')
   }
 
   for (let i = 0; i < callbacks.length; i++) {
     const fn = callbacks[i]
 
     if (typeof fn !== 'function') {
-      throw new TypeError('argument handler must be a function')
+      throw withCode(new TypeError('argument handler must be a function'), 'EXPRESS_ERR_HANDLER_NOT_FUNCTION')
     }
 
     const layer = Layer('/', {}, fn as LayerHandler)
@@ -300,14 +301,14 @@ methods.forEach(function (method) {
     const callbacks: unknown[] = flatten.call(slice.call(arguments), Infinity)
 
     if (callbacks.length === 0) {
-      throw new TypeError('argument handler is required')
+      throw withCode(new TypeError('argument handler is required'), 'EXPRESS_ERR_HANDLER_REQUIRED')
     }
 
     for (let i = 0; i < callbacks.length; i++) {
       const fn = callbacks[i]
 
       if (typeof fn !== 'function') {
-        throw new TypeError('argument handler must be a function')
+        throw withCode(new TypeError('argument handler must be a function'), 'EXPRESS_ERR_HANDLER_NOT_FUNCTION')
       }
 
       debug('%s %s', method, this.path)

@@ -24,6 +24,7 @@ const contentType = require('content-type') as typeof import('content-type')
 const mime = require('mime-types') as typeof import('mime-types')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
 const qs = require('./qs') as import('./qs').Qs
+const { withCode } = require('./error-code') as typeof import('./error-code')
 
 /** A body ETag generator: the body and, for strings, its encoding. */
 export type ETagFunction = (body: string | Buffer, encoding?: BufferEncoding) => string
@@ -201,7 +202,10 @@ export function compileETag(val: unknown): ETagFunction | undefined {
       fn = etagStrong
       break
     default:
-      throw new TypeError('unknown value for etag function: ' + String(val))
+      throw withCode(
+        new TypeError('unknown value for etag function: ' + String(val)),
+        'EXPRESS_ERR_INVALID_ETAG_OPTION'
+      )
   }
 
   return fn
@@ -233,7 +237,10 @@ export function compileQueryParser(val: unknown): QueryParser | undefined {
       fn = parseExtendedQueryString
       break
     default:
-      throw new TypeError('unknown value for query parser function: ' + String(val))
+      throw withCode(
+        new TypeError('unknown value for query parser function: ' + String(val)),
+        'EXPRESS_ERR_INVALID_QUERY_PARSER_OPTION'
+      )
   }
 
   return fn

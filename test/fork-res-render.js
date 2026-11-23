@@ -208,7 +208,11 @@ describe('a view name ending in "." (fork)', function () {
 
     request(app)
       .get('/')
-      .expect(500, 'undefined Failed to lookup view "user." in views directory "' + FIXTURES + '"', done)
+      .expect(
+        500,
+        'EXPRESS_ERR_VIEW_NOT_FOUND Failed to lookup view "user." in views directory "' + FIXTURES + '"',
+        done
+      )
   })
 
   it('looks up the name with the default engine extension added', function (done) {

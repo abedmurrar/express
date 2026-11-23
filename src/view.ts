@@ -19,6 +19,7 @@
 const debug = (require('debug') as typeof import('debug'))('express:view')
 const path = require('node:path') as typeof import('node:path')
 const fs = require('node:fs') as typeof import('node:fs')
+const { withCode } = require('./error-code') as typeof import('./error-code')
 
 /** The callback a template engine calls when it has rendered: an error, or the output. */
 export type RenderCallback = (err: Error | null | undefined, str?: string) => void
@@ -126,7 +127,10 @@ function View(this: View, name: string, options: ViewOptions) {
   }
 
   if (!this.ext && !this.defaultEngine) {
-    throw new Error('No default engine was specified and no extension was provided.')
+    throw withCode(
+      new Error('No default engine was specified and no extension was provided.'),
+      'EXPRESS_ERR_NO_DEFAULT_ENGINE'
+    )
   }
 
   var fileName = name
@@ -306,7 +310,10 @@ function loadEngine(engines: Record<string, Engine>, ext: string): Engine {
   var fn: unknown = (require(mod) as { __express?: unknown }).__express
 
   if (typeof fn !== 'function') {
-    throw new Error('Module "' + mod + '" does not provide a view engine.')
+    throw withCode(
+      new Error('Module "' + mod + '" does not provide a view engine.'),
+      'EXPRESS_ERR_VIEW_ENGINE_NOT_FOUND'
+    )
   }
 
   return (engines[ext] = fn as Engine)

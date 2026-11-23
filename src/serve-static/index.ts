@@ -23,6 +23,7 @@ var parseUrl = require('parseurl') as typeof import('parseurl')
 var resolve = (require('path') as typeof import('path')).resolve
 var send = require('../send') as SendFunction
 var url = require('url') as typeof import('url')
+var withCode = (require('../error-code') as typeof import('../error-code')).withCode
 
 import type { Stats } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -74,11 +75,11 @@ Object.defineProperty(createServeStatic, 'name', { value: 'serveStatic' })
 
 function createServeStatic(root: string, options?: ServeStaticOptions): ServeStaticHandler {
   if (!root) {
-    throw new TypeError('root path required')
+    throw withCode(new TypeError('root path required'), 'EXPRESS_ERR_STATIC_ROOT_REQUIRED')
   }
 
   if (typeof root !== 'string') {
-    throw new TypeError('root path must be a string')
+    throw withCode(new TypeError('root path must be a string'), 'EXPRESS_ERR_STATIC_ROOT_NOT_STRING')
   }
 
   // copy options object
@@ -94,7 +95,7 @@ function createServeStatic(root: string, options?: ServeStaticOptions): ServeSta
   var setHeaders = opts.setHeaders
 
   if (setHeaders && typeof setHeaders !== 'function') {
-    throw new TypeError('option setHeaders must be function')
+    throw withCode(new TypeError('option setHeaders must be function'), 'EXPRESS_ERR_STATIC_SET_HEADERS_NOT_FUNCTION')
   }
 
   // setup options for send
@@ -209,7 +210,7 @@ function createHtmlDocument(title: string, body: string): string {
 
 function createNotFoundDirectoryListener() {
   return function notFound(this: SendStream) {
-    this.error(404)
+    this.error(404, undefined, 'EXPRESS_ERR_SEND_IS_DIRECTORY')
   }
 }
 
@@ -221,7 +222,7 @@ function createNotFoundDirectoryListener() {
 function createRedirectDirectoryListener() {
   return function redirect(this: SendStream, res: ServerResponse) {
     if (this.hasTrailingSlash()) {
-      this.error(404)
+      this.error(404, undefined, 'EXPRESS_ERR_SEND_IS_DIRECTORY')
       return
     }
 

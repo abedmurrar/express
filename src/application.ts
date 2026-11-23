@@ -46,6 +46,7 @@ const compileQueryParser = (require('./utils') as typeof import('./utils')).comp
 const compileTrust = (require('./utils') as typeof import('./utils')).compileTrust
 const resolve = (require('node:path') as typeof import('node:path')).resolve
 const Router = require('./router') as RouterConstructor
+const { withCode } = require('./error-code') as typeof import('./error-code')
 
 /**
  * The settings read with a known type: the defaults `defaultConfiguration()`
@@ -333,7 +334,7 @@ app.use = function use(this: Application, fn: unknown) {
   var fns = flatten.call(slice.call(arguments, offset), Infinity) as Array<LayerHandler & Partial<Application>>
 
   if (fns.length === 0) {
-    throw new TypeError('app.use() requires a middleware function')
+    throw withCode(new TypeError('app.use() requires a middleware function'), 'EXPRESS_ERR_MIDDLEWARE_REQUIRED')
   }
 
   // get router
@@ -411,7 +412,7 @@ app.route = function route(this: Application, path: PathParams) {
 
 app.engine = function engine(this: Application, ext: string, fn: Engine) {
   if (typeof fn !== 'function') {
-    throw new Error('callback function required')
+    throw withCode(new Error('callback function required'), 'EXPRESS_ERR_ENGINE_CALLBACK_REQUIRED')
   }
 
   // get file extension
@@ -693,8 +694,9 @@ app.render = function render(
           : 'directory "' + view.root + '"'
       // with "view engines", the extensions it tried, in order
       var tried = view.extensions ? ' with extension ' + quotedList(view.extensions) : ''
-      var err: Error & { view?: ViewInstance } = new Error(
-        'Failed to lookup view "' + name + '" in views ' + dirs + tried
+      var err: Error & { view?: ViewInstance } = withCode(
+        new Error('Failed to lookup view "' + name + '" in views ' + dirs + tried),
+        'EXPRESS_ERR_VIEW_NOT_FOUND'
       )
       err.view = view
       return done(err)

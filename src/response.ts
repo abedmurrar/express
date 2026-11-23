@@ -41,6 +41,7 @@ const setCharset = (require('./utils') as typeof import('./utils')).setCharset
 const mimeContentType = (require('./utils') as typeof import('./utils')).mimeContentType
 const cookie = require('cookie') as typeof import('cookie')
 const send = require('./send') as SendFunction
+const { withCode } = require('./error-code') as typeof import('./error-code')
 const extname = path.extname
 const resolve = path.resolve
 const basename = path.basename
@@ -186,12 +187,18 @@ module.exports = res
 res.status = function status(this: ExpressResponse, code: unknown) {
   // Check if the status code is not an integer
   if (!isInteger(code)) {
-    throw new TypeError(`Invalid status code: ${JSON.stringify(code)}. Status code must be an integer.`)
+    throw withCode(
+      new TypeError(`Invalid status code: ${JSON.stringify(code)}. Status code must be an integer.`),
+      'EXPRESS_ERR_INVALID_STATUS_CODE'
+    )
   }
   // Check if the status code is outside of Node's valid range
   if (code < 100 || code > 999) {
-    throw new RangeError(
-      `Invalid status code: ${JSON.stringify(code)}. Status code must be greater than 99 and less than 1000.`
+    throw withCode(
+      new RangeError(
+        `Invalid status code: ${JSON.stringify(code)}. Status code must be greater than 99 and less than 1000.`
+      ),
+      'EXPRESS_ERR_STATUS_CODE_OUT_OF_RANGE'
     )
   }
 
@@ -569,11 +576,11 @@ res.sendFile = function sendFile(
   var opts = (options || {}) as SendFileOptions
 
   if (!path) {
-    throw new TypeError('path argument is required to res.sendFile')
+    throw withCode(new TypeError('path argument is required to res.sendFile'), 'EXPRESS_ERR_SENDFILE_PATH_REQUIRED')
   }
 
   if (typeof path !== 'string') {
-    throw new TypeError('path must be a string to res.sendFile')
+    throw withCode(new TypeError('path must be a string to res.sendFile'), 'EXPRESS_ERR_SENDFILE_PATH_NOT_STRING')
   }
 
   // support function as second arg
@@ -583,7 +590,10 @@ res.sendFile = function sendFile(
   }
 
   if (!opts.root && !pathIsAbsolute(path)) {
-    throw new TypeError('path must be absolute or specify root to res.sendFile')
+    throw withCode(
+      new TypeError('path must be absolute or specify root to res.sendFile'),
+      'EXPRESS_ERR_SENDFILE_PATH_NOT_ABSOLUTE'
+    )
   }
 
   // create file stream
@@ -798,11 +808,14 @@ res.format = function (this: ExpressResponse, obj: Record<string, FormatHandler>
     obj.default(req, this, next)
   } else {
     next(
-      createError(406, {
-        types: normalizeTypes(keys).map(function (o) {
-          return o.value
-        })
-      })
+      withCode(
+        createError(406, {
+          types: normalizeTypes(keys).map(function (o) {
+            return o.value
+          })
+        }),
+        'EXPRESS_ERR_NOT_ACCEPTABLE'
+      )
     )
   }
 
@@ -897,7 +910,7 @@ res.set = res.header = function header(this: ExpressResponse, field: string | Re
       // add charset to content-type
       if ((field as string).toLowerCase() === 'content-type') {
         if (Array.isArray(value)) {
-          throw new TypeError('Content-Type cannot be set to an Array')
+          throw withCode(new TypeError('Content-Type cannot be set to an Array'), 'EXPRESS_ERR_CONTENT_TYPE_ARRAY')
         }
         // mime.contentType gives false for a type it doesn't know, which Node
         // would write as "false"; keep the value as given instead
@@ -981,7 +994,10 @@ res.cookie = function (this: ExpressResponse, name: string, value: unknown, opti
     var signed = opts.signed
 
     if (signed && !secret) {
-      throw new Error('cookieParser("secret") required for signed cookies')
+      throw withCode(
+        new Error('cookieParser("secret") required for signed cookies'),
+        'EXPRESS_ERR_COOKIE_SECRET_REQUIRED'
+      )
     }
 
     var val = typeof value === 'object' ? 'j:' + JSON.stringify(value) : String(value)

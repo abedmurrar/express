@@ -37,6 +37,7 @@ const fresh = require('fresh') as typeof import('fresh')
 const parseRange = require('range-parser') as typeof import('range-parser')
 const parse = require('parseurl') as typeof import('parseurl')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
+const { withCode } = require('./error-code') as typeof import('./error-code')
 
 /**
  * The port of a Host header: digits only, possibly none (RFC 3986 section 3.2.3).
@@ -148,11 +149,11 @@ function header(this: Request, name: 'set-cookie'): string[] | undefined
 function header(this: Request, name: string): string | undefined
 function header(this: Request, name: string): string | string[] | undefined {
   if (!name) {
-    throw new TypeError('name argument is required to req.get')
+    throw withCode(new TypeError('name argument is required to req.get'), 'EXPRESS_ERR_HEADER_NAME_REQUIRED')
   }
 
   if (typeof name !== 'string') {
-    throw new TypeError('name must be a string to req.get')
+    throw withCode(new TypeError('name must be a string to req.get'), 'EXPRESS_ERR_HEADER_NAME_NOT_STRING')
   }
 
   var lc = name.toLowerCase()

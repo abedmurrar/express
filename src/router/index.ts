@@ -23,9 +23,12 @@ const parseUrl = require('parseurl') as typeof import('parseurl')
 const Route = require('./lib/route') as RouteConstructor
 const symbols = require('./lib/symbols') as typeof import('./lib/symbols')
 const { checkPath, trackRoute } = require('./lib/warnings') as typeof import('./lib/warnings')
+const { recordError, requestChannel, traceParam } = require('./lib/tracing') as typeof import('./lib/tracing')
+const { matchedPattern } = require('./lib/original-route') as typeof import('./lib/original-route')
 const { withCode } = require('../error-code') as typeof import('../error-code')
 const mountMatch: typeof symbols.mountMatch = symbols.mountMatch
 const routeMatch: typeof symbols.routeMatch = symbols.routeMatch
+const matchedRoute: typeof symbols.matchedRoute = symbols.matchedRoute
 const debug = (require('debug') as typeof import('debug'))('router')
 const deprecate = (require('depd') as typeof import('depd'))('router')
 
@@ -301,6 +304,14 @@ proto.handle = function handleRequest(req, res, callback) {
   const parentUrl = req.baseUrl || ''
   let done = restore(callback, req, 'baseUrl', 'next', 'params')
 
+  // Not in router 2.2.0 or 2.3.0: whether the tracing channel (lib/tracing)
+  // has subscribers, checked once here rather than for every layer. Only a
+  // traced router keeps the matched pattern, so only it restores it (2.3.0
+  // always restores it, with baseUrl, next and params).
+  // `var`, so the closures below read it without a temporal-dead-zone check
+  var traced = requestChannel.hasSubscribers
+  if (traced) done = restore(done, req as RouterRequest & MatchedRequest, matchedRoute)
+
   // setup next layer
   req.next = next
 
@@ -318,6 +329,12 @@ proto.handle = function handleRequest(req, res, callback) {
 
   function next(err?: unknown): void | NodeJS.Immediate {
     let layerError = err === 'route' ? null : err
+
+    // Router 2.3.0 (tracing): the error has already left its originating
+    // callback. Remember it even when that callback was not traced, so
+    // enclosing routers cannot claim it. Not in 2.3.0: only while the channel
+    // has subscribers, so an untraced request gets nothing new.
+    if (err && requestChannel.hasSubscribers) recordError(req, err)
 
     // remove added slash
     if (slashAdded) {
@@ -385,6 +402,11 @@ proto.handle = function handleRequest(req, res, callback) {
       route = layer.route
 
       if (typeof match !== 'boolean') {
+        // Router 2.3.0 (tracing): matching can fail before a handler runs (for
+        // example, URI decoding). Forwarding that error must not attribute it
+        // to a later handler. Only while traced, as above.
+        if (requestChannel.hasSubscribers) recordError(req, match)
+
         // hold on to layerError
         layerError = layerError || match
       }
@@ -436,6 +458,12 @@ proto.handle = function handleRequest(req, res, callback) {
         noSlash,
         parent: (req as RouterRequest & MatchedRequest)[mountMatch]
       }
+
+      // Router 2.3.0 (tracing): the route's pattern, for its parameter
+      // callbacks and handlers (see setMatchedRoute). Here, not in the
+      // callback below, which would make noSlash a context variable that the
+      // matching loop reads on every layer.
+      if (traced) setMatchedRoute(req, layer, path, noSlash)
     }
 
     // Capture one-time layer values
@@ -447,6 +475,7 @@ proto.handle = function handleRequest(req, res, callback) {
       if (err) {
         next(layerError || err)
       } else if (route) {
+        // a route's own layer: route.dispatch traces its handlers
         layer.handleRequest(req, res, next)
       } else {
         trimPrefix(layer, layerError, layerPath, path)
@@ -504,7 +533,13 @@ proto.handle = function handleRequest(req, res, callback) {
 
     debug('%s %s : %s', layer.name, layerPath, req.originalUrl)
 
-    if (layerError) {
+    // Not in router 2.2.0 or 2.3.0: traced, the layer's tracing methods run
+    // it, with its pattern (see setMatchedRoute)
+    if (traced) {
+      setMatchedRoute(req, layer, path, false)
+      if (layerError) layer.traceError(layerError, req, res, next)
+      else layer.traceRequest(req, res, next)
+    } else if (layerError) {
       layer.handleError(layerError, req, res, next)
     } else {
       layer.handleRequest(req, res, next)
@@ -750,6 +785,23 @@ function matchLayer(layer: LayerInstance, path: string): unknown {
 }
 
 /**
+ * Router 2.3.0's `req[matchedRoute] = match.pattern` (tracing): the pattern
+ * the layer matched with, which the tracing context reports as `route`. Not
+ * in 2.3.0: set only while traced, right before the layer's parameter
+ * callbacks or handler run (2.3.0 sets it in next() for every matched layer),
+ * and taken from `rawPath`, since match() returns true here, not a match
+ * object (pillarjs/router#216).
+ *
+ * @private
+ */
+
+function setMatchedRoute(req: RouterRequest, layer: LayerInstance, path: string, noSlash: boolean | undefined) {
+  ;(req as RouterRequest & MatchedRequest)[matchedRoute] = Array.isArray(layer.rawPath)
+    ? matchedPattern(layer, path, noSlash)
+    : layer.rawPath
+}
+
+/**
  * Merge params with parent params
  *
  * @private
@@ -907,6 +959,29 @@ function processParams(
     }
 
     if (!fn) return nextParam()
+
+    // Not in router 2.2.0: router 2.3.0's tracing (lib/tracing), only while
+    // the channel has subscribers
+    if (requestChannel.hasSubscribers) {
+      // the pattern of the layer whose parameter it is (the path of a route's
+      // "" entry has no parameters, so noSlash can't apply)
+      setMatchedRoute(req, layer, getPathname(req) as string, false)
+      traceParam(
+        fn,
+        {
+          req,
+          res,
+          layer,
+          handler: fn,
+          route: (req as RouterRequest & MatchedRequest)[matchedRoute],
+          param: key
+        },
+        paramCallback,
+        paramVal,
+        key
+      )
+      return
+    }
 
     try {
       const ret = fn(req, res, paramCallback, paramVal, key)

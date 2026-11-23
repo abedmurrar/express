@@ -16,7 +16,7 @@
  */
 
 import type { MatchFunction } from 'path-to-regexp'
-import type { Params, RouterRequest } from './layer'
+import type { Layer, Params, RouterRequest } from './layer'
 import type { MatchedRequest, MatchRecord } from './symbols'
 
 const symbols = require('./symbols') as typeof import('./symbols')
@@ -40,7 +40,7 @@ export function originalRoute(req: RouterRequest): string | undefined {
   let path = ''
 
   for (let m: MatchRecord | undefined = route; m !== undefined; m = m.parent) {
-    const pattern = matchedPattern(m)
+    const pattern = matchedPattern(m.layer, m.path, m.noSlash)
 
     if (typeof pattern !== 'string') {
       return undefined
@@ -54,20 +54,21 @@ export function originalRoute(req: RouterRequest): string | undefined {
 }
 
 /**
- * The pattern the record's layer matched with: its path, or for a path array
- * the first entry that matches what the layer matched, tried in the order the
- * router tried them ("" first for a strict router's route, see `noSlash`).
+ * The pattern a layer matched `path` with: its path, or for a path array the
+ * first entry that matches, tried in the order the router tried them (""
+ * first for a strict router's route, see `noSlash`). The tracing context's
+ * `route` uses it too.
  */
-function matchedPattern(m: MatchRecord): string | RegExp | undefined {
-  const rawPath = m.layer.rawPath
+export function matchedPattern(layer: Layer, path: string, noSlash: boolean | undefined): string | RegExp | undefined {
+  const rawPath = layer.rawPath
 
   if (!Array.isArray(rawPath)) {
     return rawPath
   }
 
-  const matchers = m.layer.rawMatchers
+  const matchers = layer.rawMatchers
 
-  return (m.noSlash ? firstMatch(rawPath, matchers, '') : undefined) ?? firstMatch(rawPath, matchers, m.path)
+  return (noSlash ? firstMatch(rawPath, matchers, '') : undefined) ?? firstMatch(rawPath, matchers, path)
 }
 
 function firstMatch(

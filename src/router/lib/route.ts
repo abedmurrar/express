@@ -20,6 +20,7 @@ const Layer = require('./layer') as LayerConstructor
 const { METHODS } = require('node:http') as typeof import('node:http')
 const { methodAdded } = require('./warnings') as typeof import('./warnings')
 const { withCode } = require('../../error-code') as typeof import('../../error-code')
+const { requestChannel } = require('./tracing') as typeof import('./tracing')
 
 import type {
   Layer as LayerInstance,
@@ -194,6 +195,12 @@ proto.dispatch = function dispatch(req, res, done) {
 
   req.route = this
 
+  // Not in router 2.2.0 or 2.3.0: whether the tracing channel (./tracing) has
+  // subscribers, checked once per dispatch, which picks each layer's traced
+  // or untraced method
+  // `var`, so the closures below read it without a temporal-dead-zone check
+  var traced = requestChannel.hasSubscribers
+
   next()
 
   function next(err?: unknown): void | NodeJS.Immediate {
@@ -232,7 +239,10 @@ proto.dispatch = function dispatch(req, res, done) {
     }
 
     if (err) {
-      layer.handleError(err, req, res, next)
+      if (traced) layer.traceError(err, req, res, next)
+      else layer.handleError(err, req, res, next)
+    } else if (traced) {
+      layer.traceRequest(req, res, next)
     } else {
       layer.handleRequest(req, res, next)
     }

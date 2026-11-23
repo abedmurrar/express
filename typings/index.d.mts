@@ -55,6 +55,7 @@ export import RequestParamHandler = express.RequestParamHandler
 export import Response = express.Response
 export import RouteParameters = express.RouteParameters
 export import RouterOptions = express.RouterOptions
+export import RouterWithErrorHandlers = express.RouterWithErrorHandlers
 export import Send = express.Send
 export import SendFileOptions = express.SendFileOptions
 export import ServeStaticConstructor = express.ServeStaticConstructor

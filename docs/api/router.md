@@ -207,6 +207,20 @@ app.use('/api', api);
 
 The layers it adds have `errorOnly` set to `true` in `router.stack`.
 
+In TypeScript, `express.Router()` returns a `RouterWithErrorHandlers`: a `Router` with `error()`,
+kept through chaining. The `Router` type itself has no `error()`, so that a router typed with
+`@types/express-serve-static-core` stays assignable to it. A variable annotated `express.Router`
+therefore doesn't show `error()`; let the type be inferred, or annotate it
+`express.RouterWithErrorHandlers`:
+
+```ts
+const api = express.Router(); // RouterWithErrorHandlers
+api.error(onError);
+
+const typed: express.Router = express.Router();
+typed.error(onError); // type error: express.Router has no error()
+```
+
 ### router.METHOD()
 
 **Parameters**

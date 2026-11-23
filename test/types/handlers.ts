@@ -145,8 +145,18 @@ app.error(async (_err, _req, res) => {
 })
 const chained: express.Express = app.error(onError).error('/x', onError)
 void chained
+// express.Router() returns a RouterWithErrorHandlers: a Router with error(),
+// kept through chaining. The Router type itself has no error(), so a variable
+// annotated express.Router doesn't show it.
+const inferred = express.Router()
+inferred.use((_req, _res, next) => next()).error(onError)
 const errorRouter: express.Router = express.Router().error(onError).error('/x', onError)
-void errorRouter
+const withErrors: express.RouterWithErrorHandlers = express.Router()
+withErrors.get('/x', (_req, res) => res.end()).error('/x', onError)
+const annotated: express.Router = express.Router()
+// @ts-expect-error annotated as express.Router, which has no error() in the types
+annotated.error(onError)
+void [errorRouter, annotated]
 // @ts-expect-error a handler, not a value
 app.error(42)
 // @ts-expect-error a handler, not a value

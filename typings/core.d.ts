@@ -565,12 +565,21 @@ export interface IRoute<Route extends string | RegExp = string> {
   unsubscribe: IRouterHandler<this, Route>
 }
 
-export interface Router extends IRouter {
+export interface Router extends IRouter {}
+
+/**
+ * What `express.Router()` returns: a `Router` with the fork's `error()`. Not
+ * in Express 5.3.0. `Router` itself has no `error`, so a router typed with
+ * `@types/express-serve-static-core` stays assignable to it; a variable
+ * annotated `Router` therefore doesn't show `error()` (annotate it with this
+ * type, or let it be inferred).
+ */
+export interface RouterWithErrorHandlers extends Router {
   /**
-   * Not in Express 5.3.0: add error handlers, with an optional path, as
-   * `use()` adds middleware. They run only for an error, whatever their
-   * length, so a wrapped, bound or compiled handler, or one without `next`,
-   * works; a function of length 4 added with `use()` still works too.
+   * Add error handlers, with an optional path, as `use()` adds middleware.
+   * They run only for an error, whatever their length, so a wrapped, bound or
+   * compiled handler, or one without `next`, works; a function of length 4
+   * added with `use()` still works too.
    */
   error: IRouterErrorMatcher<this>
 }
@@ -1444,12 +1453,7 @@ export interface Application<LocalsObj extends Record<string, any> = Record<stri
   listen(path: string, callback?: (error?: Error) => void): http.Server
   listen(handle: any, listeningListener?: (error?: Error) => void): http.Server
 
-  /**
-   * `IRouter`, the same type as `Router` without the fork's `router.error()`,
-   * so an app typed with `@types/express-serve-static-core`, whose router
-   * has no `error`, stays assignable to this one (`app.error()` is the same).
-   */
-  router: IRouter
+  router: Router
 
   settings: any
 

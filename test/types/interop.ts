@@ -38,4 +38,12 @@ app.error(dtErrorHandler)
 dtApp.error('/x', dtErrorHandler)
 express.Router().error(dtErrorHandler)
 
+// Routers stay assignable both ways: express.Router has no error() in the
+// types; only what express.Router() returns (RouterWithErrorHandlers) does.
+const fromDtRouter: express.Router = dtRouter
+const fromFactory: express.Router = express.Router()
+const toDtRouter: dt.Router = express.Router()
+const fromOurRouter: dt.Router = ourRouter
+
+void [fromDtRouter, fromFactory, toDtRouter, fromOurRouter]
 void [asDtHandler, fromDtRequest, fromDtResponse, toDtRequest, toDtResponse, toDtApp, fromDtApp]

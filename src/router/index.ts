@@ -107,7 +107,6 @@ interface ParamCalled {
  * @private
  */
 
-const slice = Array.prototype.slice
 const flatten = Array.prototype.flat
 const methods = METHODS.map((method) => method.toLowerCase()) as Array<HttpMethod | 'all'>
 
@@ -397,7 +396,7 @@ proto.handle = function handleRequest(req, res, callback) {
 
       // build up automatic options response
       if (!hasMethod && method === 'OPTIONS' && methods) {
-        methods.push.apply(methods, route._methods())
+        methods.push(...route._methods())
       }
 
       // don't even bother matching route
@@ -515,7 +514,7 @@ proto.handle = function handleRequest(req, res, callback) {
  * @public
  */
 
-proto.use = function use(handler) {
+proto.use = function use(handler, ...rest) {
   let offset = 0
   let path: PathParams = '/'
 
@@ -535,7 +534,8 @@ proto.use = function use(handler) {
     }
   }
 
-  const callbacks: unknown[] = flatten.call(slice.call(arguments, offset), Infinity)
+  const args: unknown[] = offset === 0 ? [handler, ...rest] : rest
+  const callbacks: unknown[] = flatten.call(args, Infinity)
 
   if (callbacks.length === 0) {
     throw withCode(new TypeError('argument handler is required'), 'EXPRESS_ERR_HANDLER_REQUIRED')
@@ -628,9 +628,9 @@ proto.route = function route(path) {
 
 // create Router#VERB functions
 methods.concat('all').forEach(function (method) {
-  proto[method] = function (path) {
+  proto[method] = function (path, ...handlers) {
     const route = this.route(path)
-    route[method].apply(route, slice.call(arguments, 1))
+    route[method].apply(route, handlers)
     return this
   }
 })
@@ -888,12 +888,10 @@ function processParams(
  */
 
 function restore<T extends object, K extends keyof T>(fn: NextFunction, obj: T, ...props: K[]): NextFunction
-function restore<T extends object, K extends keyof T>(fn: Function, obj: T): Function {
-  const props = new Array<K>(arguments.length - 2)
-  const vals = new Array<T[K]>(arguments.length - 2)
+function restore<T extends object, K extends keyof T>(fn: Function, obj: T, ...props: K[]): Function {
+  const vals = new Array<T[K]>(props.length)
 
   for (let i = 0; i < props.length; i++) {
-    props[i] = arguments[i + 2]
     vals[i] = obj[props[i] as K]
   }
 
@@ -953,14 +951,7 @@ function trySendOptionsResponse(res: RouterResponse, methods: string[], next: Ne
  */
 
 function wrap(old: NextFunction, fn: Function): NextFunction {
-  return function proxy(this: unknown) {
-    const args = new Array<unknown>(arguments.length + 1)
-
-    args[0] = old
-    for (let i = 0, len = arguments.length; i < len; i++) {
-      args[i + 1] = arguments[i]
-    }
-
-    fn.apply(this, args)
+  return function proxy(this: unknown, ...args: unknown[]) {
+    fn.call(this, old, ...args)
   }
 }

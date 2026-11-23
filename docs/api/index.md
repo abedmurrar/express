@@ -59,3 +59,4 @@ With express v5.x, you can define routes, configure middleware, and start handli
 - [Request object](/api/request): the properties and methods of the Express 5.x request object.
 - [Response object](/api/response): the properties and methods of the Express 5.x response object.
 - [Router](/api/router): the properties and methods of the Express 5.x router.
+- [Error codes](/api/errors): the `code` on every error Express creates, and when each one is raised (a fork addition).

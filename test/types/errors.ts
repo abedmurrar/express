@@ -25,6 +25,9 @@ express.Router({ caseSensitive: 'yes' })
 new express.Route()
 // @ts-expect-error a number is not middleware
 app.use(42)
+// @ts-expect-error not one of the error codes
+const mistyped: express.ErrorCode = 'EXPRESS_ERR_VIEW_NOTFOUND'
+void mistyped
 // @ts-expect-error req.get needs a header name
 app.get('/', (req) => req.get())
 // @ts-expect-error a path parameter is a string

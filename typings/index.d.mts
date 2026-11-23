@@ -29,6 +29,7 @@ export import BodyParserHandler = express.BodyParserHandler
 export import CookieOptions = express.CookieOptions
 export import DownloadOptions = express.DownloadOptions
 export import Errback = express.Errback
+export import ErrorCode = express.ErrorCode
 export import ErrorRequestHandler = express.ErrorRequestHandler
 export import Express = express.Express
 export import Handler = express.Handler

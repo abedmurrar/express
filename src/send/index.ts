@@ -31,6 +31,7 @@ var path = require('path') as typeof import('path')
 var statuses = require('statuses') as typeof import('statuses')
 var Stream = require('stream') as typeof import('stream')
 var util = require('util') as typeof import('util')
+var withCode = (require('../error-code') as typeof import('../error-code')).withCode
 
 import type { EventEmitter } from 'node:events'
 import type { Stats } from 'node:fs'
@@ -38,6 +39,7 @@ import type { IncomingMessage, OutgoingHttpHeader, OutgoingHttpHeaders, ServerRe
 import type { Stream as NodeStream } from 'node:stream'
 import type { Range, Ranges, Result as RangeResult } from 'range-parser'
 import type { StringValue } from 'ms'
+import type { ErrorCode } from '../error-code'
 
 /** `fs.createReadStream()`'s options object (`@types/node` doesn't export its name). */
 type ReadStreamOptions = Exclude<Parameters<typeof fs.createReadStream>[1], BufferEncoding | undefined>
@@ -104,7 +106,7 @@ export interface SendStream extends NodeStream {
   /** in milliseconds */
   _maxage: number
   _root: string | null
-  error(status: number, err?: (Error & SendErrorDetails) | SendErrorDetails): void
+  error(status: number, err?: (Error & SendErrorDetails) | SendErrorDetails, code?: ErrorCode): void
   hasTrailingSlash(): boolean
   isConditionalGET(): string | undefined
   isPreconditionFailure(): boolean
@@ -228,14 +230,23 @@ function SendStream(this: SendStreamInit, req: IncomingMessage, path: string, op
   this._dotfiles = opts.dotfiles !== undefined ? opts.dotfiles : 'ignore'
 
   if (this._dotfiles !== 'ignore' && this._dotfiles !== 'allow' && this._dotfiles !== 'deny') {
-    throw new TypeError('dotfiles option must be "allow", "deny", or "ignore"')
+    throw withCode(
+      new TypeError('dotfiles option must be "allow", "deny", or "ignore"'),
+      'EXPRESS_ERR_INVALID_DOTFILES_OPTION'
+    )
   }
 
-  this._extensions = opts.extensions !== undefined ? normalizeList(opts.extensions, 'extensions option') : []
+  this._extensions =
+    opts.extensions !== undefined
+      ? normalizeList(opts.extensions, 'extensions option', 'EXPRESS_ERR_INVALID_EXTENSIONS_OPTION')
+      : []
 
   this._immutable = opts.immutable !== undefined ? Boolean(opts.immutable) : false
 
-  this._index = opts.index !== undefined ? normalizeList(opts.index, 'index option') : ['index.html']
+  this._index =
+    opts.index !== undefined
+      ? normalizeList(opts.index, 'index option', 'EXPRESS_ERR_INVALID_INDEX_OPTION')
+      : ['index.html']
 
   this._lastModified = opts.lastModified !== undefined ? Boolean(opts.lastModified) : true
 
@@ -264,13 +275,14 @@ const proto = SendStream.prototype as SendStream
  *
  * @param {number} status
  * @param {Error} [err]
+ * @param {string} [code]
  * @private
  */
 
-proto.error = function error(status, err): boolean | void {
+proto.error = function error(status, err, code): boolean | void {
   // emit if listeners instead of responding
   if (hasListeners(this, 'error')) {
-    return this.emit('error', createHttpError(status, err))
+    return this.emit('error', createHttpError(status, err, code))
   }
 
   var res = this.res
@@ -393,7 +405,7 @@ proto.notModified = function notModified() {
  */
 
 proto.headersAlreadySent = function headersAlreadySent() {
-  var err = new Error("Can't set headers after they are sent.")
+  var err = withCode(new Error("Can't set headers after they are sent."), 'EXPRESS_ERR_SEND_HEADERS_SENT')
   debug('headers already sent')
   this.error(500, err)
 }
@@ -486,7 +498,7 @@ proto.redirect = function redirect(path) {
   }
 
   if (this.hasTrailingSlash()) {
-    this.error(403)
+    this.error(403, undefined, 'EXPRESS_ERR_SEND_IS_DIRECTORY')
     return
   }
 
@@ -521,13 +533,13 @@ proto.pipe = function pipe(res) {
   // decode the path
   var path = decode(this.path)
   if (path === -1) {
-    this.error(400)
+    this.error(400, undefined, 'EXPRESS_ERR_SEND_INVALID_PATH')
     return res
   }
 
   // null byte(s)
   if (~path.indexOf('\0')) {
-    this.error(400)
+    this.error(400, undefined, 'EXPRESS_ERR_SEND_INVALID_PATH')
     return res
   }
 
@@ -541,7 +553,7 @@ proto.pipe = function pipe(res) {
     // malicious path
     if (UP_PATH_REGEXP.test(path)) {
       debug('malicious path "%s"', path)
-      this.error(403)
+      this.error(403, undefined, 'EXPRESS_ERR_SEND_MALICIOUS_PATH')
       return res
     }
 
@@ -554,7 +566,7 @@ proto.pipe = function pipe(res) {
     // ".." is malicious without "root"
     if (UP_PATH_REGEXP.test(path)) {
       debug('malicious path "%s"', path)
-      this.error(403)
+      this.error(403, undefined, 'EXPRESS_ERR_SEND_MALICIOUS_PATH')
       return res
     }
 
@@ -572,11 +584,11 @@ proto.pipe = function pipe(res) {
       case 'allow':
         break
       case 'deny':
-        this.error(403)
+        this.error(403, undefined, 'EXPRESS_ERR_SEND_DOTFILE_DENIED')
         return res
       case 'ignore':
       default:
-        this.error(404)
+        this.error(404, undefined, 'EXPRESS_ERR_SEND_DOTFILE_IGNORED')
         return res
     }
   }
@@ -647,7 +659,7 @@ proto.send = function sendPath(path, stat, sizeUnknown) {
   // conditional GET support
   if (this.isConditionalGET()) {
     if (this.isPreconditionFailure()) {
-      this.error(412)
+      this.error(412, undefined, 'EXPRESS_ERR_SEND_PRECONDITION_FAILED')
       return
     }
 
@@ -686,9 +698,13 @@ proto.send = function sendPath(path, stat, sizeUnknown) {
       res.setHeader('Content-Range', contentRange('bytes', len))
 
       // 416 Requested Range Not Satisfiable
-      return this.error(416, {
-        headers: { 'Content-Range': res.getHeader('Content-Range') }
-      })
+      return this.error(
+        416,
+        {
+          headers: { 'Content-Range': res.getHeader('Content-Range') }
+        },
+        'EXPRESS_ERR_SEND_RANGE_NOT_SATISFIABLE'
+      )
     }
 
     // valid (syntactically invalid/multiple ranges are treated as a regular response)
@@ -752,14 +768,14 @@ proto.sendFile = function sendFile(path) {
     }
     if (err) return self.onStatError(err)
     if (stat.isDirectory()) return self.redirect(path)
-    if (pathEndsWithSep) return self.error(404)
+    if (pathEndsWithSep) return self.error(404, undefined, 'EXPRESS_ERR_SEND_NOT_FOUND')
     self.emit('file', path, stat)
     self.send(path, stat)
   })
 
   function nextExtension(err?: NodeJS.ErrnoException) {
     if (self._extensions.length <= i) {
-      return err ? self.onStatError(err) : self.error(404)
+      return err ? self.onStatError(err) : self.error(404, undefined, 'EXPRESS_ERR_SEND_NOT_FOUND')
     }
 
     var p = path + '.' + self._extensions[i++]
@@ -787,7 +803,7 @@ proto.sendIndex = function sendIndex(path) {
   function nextIndex(err?: NodeJS.ErrnoException) {
     if (++i >= self._index.length) {
       if (err) return self.onStatError(err)
-      return self.error(404)
+      return self.error(404, undefined, 'EXPRESS_ERR_SEND_NOT_FOUND')
     }
 
     var p = join(path, self._index[i] as string)
@@ -997,15 +1013,17 @@ function createHtmlDocument(title: string, body: string): string {
  *
  * @param {number} status
  * @param {Error|object} err
+ * @param {string} [code]
  * @private
  */
 
-function createHttpError(status: number, err?: (Error & SendErrorDetails) | SendErrorDetails) {
-  if (!err) {
-    return createError(status)
+function createHttpError(status: number, err?: (Error & SendErrorDetails) | SendErrorDetails, code?: ErrorCode) {
+  if (err instanceof Error) {
+    return createError(status, err, { expose: false })
   }
 
-  return err instanceof Error ? createError(status, err, { expose: false }) : createError(status, err)
+  var httpError = err ? createError(status, err) : createError(status)
+  return code === undefined ? httpError : withCode(httpError, code)
 }
 
 /**
@@ -1068,15 +1086,16 @@ function hasListeners(emitter: EventEmitter, type: string): boolean {
  *
  * @param {boolean|string|array} val
  * @param {string} name
+ * @param {string} code
  * @private
  */
 
-function normalizeList(val: string | string[] | false, name: string): string[] {
+function normalizeList(val: string | string[] | false, name: string, code: ErrorCode): string[] {
   var list = ([] as string[]).concat(val || [])
 
   for (var i = 0; i < list.length; i++) {
     if (typeof list[i] !== 'string') {
-      throw new TypeError(name + ' must be array of strings or false')
+      throw withCode(new TypeError(name + ' must be array of strings or false'), code)
     }
   }
 

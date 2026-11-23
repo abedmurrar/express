@@ -23,6 +23,7 @@ const parseUrl = require('parseurl') as typeof import('parseurl')
 const Route = require('./lib/route') as RouteConstructor
 const symbols = require('./lib/symbols') as typeof import('./lib/symbols')
 const { checkPath, trackRoute } = require('./lib/warnings') as typeof import('./lib/warnings')
+const { withCode } = require('../error-code') as typeof import('../error-code')
 const mountMatch: typeof symbols.mountMatch = symbols.mountMatch
 const routeMatch: typeof symbols.routeMatch = symbols.routeMatch
 const debug = (require('debug') as typeof import('debug'))('router')
@@ -220,19 +221,19 @@ const proto = Router.prototype as Router
 
 proto.param = function param(name, fn) {
   if (!name) {
-    throw new TypeError('argument name is required')
+    throw withCode(new TypeError('argument name is required'), 'EXPRESS_ERR_PARAM_NAME_REQUIRED')
   }
 
   if (typeof name !== 'string') {
-    throw new TypeError('argument name must be a string')
+    throw withCode(new TypeError('argument name must be a string'), 'EXPRESS_ERR_PARAM_NAME_NOT_STRING')
   }
 
   if (!fn) {
-    throw new TypeError('argument fn is required')
+    throw withCode(new TypeError('argument fn is required'), 'EXPRESS_ERR_PARAM_CALLBACK_REQUIRED')
   }
 
   if (typeof fn !== 'function') {
-    throw new TypeError('argument fn must be a function')
+    throw withCode(new TypeError('argument fn must be a function'), 'EXPRESS_ERR_PARAM_CALLBACK_NOT_FUNCTION')
   }
 
   let params = this.params[name]
@@ -254,7 +255,7 @@ proto.param = function param(name, fn) {
 
 proto.handle = function handleRequest(req, res, callback) {
   if (!callback) {
-    throw new TypeError('argument callback is required')
+    throw withCode(new TypeError('argument callback is required'), 'EXPRESS_ERR_ROUTER_CALLBACK_REQUIRED')
   }
 
   // A request target never carries a fragment (RFC 9112 section 3.2), but
@@ -537,14 +538,14 @@ proto.use = function use(handler) {
   const callbacks: unknown[] = flatten.call(slice.call(arguments, offset), Infinity)
 
   if (callbacks.length === 0) {
-    throw new TypeError('argument handler is required')
+    throw withCode(new TypeError('argument handler is required'), 'EXPRESS_ERR_HANDLER_REQUIRED')
   }
 
   for (let i = 0; i < callbacks.length; i++) {
     const fn = callbacks[i]
 
     if (typeof fn !== 'function') {
-      throw new TypeError('argument handler must be a function')
+      throw withCode(new TypeError('argument handler must be a function'), 'EXPRESS_ERR_HANDLER_NOT_FUNCTION')
     }
 
     // Not in upstream (router 2.2.0, 2.3.0): a router mounted at "/" on
@@ -552,7 +553,10 @@ proto.use = function use(handler) {
     // it doesn't answer round forever. Mounts at other paths consume a part
     // of the path on each pass, so those cycles end and still work.
     if (path === '/' && fn instanceof Router && mountsAtRoot(fn as Router, this, new Set())) {
-      throw new TypeError('argument handler would mount this router on itself at "/", which loops forever')
+      throw withCode(
+        new TypeError('argument handler would mount this router on itself at "/", which loops forever'),
+        'EXPRESS_ERR_ROUTER_MOUNTS_ITSELF'
+      )
     }
 
     // add the middleware
@@ -866,7 +870,7 @@ function processParams(
         }
 
         ret.then(null, function (error: unknown) {
-          paramCallback(error || new Error('Rejected promise'))
+          paramCallback(error || withCode(new Error('Rejected promise'), 'EXPRESS_ERR_REJECTED_PROMISE'))
         })
       }
     } catch (e) {

@@ -101,7 +101,8 @@ export default defineConfig({
         application: 'Application',
         request: 'Request',
         response: 'Response',
-        router: 'Router'
+        router: 'Router',
+        errors: 'Error codes'
       }),
 
       '/advanced/': section('Advanced topics', '/advanced/', {

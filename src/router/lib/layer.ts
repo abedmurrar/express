@@ -19,6 +19,7 @@ const isPromise = require('is-promise') as typeof import('is-promise').default
 const pathRegexp = require('path-to-regexp') as typeof import('path-to-regexp')
 const debug = (require('debug') as typeof import('debug'))('router:layer')
 const deprecate = (require('depd') as typeof import('depd'))('router')
+const { withCode } = require('../../error-code') as typeof import('../../error-code')
 
 import type { MatchFunction, MatchOptions, ParamData } from 'path-to-regexp'
 import type { Request } from '../../request'
@@ -206,7 +207,7 @@ proto.handleError = function handleError(error, req, res, next) {
       }
 
       ret.then(null, function (error: unknown) {
-        next(error || new Error('Rejected promise'))
+        next(error || withCode(new Error('Rejected promise'), 'EXPRESS_ERR_REJECTED_PROMISE'))
       })
     }
   } catch (err) {
@@ -242,7 +243,7 @@ proto.handleRequest = function handleRequest(req, res, next) {
       }
 
       ret.then(null, function (error: unknown) {
-        next(error || new Error('Rejected promise'))
+        next(error || withCode(new Error('Rejected promise'), 'EXPRESS_ERR_REJECTED_PROMISE'))
       })
     }
   } catch (err) {
@@ -313,6 +314,7 @@ function decodeParam(val: string | undefined): string | undefined {
     if (err instanceof URIError) {
       err.message = "Failed to decode param '" + val + "'"
       ;(err as URIError & { status: number }).status = 400
+      withCode(err, 'EXPRESS_ERR_PARAM_DECODE_FAILED')
     }
 
     throw err

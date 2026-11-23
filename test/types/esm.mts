@@ -13,6 +13,7 @@ import express, {
   text,
   urlencoded,
   type Application,
+  type ErrorCode,
   type Express,
   type NextFunction,
   type Request,
@@ -31,6 +32,7 @@ router.get('/:id', (req: Request<{ id: string }>, res: Response) => {
 app.use('/things', router)
 
 const route = new Route('/x')
+const code: ErrorCode = 'EXPRESS_ERR_HANDLER_REQUIRED'
 const proto: Application = application
 const handler: RequestHandler = (_req, _res, next: NextFunction) => next()
 app.use(handler)
@@ -40,4 +42,4 @@ const sameRouter: typeof express.Router = namespace.Router
 const sameStatic: typeof express.static = namespace.static
 const sameDefault: typeof express = namespace.default
 
-void [route, proto, request, response, sameRouter, sameStatic, sameDefault]
+void [route, code, proto, request, response, sameRouter, sameStatic, sameDefault]

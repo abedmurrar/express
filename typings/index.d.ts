@@ -20,6 +20,7 @@
  * - The core types that apps import from express-serve-static-core
  *   (`ParamsDictionary`, `Query`, `RouteParameters` and the rest) are also
  *   exported here, so they can come from `express`.
+ * - `ErrorCode`, the codes on the errors Express creates (a fork addition).
  *
  * MIT License
  *
@@ -356,6 +357,55 @@ declare namespace e {
   > = core.RequestHandlerParams<P, ResBody, ReqBody, ReqQuery, Locals>
   type SendFileOptions = core.SendFileOptions
   type DownloadOptions = core.DownloadOptions
+
+  /**
+   * The `code` of an error Express created (a fork addition, not in Express 5.3.0). The list,
+   * with what raises each code, is in docs/api/errors.md. Errors that already had a code (`ENOENT`,
+   * `ERR_HTTP_HEADERS_SENT`, ...) keep it.
+   */
+  type ErrorCode =
+    | 'EXPRESS_ERR_MIDDLEWARE_REQUIRED'
+    | 'EXPRESS_ERR_ENGINE_CALLBACK_REQUIRED'
+    | 'EXPRESS_ERR_INVALID_ETAG_OPTION'
+    | 'EXPRESS_ERR_INVALID_QUERY_PARSER_OPTION'
+    | 'EXPRESS_ERR_NO_DEFAULT_ENGINE'
+    | 'EXPRESS_ERR_VIEW_ENGINE_NOT_FOUND'
+    | 'EXPRESS_ERR_VIEW_NOT_FOUND'
+    | 'EXPRESS_ERR_HEADER_NAME_REQUIRED'
+    | 'EXPRESS_ERR_HEADER_NAME_NOT_STRING'
+    | 'EXPRESS_ERR_INVALID_STATUS_CODE'
+    | 'EXPRESS_ERR_STATUS_CODE_OUT_OF_RANGE'
+    | 'EXPRESS_ERR_SENDFILE_PATH_REQUIRED'
+    | 'EXPRESS_ERR_SENDFILE_PATH_NOT_STRING'
+    | 'EXPRESS_ERR_SENDFILE_PATH_NOT_ABSOLUTE'
+    | 'EXPRESS_ERR_CONTENT_TYPE_ARRAY'
+    | 'EXPRESS_ERR_COOKIE_SECRET_REQUIRED'
+    | 'EXPRESS_ERR_NOT_ACCEPTABLE'
+    | 'EXPRESS_ERR_PARAM_NAME_REQUIRED'
+    | 'EXPRESS_ERR_PARAM_NAME_NOT_STRING'
+    | 'EXPRESS_ERR_PARAM_CALLBACK_REQUIRED'
+    | 'EXPRESS_ERR_PARAM_CALLBACK_NOT_FUNCTION'
+    | 'EXPRESS_ERR_ROUTER_CALLBACK_REQUIRED'
+    | 'EXPRESS_ERR_HANDLER_REQUIRED'
+    | 'EXPRESS_ERR_HANDLER_NOT_FUNCTION'
+    | 'EXPRESS_ERR_ROUTER_MOUNTS_ITSELF'
+    | 'EXPRESS_ERR_PARAM_DECODE_FAILED'
+    | 'EXPRESS_ERR_REJECTED_PROMISE'
+    | 'EXPRESS_ERR_INVALID_DOTFILES_OPTION'
+    | 'EXPRESS_ERR_INVALID_EXTENSIONS_OPTION'
+    | 'EXPRESS_ERR_INVALID_INDEX_OPTION'
+    | 'EXPRESS_ERR_SEND_HEADERS_SENT'
+    | 'EXPRESS_ERR_SEND_INVALID_PATH'
+    | 'EXPRESS_ERR_SEND_MALICIOUS_PATH'
+    | 'EXPRESS_ERR_SEND_DOTFILE_DENIED'
+    | 'EXPRESS_ERR_SEND_DOTFILE_IGNORED'
+    | 'EXPRESS_ERR_SEND_IS_DIRECTORY'
+    | 'EXPRESS_ERR_SEND_NOT_FOUND'
+    | 'EXPRESS_ERR_SEND_PRECONDITION_FAILED'
+    | 'EXPRESS_ERR_SEND_RANGE_NOT_SATISFIABLE'
+    | 'EXPRESS_ERR_STATIC_ROOT_REQUIRED'
+    | 'EXPRESS_ERR_STATIC_ROOT_NOT_STRING'
+    | 'EXPRESS_ERR_STATIC_SET_HEADERS_NOT_FUNCTION'
 }
 
 export = e

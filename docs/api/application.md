@@ -646,6 +646,52 @@ With the `view cache` setting on, the file found is cached under the view name, 
 file for an earlier extension later has no effect until restart. A failed lookup is not cached.
 Sub-apps inherit `view engines` and the parent's engines, but not `views`, which has a default.
 
+### app.error()
+
+**Parameters**
+
+- **`path`** · `String | RegExp | Array` · _optional_, default `'/'`
+
+  The path the error handlers are mounted at, as for [`app.use()`](#appuse).
+
+- **`callback`** · `Function | Function[]`
+
+  One or more error handlers, called as `(err, req, res, next)`.
+
+**Returns:** `Application`
+
+This is a fork addition; Express 5.3.0 has no `app.error()`.
+
+Adds error handlers, mounted at `path` as `app.use()` mounts middleware. They run only when there
+is an error, whatever the number of parameters the function declares, so a handler that leaves out
+`next`, or that a wrapper, `bind`, a default or rest parameter, a compiler or a minifier gave a
+different `length`, still handles errors, and never runs as a normal middleware:
+
+```js
+app.get('/', (req, res) => {
+  throw new Error('boom');
+});
+
+// three parameters: with app.use(), this would run as a normal middleware
+app.error((err, req, res) => {
+  res.status(500).send('Something broke!');
+});
+```
+
+Handlers run in the order they were added, among the middleware and routes: an error goes to the
+next error handler after the point it was raised, whether it was added with `app.error()` or with
+`app.use()` and four parameters. A handler calls `next(err)` to pass the error on, or `next()` to
+go back to the normal middleware and routes after it. A path is matched and trimmed as for
+`app.use()`, so `app.error('/api', handler)` handles errors raised under `/api` only, with
+`req.baseUrl` set to `/api`. A sub-app or router passes the errors it doesn't handle to its
+parent, where the parent's error handlers get them.
+
+An error handler of four parameters added with `app.use()` keeps working as before. Routers and
+Express apps can't take an error, so `app.error()` throws a `TypeError` with the code
+`EXPRESS_ERR_ERROR_HANDLER_IS_ROUTER` for one (any function with a `handle` method counts as one);
+a missing handler or one that isn't a function throws as `app.use()` does. See
+[Writing error handlers](/guide/error-handling#writing-error-handlers).
+
 ### app.get(name)
 
 **Parameters**

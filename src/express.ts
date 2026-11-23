@@ -12,7 +12,7 @@ import type { Application } from './application'
 import type { BodyParser } from './body-parser'
 import type { Request } from './request'
 import type { ExpressResponse } from './response'
-import type { NextFunction, RouterConstructor } from './router'
+import type { HandlerList, NextFunction, PathParams, RouterConstructor } from './router'
 import type { ServeStaticFunction } from './serve-static'
 
 /**
@@ -42,6 +42,24 @@ const dc = require('node:diagnostics_channel') as typeof import('node:diagnostic
 const initializationChannel = dc.channel('express.initialization')
 
 /**
+ * Not in Express 5.3.0: the methods the fork adds to every app. They are kept
+ * off `express.application` (`proto`), whose own properties stay those of
+ * Express 5.3.0, and mixed in after it, so a method of the same name patched
+ * onto `express.application` still wins.
+ */
+
+const additions = {
+  /**
+   * Proxy `Router#error()` to add error handlers to the app router, which
+   * run only for an error, whatever their length (expressjs/express#2896).
+   */
+  error: function error(this: Application, fn: unknown, ...rest: unknown[]) {
+    this.router.error(fn as PathParams | HandlerList, ...(rest as HandlerList[]))
+    return this
+  }
+}
+
+/**
  * Expose `createApplication()`.
  */
 
@@ -62,6 +80,7 @@ function createApplication(): Application {
 
   mixin(app, EventEmitter.prototype)
   mixin(app, proto)
+  mixin(app, additions)
 
   // expose the prototype that will get set on requests
   app.request = Object.create(req, {

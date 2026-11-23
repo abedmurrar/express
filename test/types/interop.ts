@@ -31,4 +31,19 @@ const toDtResponse: dt.Response = ourResponse
 const toDtApp: dt.Express = app
 const fromDtApp: express.Express = dtApp
 
+// app.error() (a fork addition) is declared on the global Express.Application
+// both kinds of app extend, so an app typed with either has it, and takes an
+// error handler typed with either.
+app.error(dtErrorHandler)
+dtApp.error('/x', dtErrorHandler)
+express.Router().error(dtErrorHandler)
+
+// Routers stay assignable both ways: express.Router has no error() in the
+// types; only what express.Router() returns (RouterWithErrorHandlers) does.
+const fromDtRouter: express.Router = dtRouter
+const fromFactory: express.Router = express.Router()
+const toDtRouter: dt.Router = express.Router()
+const fromOurRouter: dt.Router = ourRouter
+
+void [fromDtRouter, fromFactory, toDtRouter, fromOurRouter]
 void [asDtHandler, fromDtRequest, fromDtResponse, toDtRequest, toDtResponse, toDtApp, fromDtApp]

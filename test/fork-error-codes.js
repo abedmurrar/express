@@ -247,6 +247,12 @@ var CASES = [
     { forkOnly: true }
   ],
   [
+    'EXPRESS_ERR_ERROR_HANDLER_IS_ROUTER',
+    'router.error() given a router (fork only: 5.3.0 has no error())',
+    (lib) => thrown(() => lib.Router().error(lib.Router())),
+    { forkOnly: true }
+  ],
+  [
     'EXPRESS_ERR_PARAM_DECODE_FAILED',
     'a route parameter that is not valid percent-encoding',
     (lib) => caught(lib, (app) => app.get('/users/:id', (req, res) => res.end()), '/users/%E0')

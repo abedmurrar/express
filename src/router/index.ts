@@ -292,14 +292,21 @@ proto.handle = function handleRequest(req, res, callback) {
   // manage inter-router variables
   const parentParams = req.params
   const parentUrl = req.baseUrl || ''
-  let done = restore<RouterRequest & MatchedRequest, 'baseUrl' | 'next' | 'params' | typeof matchedRoute>(
-    callback,
-    req,
-    'baseUrl',
-    'next',
-    'params',
-    matchedRoute
-  )
+  // Not in router 2.2.0 or 2.3.0: whether the tracing channel (lib/tracing)
+  // has subscribers, checked once here rather than for every layer. Only a
+  // traced router keeps the matched pattern, so only it restores it (2.3.0
+  // always restores it, with baseUrl, next and params).
+  const traced = requestChannel.hasSubscribers
+  let done = traced
+    ? restore<RouterRequest & MatchedRequest, 'baseUrl' | 'next' | 'params' | typeof matchedRoute>(
+        callback,
+        req,
+        'baseUrl',
+        'next',
+        'params',
+        matchedRoute
+      )
+    : restore(callback, req, 'baseUrl', 'next', 'params')
 
   // setup next layer
   req.next = next
@@ -447,14 +454,14 @@ proto.handle = function handleRequest(req, res, callback) {
     }
 
     // Router 2.3.0 (tracing): keep the matched pattern on the request before
-    // param callbacks can yield. Not in 2.3.0: the entry of a path array that
-    // matched is only looked up while traced, as it runs its matchers again.
-    const pattern = !Array.isArray(layer.rawPath)
-      ? layer.rawPath
-      : requestChannel.hasSubscribers
+    // param callbacks can yield. Not in 2.3.0: only while traced, and the
+    // pattern comes from rawPath (see matchedPattern), since match() returns
+    // true here rather than 2.3.0's match object.
+    if (traced) {
+      ;(req as RouterRequest & MatchedRequest)[matchedRoute] = Array.isArray(layer.rawPath)
         ? matchedPattern(layer, path, noSlash && route !== undefined)
-        : undefined
-    ;(req as RouterRequest & MatchedRequest)[matchedRoute] = pattern
+        : layer.rawPath
+    }
 
     // Capture one-time layer values
     req.params = self.mergeParams ? mergeParams(layer.params as Params, parentParams) : (layer.params as Params)
@@ -465,7 +472,7 @@ proto.handle = function handleRequest(req, res, callback) {
       if (err) {
         next(layerError || err)
       } else if (route) {
-        layer.handleRequest(req, res, next)
+        layer.handleRequest(req, res, next, traced)
       } else {
         trimPrefix(layer, layerError, layerPath, path)
       }
@@ -523,9 +530,9 @@ proto.handle = function handleRequest(req, res, callback) {
     debug('%s %s : %s', layer.name, layerPath, req.originalUrl)
 
     if (layerError) {
-      layer.handleError(layerError, req, res, next)
+      layer.handleError(layerError, req, res, next, traced)
     } else {
-      layer.handleRequest(req, res, next)
+      layer.handleRequest(req, res, next, traced)
     }
   }
 }

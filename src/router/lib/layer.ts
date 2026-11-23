@@ -69,8 +69,8 @@ export interface Layer {
   rawMatchers: Array<MatchFunction<Params>> // one per rawPath entry
   method?: string | undefined // set by the route
   route?: Route | undefined // set by the router
-  handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
-  handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction, traced?: boolean): void
+  handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction, traced?: boolean): void
   match(path: string | null | undefined): boolean
 }
 
@@ -194,7 +194,7 @@ const proto = Layer.prototype as Layer
  * @api private
  */
 
-proto.handleError = function handleError(error, req, res, next) {
+proto.handleError = function handleError(error, req, res, next, traced = requestChannel.hasSubscribers) {
   const fn = this.handle as ErrorRequestHandler
 
   if (fn.length !== 4) {
@@ -203,8 +203,10 @@ proto.handleError = function handleError(error, req, res, next) {
   }
 
   // Not in router 2.2.0: router 2.3.0's tracing (lib/tracing), only while the
-  // channel has subscribers, so nothing is allocated otherwise
-  if (requestChannel.hasSubscribers) {
+  // channel has subscribers, so nothing is allocated otherwise. Not in 2.3.0:
+  // the router and the route pass whether it has (`traced`), checked once as
+  // they start, instead of a check per handler.
+  if (traced) {
     return invokeWithTrace(
       function invokeErrorHandler(wrappedNext) {
         return fn(error, req, res, wrappedNext)
@@ -250,7 +252,7 @@ proto.handleError = function handleError(error, req, res, next) {
  * @api private
  */
 
-proto.handleRequest = function handleRequest(req, res, next) {
+proto.handleRequest = function handleRequest(req, res, next, traced = requestChannel.hasSubscribers) {
   const fn = this.handle as RequestHandler
 
   if (fn.length > 3) {
@@ -259,10 +261,11 @@ proto.handleRequest = function handleRequest(req, res, next) {
   }
 
   // Not in router 2.2.0: router 2.3.0's tracing (lib/tracing), only while the
-  // channel has subscribers, so nothing is allocated otherwise. A route's own
-  // layer (this.route is set) only calls route.dispatch, and the handlers in
-  // the route are traced one by one, so it isn't traced itself.
-  if (requestChannel.hasSubscribers && this.route === undefined) {
+  // channel has subscribers (`traced`, as in handleError), so nothing is
+  // allocated otherwise. A route's own layer (this.route is set) only calls
+  // route.dispatch, and the handlers in the route are traced one by one, so it
+  // isn't traced itself.
+  if (traced && this.route === undefined) {
     return invokeWithTrace(
       function invokeHandler(wrappedNext) {
         return fn(req, res, wrappedNext)

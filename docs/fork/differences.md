@@ -60,6 +60,23 @@ Opt-in: an app that doesn't use them behaves as on Express 5.3.0.
 - **Error codes.** Every error Express creates has a stable `code`, such as `EXPRESS_ERR_VIEW_NOT_FOUND`, so error handlers can branch on it instead of on the message. The property isn't enumerable, so serialised and logged errors look as on Express 5.3.0, and errors that already had a code (`ENOENT`, `ERR_HTTP_HEADERS_SENT`) keep it. See [Error codes](/api/errors).
 - **Diagnostics channels.** Every middleware, route handler, error handler and `app.param()` callback is traced through the `express.router.request` `TracingChannel` (start, end, asyncStart, asyncEnd and error, with `req`, `res`, the handler, the matched pattern and the error), the same channel and payload as router 2.3.0, so APM subscribers written for it work unchanged; `express()` publishes `{ app }` on `express.initialization`. Nothing runs without subscribers. See [Diagnostics channels](/api/diagnostics).
 
+## Deprecations
+
+The fork's 6.x line removes or changes a few things an app on Express 5.3.0 can call or rely on (see "Our 6.0" in the [roadmap](./roadmap)). Where the app's own code can tell, the compatible line keeps the old behaviour and prints a deprecation warning, as Express itself always has: through `depd`, to stderr, as `express deprecated <message> at <file>:<line>:<column>`. `node --no-deprecation` or `NO_DEPRECATION=express` turns them off, `--trace-deprecation` adds a stack trace, and a `process.on('deprecation')` listener gets them instead of stderr.
+
+The ones that can fire on every request print once per process, at the first call site; the others once per call site.
+
+| Warning | When | Before moving to 6.x | Prints |
+|---|---|---|---|
+| `res.send(object): Use res.json(object) instead` | `res.send()` with an object, array, number or boolean, which it sends as JSON (#2249). 6.x keeps sending it | Use `res.json()` | once per process |
+| `res.set('Content-Type', 'json'): Use res.type('json') instead` | `res.set('Content-Type', value)` with a file extension instead of a type, which is looked up (#7145). 6.x sets the value as given | Use `res.type()`, or the full type | once per process |
+| `app.set('trust proxy', 1): a hop count throws in 6.x; ...` | `trust proxy` set to a number (#6541) | List the proxies' addresses or subnets, such as `'loopback, 10.0.0.0/8'` | once per call site |
+| `req.get('referer'): this request has different Referer and Referrer headers; ...` | A request has both headers, with different values; `req.get()` returns `Referrer` (#3951). 6.x returns `Referer` | Read the header you mean from `req.headers` | once per process |
+| `req.query: the query string has more than 1000 parameters ...` | The `simple` or `extended` parser dropped parts after the first 1,000 (#5878). 6.x answers `400` | Nothing in code: clients that send this many parameters get a 400 on 6.x | once per process |
+| `render callback threw on a missing view: ...` | A `res.render()` or `app.render()` callback throws on a missing view, which reaches the error handler because the callback runs before `render` returns. 6.x looks views up asynchronously, where the throw ends the process | Pass the error to `next(err)` | once per call site |
+| `Provide a url argument`, `Url must be a string`, `Status must be a number` | `res.redirect()` without a URL, or with arguments of the wrong type (Express 5.3.0 prints these too). 6.x throws | Pass `res.redirect([status,] url)` | once per call site |
+| `router deprecated handlers that are Promise-like are deprecated, ...` | A handler or `router.param()` callback returns a thenable that isn't a `Promise` (router 2.2.0 prints these too). 6.x treats it as a plain value | Return a native `Promise` | once per call site |
+
 ## Tests that guard the drop-in promise
 
 - **Differential harness.** Thousands of scenarios (329 written by hand and 3,306 generated from every `res` method and `req` property) run on Express 5.3.0 and on the fork, and must give byte-identical responses and error logs. The method comes from [ultimate-express](https://github.com/dimdenGD/ultimate-express)'s test runner.

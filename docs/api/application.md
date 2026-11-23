@@ -1377,6 +1377,8 @@ app.query('/search', (req: Request, res: Response) => {
 
   The callback invoked as `callback(err, html)` with the rendered HTML.
 
+  On a missing view, the callback runs before `app.render()` returns, so a throw from it reaches the caller. That prints a deprecation warning in the fork: its 6.x looks views up asynchronously, where the throw would end the process. See [Deprecations](/fork/differences#deprecations).
+
 Returns the rendered HTML of a view via the `callback` function. It accepts an optional parameter
 that is an object containing local variables for the view. It is like [res.render()](/api/response#resrender),
 except it cannot send the rendered view to the client on its own.
@@ -1695,6 +1697,12 @@ app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal']);
 When specified, the IP addresses or the subnets are excluded from the address determination process, and the untrusted IP address nearest to the application server is determined as the client's IP address.
 
 **Number**: Trust the *n*th hop from the front-facing proxy server as the client.
+
+::: warning Deprecated in the fork
+
+A number still works, and prints a deprecation warning once per call site: the fork's 6.x throws for a hop count. List the proxies' addresses or subnets instead, as above. See [Deprecations](/fork/differences#deprecations).
+
+:::
 
 **Function**: Custom trust implementation. Use this only if you know what you are doing.
 

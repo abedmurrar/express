@@ -634,6 +634,8 @@ may not be a function and instead a string or other user-input.
 
 :::
 
+The built-in parsers (`simple` and `extended`) read only the first 1,000 `&`-separated parts of the query string and drop the rest. In the fork, that prints a deprecation warning once per process, because its 6.x answers such a request with `400 Bad Request` ([#5878](https://github.com/expressjs/express/issues/5878)). See [Deprecations](/fork/differences#deprecations).
+
 The value of this property can be configured with the [query parser application setting](/api/application#application-settings) to work how your application needs it. A very popular query string parser is the [`qs` module](https://www.npmjs.com/package/qs), and this is used by default. The `qs` module is very configurable with many settings, and it may be desirable to use different settings than the default to populate `req.query`:
 
 ::: code-group
@@ -1037,6 +1039,12 @@ req.get('Something');
 ```
 
 Aliased as `req.header(field)`.
+
+::: warning Deprecated in the fork
+
+When a request has both a `Referrer` and a `Referer` header with different values, `req.get('referer')` returns `Referrer`, as in Express 5.3.0, and prints a deprecation warning once per process: the fork's 6.x returns `Referer`, the header's standard name ([#3951](https://github.com/expressjs/express/issues/3951)). See [Deprecations](/fork/differences#deprecations).
+
+:::
 
 ### req.is()
 

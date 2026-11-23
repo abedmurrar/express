@@ -120,6 +120,15 @@ declare namespace e {
      * Enable strict routing.
      */
     strict?: boolean | undefined
+
+    /**
+     * With `strict`, also be strict about the mount path: under
+     * `app.use('/dir', router)`, `GET /dir` matches only routes for `''`,
+     * and a route for `'/'` answers `GET /dir/` alone. Not in Express 5.3.0.
+     *
+     * @default false
+     */
+    strictMount?: boolean | undefined
   }
 
   /** The middleware that `express.json()`, `raw()`, `text()` and `urlencoded()` return. */

@@ -229,3 +229,106 @@ describe('sub-app with "strict routing" mounted at a path', function () {
       })
   })
 })
+
+// Not in Express 5.3.0 (expressjs/express#2281): the "strict mount routing"
+// setting gives the app's router the strictMount option, so with "strict
+// routing" its get('/') answers "/blog/" and not "/blog".
+describe('sub-app with "strict mount routing" mounted at a path', function () {
+  function slashApp(configure) {
+    var blog = express()
+    configure(blog)
+    blog.get('/', function (req, res) {
+      res.send('slash ' + req.baseUrl + ' ' + req.url)
+    })
+    return blog
+  }
+
+  function expectStatuses(app, cases, done) {
+    ;(function next(i) {
+      if (i === cases.length) return done()
+      request(app)
+        .get(cases[i][0])
+        .expect(cases[i][1], function (err) {
+          if (err) return done(err)
+          next(i + 1)
+        })
+    })(0)
+  }
+
+  it('routes "/blog" past get("/") with "strict routing"', function (done) {
+    var app = express()
+    app.use(
+      '/blog',
+      slashApp(function (blog) {
+        blog.enable('strict routing')
+        blog.enable('strict mount routing')
+      })
+    )
+    expectStatuses(
+      app,
+      [
+        ['/blog', 404],
+        ['/blog/', 200],
+        ['/blog/?x=1', 200]
+      ],
+      done
+    )
+  })
+
+  it('does nothing without "strict routing"', function (done) {
+    var app = express()
+    app.use(
+      '/blog',
+      slashApp(function (blog) {
+        blog.enable('strict mount routing')
+      })
+    )
+    expectStatuses(
+      app,
+      [
+        ['/blog', 200],
+        ['/blog/', 200]
+      ],
+      done
+    )
+  })
+
+  it('is inherited from the parent, like "strict routing"', function (done) {
+    var app = express()
+    app.enable('strict routing')
+    app.enable('strict mount routing')
+    var blog = express()
+    app.use('/blog', blog)
+    blog.get('/', function (req, res) {
+      res.send('slash')
+    })
+    expectStatuses(
+      app,
+      [
+        ['/blog', 404],
+        ['/blog/', 200]
+      ],
+      done
+    )
+  })
+
+  it("is read when the app's router is created", function (done) {
+    var app = express()
+    app.use(
+      '/blog',
+      slashApp(function (blog) {
+        blog.enable('strict routing')
+        void blog.router
+        blog.enable('strict mount routing')
+      })
+    )
+    expectStatuses(
+      app,
+      [
+        ['/blog', 200],
+        ['/blog/', 200]
+      ],
+      done
+    )
+  })
+})

@@ -80,6 +80,17 @@ app.use('/calendar', router);
 
     Enable strict routing. Disabled by default, `/foo` and `/foo/` are treated the same by the router.
 
+  - **`strictMount`** · `Boolean` · default: `false`
+
+    With `strict`, be strict about the mount path too. Mounted with `app.use('/dir', router)`, a request for `/dir` (nothing after the mount path) matches only the router's routes for `''`, so `router.get('/')` answers `/dir/` and not `/dir`. Without it, a strict router's `/` route answers both, as in Express 5.3.0 ([#2281](https://github.com/expressjs/express/issues/2281)). Middleware added with `router.use()` matches both either way. Without `strict` this option does nothing. Not in Express 5.3.0.
+
+    ```js
+    const docs = express.Router({ strict: true, strictMount: true });
+    docs.get('', (req, res) => res.redirect('/docs/')); // GET /docs
+    docs.get('/', (req, res) => res.send('index'));      // GET /docs/
+    app.use('/docs', docs);
+    ```
+
 **Returns:** `Router`
 
 Creates a new router object.

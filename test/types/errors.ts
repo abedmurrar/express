@@ -21,6 +21,8 @@ app.use(express.urlencoded({ depth: '3' }))
 app.use(express.static())
 // @ts-expect-error caseSensitive is a boolean
 express.Router({ caseSensitive: 'yes' })
+// @ts-expect-error strictMount is a boolean
+express.Router({ strict: true, strictMount: 'yes' })
 // @ts-expect-error a route needs its path
 new express.Route()
 // @ts-expect-error a number is not middleware

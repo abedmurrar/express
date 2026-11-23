@@ -341,6 +341,21 @@ describe('req', function () {
         app.use('/dir', dir)
         request(app).get('/dir').expect(200, '/dir/', done)
       })
+
+      it('should be the "" route with strictMount, even after a "/" route', function (done) {
+        var app = express()
+        var dir = router({ strict: true, strictMount: true })
+        dir.get(['/y', '/'], send)
+        dir.get(['/z', ''], send)
+        app.use('/dir', dir)
+
+        request(app)
+          .get('/dir')
+          .expect(200, '/dir', function (err) {
+            if (err) return done(err)
+            request(app).get('/dir/').expect(200, '/dir/', done)
+          })
+      })
     })
 
     describe('in error handlers', function () {

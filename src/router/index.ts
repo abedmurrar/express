@@ -58,6 +58,7 @@ export interface RouterOptions {
   caseSensitive?: boolean | undefined
   mergeParams?: boolean | undefined
   strict?: boolean | undefined
+  strictMount?: boolean | undefined
 }
 
 /** `router.param()` callbacks: a middleware that is also given the parameter's value and name. */
@@ -79,6 +80,7 @@ export interface Router extends HttpMethods<RouterMethod> {
   mergeParams: boolean | undefined
   params: Record<string, ParamCallback[]>
   strict: boolean | undefined
+  strictMount?: boolean | undefined
   stack: LayerInstance[]
   param(name: string, fn: ParamCallback): Router
   handle(req: RouterRequest, res: RouterResponse, callback: NextFunction): void
@@ -120,9 +122,10 @@ const methods = METHODS.map((method) => method.toLowerCase()) as Array<HttpMetho
  * exact `req.url` that adding the slash produced, while the mount is entered.
  * For that `req.url`, a strict router tries each route on "" before "/", so
  * `get('')` answers `/dir` and not `/dir/`. A route that matches "/" still
- * answers both, as before (making it answer only `/dir/` is the opt-in for
- * expressjs/express#2281). Once something rewrites `req.url`, it no longer
- * equals the stored value and routes as it reads.
+ * answers both, as before, unless the router has the `strictMount` option
+ * (expressjs/express#2281): then each route is matched on "" only, so
+ * `get('/')` answers `/dir/` and not `/dir`. Once something rewrites
+ * `req.url`, it no longer equals the stored value and routes as it reads.
  * @private
  */
 
@@ -167,6 +170,12 @@ function Router(this: Router, options?: RouterOptions): Router {
   router.params = {}
   router.strict = opts.strict
   router.stack = [] as LayerInstance[]
+
+  // Not in upstream (router 2.2.0, 2.3.0): opt-in, so a router that doesn't
+  // ask for it keeps upstream's own properties (see addedSlashUrl)
+  if (opts.strictMount === true) {
+    router.strictMount = true
+  }
 
   return router as Router
 }
@@ -369,7 +378,10 @@ proto.handle = function handleRequest(req, res, callback) {
 
     while (match !== true && idx < stack.length) {
       layer = stack[idx++] as LayerInstance
-      match = (noSlash && layer.route !== undefined && matchLayer(layer, '') === true) || matchLayer(layer, path)
+      match =
+        noSlash && layer.route !== undefined
+          ? matchLayer(layer, '') === true || (self.strictMount !== true && matchLayer(layer, path))
+          : matchLayer(layer, path)
       route = layer.route
 
       if (typeof match !== 'boolean') {

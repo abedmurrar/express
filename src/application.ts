@@ -180,7 +180,8 @@ app.init = function init(this: Application) {
       if (router === null) {
         router = new Router({
           caseSensitive: this.enabled('case sensitive routing'),
-          strict: this.enabled('strict routing')
+          strict: this.enabled('strict routing'),
+          strictMount: this.enabled('strict mount routing')
         })
       }
 

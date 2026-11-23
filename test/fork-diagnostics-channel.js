@@ -165,6 +165,41 @@ describe('fork: diagnostics_channel', function () {
       assert.strictEqual(events[4].error, 'boom')
     })
 
+    it('should trace app.error() handlers whatever their length, and only for errors', async function () {
+      var app = express()
+
+      app.get('/fail', function fail(req, res, next) {
+        next(new Error('failed'))
+      })
+      app.get('/ok', function ok(req, res, next) {
+        next()
+      })
+      app.error(function recover(err, req, res) {
+        res.status(500).send(err.message)
+      })
+      app.use(function notFound(req, res) {
+        res.status(404).send('none')
+      })
+
+      subscribe()
+      await request(app).get('/fail').expect(500, 'failed')
+      await request(app).get('/ok').expect(404, 'none')
+
+      assert.deepStrictEqual(sequence(), [
+        'start fail',
+        'error fail',
+        'start recover',
+        'end recover',
+        'end fail',
+        'start ok',
+        'start notFound',
+        'end notFound',
+        'end ok'
+      ])
+      assert.strictEqual(events[2].errorHandler, true)
+      assert.strictEqual(events[2].incomingError, 'failed')
+    })
+
     it('should report an error passed to next() at its origin', async function () {
       var app = express()
       var error = new Error('nope')

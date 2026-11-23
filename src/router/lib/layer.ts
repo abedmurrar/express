@@ -281,7 +281,7 @@ proto.handleRequest = function handleRequest(req, res, next) {
 proto.traceError = function traceError(error, req, res, next) {
   const fn = this.handle as ErrorRequestHandler
 
-  if (fn.length !== 4) {
+  if (fn.length !== 4 && !this.errorOnly) {
     // not a standard error handler
     return next(error)
   }
@@ -306,7 +306,7 @@ proto.traceError = function traceError(error, req, res, next) {
 proto.traceRequest = function traceRequest(req, res, next) {
   const fn = this.handle as RequestHandler
 
-  if (fn.length > 3) {
+  if (fn.length > 3 || this.errorOnly) {
     // not a standard request handler
     return next()
   }

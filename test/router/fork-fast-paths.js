@@ -235,7 +235,6 @@ describe('fork: routing fast paths', function () {
     // wherever the regex matches, the layer must match too. (Where the regex
     // doesn't, the layer can't: it runs the same regex after the prefix.)
     it('agrees with the regex on case for every character', function () {
-      this.timeout(60000)
       for (let p = 0x20; p < 0x7f; p++) {
         const literal = String.fromCharCode(p)
         if ('{}()[]+?!:*'.includes(literal)) continue
@@ -259,7 +258,7 @@ describe('fork: routing fast paths', function () {
           assert.strictEqual(matched, cases, route)
         }
       }
-    })
+    }, 60000)
 
     it('treats the Kelvin sign, long s and dotted or dotless i as the regex does', async function () {
       const setup = {

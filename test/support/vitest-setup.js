@@ -5,17 +5,38 @@
 //
 // - a test or hook function that takes an argument gets mocha's `done`
 //   callback: done() passes, done(err) fails, and a second call is an error;
-// - functions run with a mocha-like `this`: `this.timeout()` and `this.slow()`
-//   do nothing (vitest.config.js sets the timeouts) and `this.skip()` skips;
+// - functions run with a mocha-like `this`: `this.skip()` skips, `this.slow()`
+//   does nothing, and `this.timeout(ms)` in a describe block raises the timeout
+//   of the tests and hooks registered after it in that block and the blocks
+//   inside it (never below vitest.config.js's timeouts). Vitest starts a
+//   test's timer before the test runs, so inside a running test or hook a
+//   call can't raise it: one asking for more than the configured timeout
+//   throws, and the test passes its timeout as it()'s third argument instead;
 // - `before` and `after` are `beforeAll` and `afterAll`;
 // - mocha's --check-leaks: a test file must not add properties to globalThis.
 
 // mocha shares one `this` between a describe block's hooks and tests, and a
 // nested block's context inherits from its parent's. Hooks and tests use the
 // context of the block they are defined in.
+var config = require('../../vitest.config.js').test
+var kTimeout = Symbol('timeout')
 var currentTest
+var running = false
 var rootContext = {
-  timeout() {},
+  timeout(ms) {
+    if (!running) {
+      this[kTimeout] = ms
+      return
+    }
+    if (ms > config.testTimeout) {
+      throw new Error(
+        'this.timeout(' +
+          ms +
+          ') inside a running test or hook cannot raise its timeout: ' +
+          'pass it as the third argument of it() or call it in the describe block'
+      )
+    }
+  },
   slow() {},
   skip() {
     if (currentTest && typeof currentTest.skip === 'function') currentTest.skip()
@@ -31,7 +52,12 @@ function withDone(fn) {
   // functions to look for fixtures, so its context comes from `arguments`.
   return function () {
     currentTest = arguments[0]
-    if (fn.length === 0) return fn.call(context)
+    running = true
+    try {
+      if (fn.length === 0) return fn.call(context)
+    } finally {
+      running = false
+    }
     return new Promise(function (resolve, reject) {
       var called = false
       function done(err) {
@@ -40,10 +66,13 @@ function withDone(fn) {
         if (err) reject(err instanceof Error ? err : new Error(String(err)))
         else resolve()
       }
+      running = true
       try {
         fn.call(context, done)
       } catch (err) {
         reject(err)
+      } finally {
+        running = false
       }
     })
   }
@@ -80,15 +109,22 @@ function wrapDescribe(original) {
   return wrapped
 }
 
+// The timeout a describe block asked for with this.timeout(ms), when it is
+// longer than the configured one; otherwise Vitest's own default applies.
+function blockTimeout(configured) {
+  var ms = currentContext[kTimeout]
+  return ms > configured ? ms : undefined
+}
+
 function wrapTest(original) {
   function wrapped(name, fn, options) {
-    return original(name, withDone(fn), options)
+    return original(name, withDone(fn), options === undefined ? blockTimeout(config.testTimeout) : options)
   }
   wrapped.skip = function (name, fn, options) {
-    return original.skip(name, withDone(fn), options)
+    return original.skip(name, withDone(fn), options === undefined ? blockTimeout(config.testTimeout) : options)
   }
   wrapped.only = function (name, fn, options) {
-    return original.only(name, withDone(fn), options)
+    return original.only(name, withDone(fn), options === undefined ? blockTimeout(config.testTimeout) : options)
   }
   wrapped.todo = original.todo
   return wrapped
@@ -96,7 +132,7 @@ function wrapTest(original) {
 
 function wrapHook(original) {
   return function (fn, timeout) {
-    return original(withDone(fn), timeout)
+    return original(withDone(fn), timeout === undefined ? blockTimeout(config.hookTimeout) : timeout)
   }
 }
 

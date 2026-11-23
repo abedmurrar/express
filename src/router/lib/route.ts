@@ -198,7 +198,8 @@ proto.dispatch = function dispatch(req, res, done) {
   // Not in router 2.2.0 or 2.3.0: whether the tracing channel (./tracing) has
   // subscribers, checked once per dispatch, which picks each layer's traced
   // or untraced method
-  const traced = requestChannel.hasSubscribers
+  // `var`, so the closures below read it without a temporal-dead-zone check
+  var traced = requestChannel.hasSubscribers
 
   next()
 

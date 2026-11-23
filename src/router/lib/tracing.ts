@@ -7,7 +7,7 @@
 
 /**
  * Not in router 2.2.0: router 2.3.0's `diagnostics_channel` tracing
- * (pillarjs/router#196 by logaretm, with #207, #215 and #223), ported from
+ * (pillarjs/router#196, #207 and #223 by logaretm, #215 by bjohansebas), from
  * its lib/tracing.js and lib/param.js. Every middleware, route handler, error
  * handler and `router.param()` callback the router runs is traced through the
  * `express.router.request` TracingChannel, the same channel and context as

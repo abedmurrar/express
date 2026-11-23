@@ -21,6 +21,8 @@
  *   (`ParamsDictionary`, `Query`, `RouteParameters` and the rest) are also
  *   exported here, so they can come from `express`.
  * - `ErrorCode`, the codes on the errors Express creates (a fork addition).
+ * - `RouterTraceContext` and `InitializationMessage`, what Express's
+ *   `diagnostics_channel` channels publish (a fork addition).
  *
  * MIT License
  *
@@ -409,6 +411,42 @@ declare namespace e {
     | 'EXPRESS_ERR_STATIC_ROOT_REQUIRED'
     | 'EXPRESS_ERR_STATIC_ROOT_NOT_STRING'
     | 'EXPRESS_ERR_STATIC_SET_HEADERS_NOT_FUNCTION'
+
+  /**
+   * What every event of the `express.router.request` TracingChannel publishes, for each middleware,
+   * route handler, error handler and `app.param()` callback the router runs (a fork addition, not
+   * in Express 5.3.0; the channel and context are router 2.3.0's). docs/api/diagnostics.md says
+   * when each event fires. Subscribe with `diagnostics_channel.tracingChannel<unknown,
+   * express.RouterTraceContext>('express.router.request')`.
+   */
+  interface RouterTraceContext {
+    req: Request
+    res: Response
+    /** The router's layer. Internal: its shape may change between releases, so read it defensively. */
+    layer: core.ILayer
+    /** The function invoked: the handler, or the `app.param()` callback. */
+    handler: RequestHandler | ErrorRequestHandler | RequestParamHandler
+    /** The pattern that matched: the route's path, or the path a middleware, router or app was mounted with. */
+    route: string | RegExp | undefined
+    /** The parameter's name, for `app.param()` callbacks only. */
+    param?: string
+    /** The error the invocation reported: `next(err)`, a throw or a rejection. */
+    error?: unknown
+    /** The error an error handler received. */
+    incomingError?: unknown
+    /** `true` for error handlers (four arguments). */
+    errorHandler?: true
+    /** What the invocation returned, or what its promise resolved to. */
+    result?: unknown
+  }
+
+  /**
+   * What `express()` publishes on the `express.initialization` channel, once the app is set up
+   * (a fork addition, not in Express 5.3.0).
+   */
+  interface InitializationMessage {
+    app: Express
+  }
 }
 
 export = e

@@ -20,11 +20,17 @@ const pathRegexp = require('path-to-regexp') as typeof import('path-to-regexp')
 const debug = (require('debug') as typeof import('debug'))('router:layer')
 const deprecate = (require('depd') as typeof import('depd'))('router')
 const { withCode } = require('../../error-code') as typeof import('../../error-code')
+const symbols = require('./symbols') as typeof import('./symbols')
+const { publishEnd, recordThrown, requestChannel, traceAsyncEnd, wrapNext } =
+  require('./tracing') as typeof import('./tracing')
+const matchedRoute: typeof symbols.matchedRoute = symbols.matchedRoute
 
 import type { MatchFunction, MatchOptions, ParamData } from 'path-to-regexp'
 import type { Request } from '../../request'
 import type { ExpressResponse } from '../../response'
 import type { Route } from './route'
+import type { MatchedRequest } from './symbols'
+import type { TraceContext } from './tracing'
 
 /** Call it to pass control on, or with an error (or `'route'`, `'router'`) to skip ahead. */
 export type NextFunction = (err?: unknown) => void
@@ -66,6 +72,8 @@ export interface Layer {
   errorOnly: boolean // registered with error(): an error handler whatever its length (false on the prototype)
   handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
   handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  traceError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
+  traceRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
   match(path: string | null | undefined): boolean
 }
 
@@ -254,6 +262,139 @@ proto.handleRequest = function handleRequest(req, res, next) {
     }
   } catch (err) {
     next(err)
+  }
+}
+
+/**
+ * Not in router 2.2.0: handleError and handleRequest traced through router
+ * 2.3.0's request TracingChannel (lib/tracing). The router and the route call
+ * these instead when the channel has subscribers, which they check once as
+ * they start on a request. Router 2.3.0 has the traced path inside
+ * handleError and handleRequest, behind a subscriber check before every
+ * handler; here those two stay as in 2.2.0. A route's own layer only calls
+ * route.dispatch, which traces the route's handlers one by one, so the router
+ * always calls its handleRequest, never traceRequest.
+ *
+ * @api private
+ */
+
+proto.traceError = function traceError(error, req, res, next) {
+  const fn = this.handle as ErrorRequestHandler
+
+  if (fn.length !== 4 && !this.errorOnly) {
+    // not a standard error handler
+    return next(error)
+  }
+
+  invokeWithTrace(
+    function invokeErrorHandler(wrappedNext) {
+      return fn(error, req, res, wrappedNext)
+    },
+    {
+      req,
+      res,
+      incomingError: error,
+      layer: this,
+      handler: fn,
+      route: (req as RouterRequest & MatchedRequest)[matchedRoute],
+      errorHandler: true
+    },
+    next
+  )
+}
+
+proto.traceRequest = function traceRequest(req, res, next) {
+  const fn = this.handle as RequestHandler
+
+  if (fn.length > 3 || this.errorOnly) {
+    // not a standard request handler
+    return next()
+  }
+
+  invokeWithTrace(
+    function invokeHandler(wrappedNext) {
+      return fn(req, res, wrappedNext)
+    },
+    {
+      req,
+      res,
+      layer: this,
+      handler: fn,
+      route: (req as RouterRequest & MatchedRequest)[matchedRoute]
+    },
+    next
+  )
+}
+
+/**
+ * Invoke a handler wrapped in the request TracingChannel. Only called when the
+ * channel has subscribers, so ctx is always present. Router 2.3.0's, with the
+ * promise check written out as in the untraced path above (2.3.0 moved it to
+ * a `handlePromise` helper that both paths share).
+ * @private
+ */
+
+function invokeWithTrace(exec: (next: NextFunction) => unknown, ctx: TraceContext, next: NextFunction): void {
+  const wrappedNext = wrapNext(ctx, next)
+  let settled = false
+
+  // runStores fires `start` and sets the async context. Synchronous layers
+  // emit only start/end. All outcomes flow through wrappedNext to keep signal
+  // filtering and dedup in one place.
+  requestChannel.start.runStores(ctx, function () {
+    let out: PromiseLike<unknown> | undefined
+    try {
+      const ret = exec(wrappedNext)
+      if (isPromise(ret)) {
+        if (!(ret instanceof Promise)) {
+          deprecate('handlers that are Promise-like are deprecated, use a native Promise instead')
+        }
+        out = ret
+      } else {
+        // Same as tracePromise, a promise only gets its result once it resolves
+        ctx.result = ret
+      }
+    } catch (err) {
+      // A sync throw is forwarded verbatim, so a falsy value keeps routing
+      // exactly as the untraced path does.
+      wrappedNext(err)
+      recordThrown(ctx, err, true)
+      publishEnd(ctx, false)
+      return
+    }
+
+    publishEnd(ctx, out !== undefined)
+    if (out === undefined) return
+
+    try {
+      out.then(
+        function (value) {
+          // Same as tracePromise, only the first outcome settles the trace
+          if (settled) return
+          settled = true
+          ctx.result = value
+          traceAsyncEnd(ctx)
+        },
+        function (err: unknown) {
+          // A rejected promise is an error even when the reason is falsy;
+          // normalize it to the error the router forwards to next().
+          rejected(err || withCode(new Error('Rejected promise'), 'EXPRESS_ERR_REJECTED_PROMISE'))
+        }
+      )
+    } catch (err) {
+      // Same as tracePromise, a `then` that throws is a rejection, forwarded
+      // verbatim as the untraced path does
+      rejected(err)
+    }
+  })
+
+  function rejected(err: unknown) {
+    // Routing still gets every outcome, as the untraced path does
+    wrappedNext(err)
+    if (settled) return
+    settled = true
+    recordThrown(ctx, err, false)
+    traceAsyncEnd(ctx)
   }
 }
 

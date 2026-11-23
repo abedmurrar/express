@@ -9,9 +9,10 @@
 
 /**
  * Not in router 2.2.0. Router 2.3.0 adds a file of this name for its own
- * request symbol (`matchedRoute`); the re-sync adds it here. These two are
- * ours: what the routers record on the request so `req.originalRoute`
- * (`./original-route`) can be built when it is read, never while routing.
+ * request symbol, `matchedRoute`, which is ported here with its tracing
+ * (`./tracing`). The other two are ours: what the routers record on the
+ * request so `req.originalRoute` (`./original-route`) can be built when it is
+ * read, never while routing.
  * @private
  */
 
@@ -34,8 +35,15 @@ export const mountMatch: unique symbol = Symbol('router.mountMatch')
 /** The route layer that set `req.route`, kept as long as `req.route` is. */
 export const routeMatch: unique symbol = Symbol('router.routeMatch')
 
-/** The request, with the two records. */
+/**
+ * Router 2.3.0's symbol (pillarjs/router#207): the pattern the layer being run
+ * matched with, which the tracing context (`./tracing`) reports as `route`.
+ */
+export const matchedRoute: unique symbol = Symbol('router.tracing.matchedRoute')
+
+/** The request, with the two records and the matched pattern. */
 export interface MatchedRequest {
   [mountMatch]?: MatchRecord | undefined
   [routeMatch]?: MatchRecord | undefined
+  [matchedRoute]?: string | RegExp | undefined
 }

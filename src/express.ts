@@ -29,6 +29,17 @@ const Router = require('./router') as RouterConstructor
 const req = require('./request') as Request
 const res = require('./response') as ExpressResponse
 const { originalRoute } = require('./router/lib/original-route') as typeof import('./router/lib/original-route')
+const dc = require('node:diagnostics_channel') as typeof import('node:diagnostics_channel')
+
+/**
+ * Published with `{ app }` by every `express()` call, once the app is set up
+ * and before it is returned, so instrumentation can reach an app before any
+ * request does. Not in Express 5.3.0: ported from expressjs/express#7041 by
+ * DemianParkhomenko (open), the counterpart of Fastify's
+ * `fastify.initialization`.
+ */
+
+const initializationChannel = dc.channel('express.initialization')
 
 /**
  * Not in Express 5.3.0: the methods the fork adds to every app. They are kept
@@ -82,6 +93,11 @@ function createApplication(): Application {
   })
 
   app.init()
+
+  if (initializationChannel.hasSubscribers) {
+    initializationChannel.publish({ app })
+  }
+
   return app
 }
 

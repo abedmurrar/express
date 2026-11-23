@@ -280,7 +280,7 @@ Sub-apps will:
 
 - Not inherit the value of settings that have a default value. You must set the value in the sub-app.
 - Inherit the value of settings with no default value.
-- Inherit `case sensitive routing` and `strict routing` unless those settings are explicitly set on the sub-app. These values configure the sub-app's router when it is created; mounting does not reconfigure an existing router. If a parent uses path-specific middleware to protect a sub-app, apply that middleware to the full mount path of the sub-app rather than to a narrower path inside it.
+- Inherit `case sensitive routing`, `strict routing` and `strict mount routing` unless those settings are explicitly set on the sub-app. These values configure the sub-app's router when it is created; mounting does not reconfigure an existing router. If a parent uses path-specific middleware to protect a sub-app, apply that middleware to the full mount path of the sub-app rather than to a narrower path inside it.
 
 For details, see [Application settings](#application-settings).
 
@@ -1516,7 +1516,7 @@ Sub-apps will:
 
 - Not inherit the value of settings that have a default value. You must set the value in the sub-app.
 - Inherit the value of settings with no default value; these are explicitly noted in the table below.
-- Inherit `case sensitive routing` and `strict routing` unless those settings are explicitly set on the sub-app. These values configure the sub-app's router when it is created; mounting does not reconfigure an existing router. If a parent uses path-specific middleware to protect a sub-app, apply that middleware to the full mount path of the sub-app rather than to a narrower path inside it.
+- Inherit `case sensitive routing`, `strict routing` and `strict mount routing` unless those settings are explicitly set on the sub-app. These values configure the sub-app's router when it is created; mounting does not reconfigure an existing router. If a parent uses path-specific middleware to protect a sub-app, apply that middleware to the full mount path of the sub-app rather than to a narrower path inside it.
 
 Exceptions: Sub-apps will inherit the value of `trust proxy` even though it has a default value (for backward-compatibility);
 Sub-apps will not inherit the value of `view cache` in production (when `NODE_ENV` is "production").
@@ -1592,6 +1592,16 @@ Sub-apps will not inherit the value of `view cache` in production (when `NODE_EN
   ::: info
 
   Sub-apps inherit this setting unless they explicitly set their own value. If the sub-app's router already exists when the setting is inherited, `subApp.get('strict routing')` reports the inherited value, but the router keeps its original configuration. To avoid relying on mount order, set `strict routing` on the sub-app before its router is created.
+
+  :::
+
+- **`strict mount routing`** · `Boolean` · default: N/A (undefined)
+
+  With `strict routing`, be strict about the mount path too. When the app is mounted with `parent.use('/blog', app)`, a request for `/blog` (nothing after the mount path) matches only the app's routes for `''`, so `app.get('/')` answers `/blog/` and not `/blog`. Without it, the app's `/` route answers both, as in Express 5.3.0 ([#2281](https://github.com/expressjs/express/issues/2281)). It gives the app's router the [`strictMount`](/api/router#router) option, and is read when the router is created, like `strict routing`. Without `strict routing` it does nothing. Not in Express 5.3.0.
+
+  ::: info
+
+  Sub-apps inherit this setting unless they explicitly set their own value, as with `strict routing`.
 
   :::
 

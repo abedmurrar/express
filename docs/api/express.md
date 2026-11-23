@@ -321,6 +321,10 @@ app.post('/upload', (req: Request, res: Response) => {
   strictRouter.get('/foo/', (req, res) => res.send('Matched /foo/ with trailing slash'));
   ```
 
+- **`strictMount`** · `Boolean` · default: `false`
+
+  With `strict`, be strict about the mount path too: under `app.use('/dir', router)`, `GET /dir` matches only routes for `''`, and a route for `'/'` answers `GET /dir/` alone. Not in Express 5.3.0. See [Router()](/api/router#router).
+
 **Returns:** `Router`
 
 Creates a new [router](/api/router) object.

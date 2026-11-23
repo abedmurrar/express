@@ -230,7 +230,7 @@ describe('regressions: request, app and routing', function () {
       assert.deepStrictEqual(JSON.parse(r.body), { schema: 1 })
     })
 
-    it('#2281 strict routing is not applied to the mount path (an opt-in is planned)', async function () {
+    it('#2281 strict routing is not applied to the mount path unless the router opts in', async function () {
       var app = express()
       app.set('strict routing', true)
       var r = express.Router({ strict: true })
@@ -239,6 +239,17 @@ describe('regressions: request, app and routing', function () {
       })
       app.use('/strict/', r)
       assert.strictEqual((await request(app, { path: '/strict' })).status, 200)
+      assert.strictEqual((await request(app, { path: '/strict/' })).status, 200)
+    })
+
+    it('#2281 a strict router with strictMount answers "/" only with the slash', async function () {
+      var app = express()
+      var r = express.Router({ strict: true, strictMount: true })
+      r.get('/', function (req, res) {
+        res.send('hi')
+      })
+      app.use('/strict/', r)
+      assert.strictEqual((await request(app, { path: '/strict' })).status, 404)
       assert.strictEqual((await request(app, { path: '/strict/' })).status, 200)
     })
 

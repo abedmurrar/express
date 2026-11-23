@@ -80,6 +80,8 @@ app.param('id', (req, _res, next, value: any, name: string) => {
 
 // routers and sub-apps
 const router: Router = express.Router({ caseSensitive: true, mergeParams: true, strict: false })
+const strictMountRouter: Router = express.Router({ strict: true, strictMount: true })
+strictMountRouter.get('', (_req, res) => res.send('no slash'))
 router.use((_req, _res, next) => next())
 router.get('/', (_req, res) => res.send('birds'))
 router.param('bird', (_req, _res, next) => next())

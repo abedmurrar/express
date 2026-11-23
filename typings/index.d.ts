@@ -93,7 +93,8 @@ declare namespace e {
    */
   var urlencoded: (options?: OptionsUrlencoded) => BodyParserHandler
 
-  export function Router(options?: RouterOptions): core.Router
+  /** Returns a router with the fork's `error()` (`RouterWithErrorHandlers`, a `Router`). */
+  export function Router(options?: RouterOptions): core.RouterWithErrorHandlers
 
   /**
    * The route constructor that `router.route(path)` uses.
@@ -340,6 +341,7 @@ declare namespace e {
   interface Response<ResBody = any, Locals extends Record<string, any> = Record<string, any>>
     extends core.Response<ResBody, Locals> {}
   interface Router extends core.Router {}
+  interface RouterWithErrorHandlers extends core.RouterWithErrorHandlers {}
   interface Send extends core.Send {}
 
   // The core types apps used to import from express-serve-static-core.
@@ -389,6 +391,7 @@ declare namespace e {
     | 'EXPRESS_ERR_HANDLER_REQUIRED'
     | 'EXPRESS_ERR_HANDLER_NOT_FUNCTION'
     | 'EXPRESS_ERR_ROUTER_MOUNTS_ITSELF'
+    | 'EXPRESS_ERR_ERROR_HANDLER_IS_ROUTER'
     | 'EXPRESS_ERR_PARAM_DECODE_FAILED'
     | 'EXPRESS_ERR_REJECTED_PROMISE'
     | 'EXPRESS_ERR_INVALID_DOTFILES_OPTION'

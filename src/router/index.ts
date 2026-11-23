@@ -83,6 +83,7 @@ export interface Router extends HttpMethods<RouterMethod> {
   param(name: string, fn: ParamCallback): Router
   handle(req: RouterRequest, res: RouterResponse, callback: NextFunction): void
   use(handler: PathParams | HandlerList, ...handlers: HandlerList[]): Router
+  error(handler: PathParams | HandlerList, ...handlers: HandlerList[]): Router
   route(path: PathParams): RouteInstance
   all: RouterMethod
 }
@@ -580,6 +581,39 @@ proto.use = function use(handler, ...rest) {
   // Not in upstream (router 2.2.0, 2.3.0): warn about a path no request can
   // match (lib/warnings), on the express:router debug namespace
   checkPath(path, 'use')
+
+  return this
+}
+
+/**
+ * Not in upstream (router 2.2.0, 2.3.0): use() for error handlers
+ * (expressjs/express#2896; pillarjs/router#59 proposed it). The arguments are
+ * use()'s, and each function is mounted as use() mounts it, but runs only for
+ * an error, whatever its length, so a wrapped, bound or compiled handler whose
+ * length isn't 4 still works. A router or an app can't take the error, so it
+ * is refused.
+ *
+ * @public
+ */
+
+proto.error = function error(handler, ...rest) {
+  const start = this.stack.length
+
+  this.use(handler, ...rest)
+
+  for (let i = start; i < this.stack.length; i++) {
+    const layer = this.stack[i] as LayerInstance
+
+    if (typeof (layer.handle as { handle?: unknown }).handle === 'function') {
+      this.stack.length = start
+      throw withCode(
+        new TypeError('argument handler must be an error handler, not a router or an app'),
+        'EXPRESS_ERR_ERROR_HANDLER_IS_ROUTER'
+      )
+    }
+
+    layer.errorOnly = true
+  }
 
   return this
 }

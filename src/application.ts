@@ -100,6 +100,9 @@ export interface Application extends EventEmitter, Omit<HttpMethods<ApplicationM
   handle(req: Request, res: ExpressResponse, callback?: NextFunction): void
   use(...handlers: HandlerList[]): this
   use(path: PathParams, ...handlers: HandlerList[]): this
+  /** Not in Express 5.3.0: defined by `src/express` on each app, not on this prototype object. */
+  error(...handlers: HandlerList[]): this
+  error(path: PathParams, ...handlers: HandlerList[]): this
   route(path: PathParams): Route
   engine(ext: string, fn: Engine): this
   param(name: string | string[], fn: ParamCallback): this

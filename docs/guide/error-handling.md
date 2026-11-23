@@ -615,3 +615,54 @@ Calls to `next()` and `next(err)` indicate that the current handler is complete 
 handle errors as described above.
 
 :::
+
+### Error handlers whose length isn't 4
+
+This is a fork addition; Express 5.3.0 has no `app.error()`.
+
+`app.use()` tells an error handler from a middleware by the number of parameters the function
+declares, its `length`: four means an error handler. A function can declare four and still have
+another `length`, and then it silently becomes a normal middleware that runs on every request,
+while errors pass it by. That happens when:
+
+- a linter or a reviewer removes the unused `next` parameter;
+- `next` has a default value, `(err, req, res, next = noop)`, or the parameters are a rest
+  parameter, `(err, ...args)`;
+- the handler is wrapped, for logging, tracing or async error handling, in a function such as
+  `(...args) => handler(...args)`, or bound with `bind`;
+- a compiler or a minifier rewrites the parameter list.
+
+Add these with `app.error()` (or `router.error()` on a router) instead of `app.use()`. They then run
+only for an error, whatever their `length`, at the same place in the order and with the same
+optional path as `app.use()`:
+
+::: code-group
+
+```js [JavaScript]
+// before: with three parameters, app.use() runs this as a normal middleware
+app.use((err, req, res) => {
+  res.status(500).send('Something broke!');
+});
+
+// after
+app.error((err, req, res) => {
+  res.status(500).send('Something broke!');
+});
+
+app.error('/api', withTracing(apiErrorHandler));
+```
+
+```ts [TypeScript]
+import { type ErrorRequestHandler } from 'express';
+
+const onError: ErrorRequestHandler = (err, req, res) => {
+  res.status(500).send('Something broke!');
+};
+
+app.error(onError);
+```
+
+:::
+
+Handlers of four parameters added with `app.use()`, including those inside a route's list of
+handlers, keep working as before, so nothing has to move at once.

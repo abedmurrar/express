@@ -113,9 +113,10 @@ with no error, so the request can reach the routes after it.
 | `EXPRESS_ERR_PARAM_CALLBACK_REQUIRED` | `TypeError` | `router.param()` or `app.param()` without a callback |
 | `EXPRESS_ERR_PARAM_CALLBACK_NOT_FUNCTION` | `TypeError` | `router.param()` or `app.param()` with a callback that isn't a function |
 | `EXPRESS_ERR_ROUTER_CALLBACK_REQUIRED` | `TypeError` | `router.handle()` without its callback |
-| `EXPRESS_ERR_HANDLER_REQUIRED` | `TypeError` | `router.use()`, `router.METHOD()`, `route.all()` or `route.METHOD()` (and `app.METHOD()`, `app.all()`) without a handler |
+| `EXPRESS_ERR_HANDLER_REQUIRED` | `TypeError` | `router.use()`, `router.METHOD()`, `route.all()` or `route.METHOD()` (and `app.METHOD()`, `app.all()`), or `router.error()` or `app.error()`, without a handler |
 | `EXPRESS_ERR_HANDLER_NOT_FUNCTION` | `TypeError` | the same calls with a handler that isn't a function |
 | `EXPRESS_ERR_ROUTER_MOUNTS_ITSELF` | `TypeError` | `router.use()` mounting a router at `/` on itself, directly or through routers mounted at `/` (a fork addition: Express 5.3.0 accepts it and loops on every request) |
+| `EXPRESS_ERR_ERROR_HANDLER_IS_ROUTER` | `TypeError` | `router.error()` or `app.error()` given a router or an Express app, which can't take the error (a fork addition, like the `error()` methods) |
 | `EXPRESS_ERR_PARAM_DECODE_FAILED` | `URIError` (status 400) | a request whose route parameter isn't valid percent-encoding, such as `/users/%E0` for `/users/:id`; passed to `next()` |
 | `EXPRESS_ERR_REJECTED_PROMISE` | `Error` | a handler, error handler or `param` callback whose promise rejects with no reason (`undefined` or another falsy value); passed to `next()` |
 

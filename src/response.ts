@@ -47,6 +47,57 @@ const resolve = path.resolve
 const basename = path.basename
 const vary = require('vary') as typeof import('vary')
 
+/**
+ * Not in Express 5.3.0: whether the res.send(object) and the res.set
+ * Content-Type shorthand deprecations have printed. They print once per
+ * process, not once per call site as depd does, because depd reads the stack
+ * on every call to find the call site, and these calls are on the request
+ * path of apps that use them.
+ * @private
+ */
+
+var warnedSendJson = false
+var warnedSetTypeShorthand = false
+
+/**
+ * res.json(body), for res.send() given a value it sends as JSON, with a
+ * deprecation (once per process): it keeps working (#2249). Not in Express
+ * 5.3.0. A function of its own rather than a branch in res.send, which runs
+ * on every response: code added to res.send changed how V8 optimized it
+ * (0.1% to 0.3% more instructions per request in every scenario).
+ * @private
+ */
+
+function sendJson(res: ExpressResponse, body: unknown): ExpressResponse {
+  if (!warnedSendJson) {
+    warnedSendJson = true
+    deprecate('res.send(' + typeof body + '): Use res.json(' + typeof body + ') instead')
+  }
+  return res.json(body)
+}
+
+/**
+ * mimeContentType, for res.set('Content-Type', value), with a deprecation
+ * (once per process) when the value is a file extension that the lookup
+ * turns into a type, such as "json": 6.x sets the value as given (#7145).
+ * Not in Express 5.3.0. The check lives here and not in res.set, which runs
+ * on every response: code added to res.set changed how V8 optimized it and
+ * its callers (0.1% to 0.3% more instructions per request).
+ * @private
+ */
+
+function setContentType(value: string): string | false {
+  var type = mimeContentType(value)
+  if (type && !warnedSetTypeShorthand && value.indexOf('/') === -1) {
+    warnedSetTypeShorthand = true
+    deprecate("res.set('Content-Type', '" + value + "'): Use res.type('" + value + "') instead")
+  }
+  return type
+}
+
+/** Not in Express 5.3.0: see app.render (src/application.ts). @private */
+const RENDER_CALLBACK_THREW = Symbol.for('express.renderCallbackThrew')
+
 /** A header value, as `setHeader` takes it. */
 export type HeaderValue = number | string | readonly string[]
 
@@ -319,7 +370,8 @@ res.send = function send(this: ExpressResponse, body?: unknown) {
 
           chunk = chunk.byteLength === 0 ? Buffer.alloc(0) : Buffer.from(chunk)
         } else {
-          return this.json(chunk)
+          // Not in Express 5.3.0: it keeps working, with a deprecation (#2249)
+          return sendJson(this, chunk)
         }
         break
     }
@@ -914,7 +966,7 @@ res.set = res.header = function header(this: ExpressResponse, field: string | Re
         }
         // mime.contentType gives false for a type it doesn't know, which Node
         // would write as "false"; keep the value as given instead
-        value = mimeContentType(value) || value
+        value = setContentType(value) || value
       }
 
       this.setHeader(field as string, value)
@@ -1214,8 +1266,17 @@ res.render = function render(
       }
     }
 
-  // render
-  app.render(view, opts, done)
+  // render. Not in Express 5.3.0: app.render marks opts when the callback
+  // threw on a missing view, which 6.x reports asynchronously, where the
+  // throw would end the process; the same value is rethrown
+  try {
+    app.render(view, opts, done)
+  } catch (thrown) {
+    if ((opts as Record<symbol, unknown>)[RENDER_CALLBACK_THREW] === true) {
+      deprecate('render callback threw on a missing view: in 6.x this ends the process; pass the error to next(err)')
+    }
+    throw thrown
+  }
 }
 
 // pipe the send file stream

@@ -38,6 +38,18 @@ const parseRange = require('range-parser') as typeof import('range-parser')
 const parse = require('parseurl') as typeof import('parseurl')
 const proxyaddr = require('proxy-addr') as typeof import('proxy-addr')
 const { withCode } = require('./error-code') as typeof import('./error-code')
+const deprecate = (require('depd') as typeof import('depd'))('express')
+
+/**
+ * Not in Express 5.3.0: whether the Referrer and query-limit deprecations
+ * have printed. They depend on what a client sends, so they print once per
+ * process rather than once per call site, which would make depd read the
+ * stack on every such request.
+ * @private
+ */
+
+var warnedReferrer = false
+var warnedQueryLimit = false
 
 /**
  * The port of a Host header: digits only, possibly none (RFC 3986 section 3.2.3).
@@ -160,8 +172,14 @@ function header(this: Request, name: string): string | string[] | undefined {
 
   switch (lc) {
     case 'referer':
-    case 'referrer':
-      return this.headers.referrer || this.headers.referer
+    case 'referrer': {
+      const referrer = this.headers.referrer
+
+      // Not in Express 5.3.0: 6.x prefers Referer (#3951)
+      if (referrer) warnReferrer(name, referrer, this.headers.referer)
+
+      return referrer || this.headers.referer
+    }
     default:
       return this.headers[lc]
   }
@@ -324,8 +342,54 @@ defineGetter(req, 'query', function query() {
   // which the query parsers accept
   var querystring = parse(this)!.query as string
 
+  // Not in Express 5.3.0: a deprecation for more than 1,000 parameters
+  // (#5878). Counting needs at least 1,000 characters, so most requests skip it.
+  if (querystring !== null && querystring.length >= 1000) warnQueryLimit(this, querystring)
+
   return queryparse(querystring)
 })
+
+/**
+ * Not in Express 5.3.0: `req.get('referer')` returns the Referrer header,
+ * which 6.x returns only when there is no Referer header (#3951). Warns when
+ * the request has both with different values, the only case that changes.
+ * @private
+ */
+
+function warnReferrer(name: string, referrer: string | string[], referer: string | undefined): void {
+  if (warnedReferrer || !referer || referrer === referer) return
+  warnedReferrer = true
+  deprecate(
+    "req.get('" +
+      name +
+      "'): this request has different Referer and Referrer headers; 6.x returns Referer, not Referrer"
+  )
+}
+
+/**
+ * Not in Express 5.3.0: the built-in query parsers read only the first 1,000
+ * "&"-separated parts (empty ones count, as in qs and `querystring`) and drop
+ * the rest, where 6.x answers 400 (#5878). Warns when `str` has more parts and
+ * the app uses a built-in parser.
+ * @private
+ */
+
+function warnQueryLimit(req: Request, str: string): void {
+  if (warnedQueryLimit) return
+  var setting = req.app.get('query parser')
+  if (setting !== 'simple' && setting !== 'extended' && setting !== true) return
+
+  var count = 0
+  for (var i = str.indexOf('&'); i !== -1; i = str.indexOf('&', i + 1)) {
+    if (++count === 1000) {
+      warnedQueryLimit = true
+      deprecate(
+        'req.query: the query string has more than 1000 parameters and the rest were dropped; 6.x answers 400 instead'
+      )
+      return
+    }
+  }
+}
 
 /**
  * Check if the incoming request contains the "Content-Type"

@@ -38,6 +38,17 @@ import type { Engine, View as ViewInstance, ViewConstructor, ViewOptions } from 
 
 const finalhandler = require('finalhandler') as typeof import('finalhandler')
 const debug = (require('debug') as typeof import('debug'))('express:application')
+const deprecate = (require('depd') as typeof import('depd'))('express')
+
+/**
+ * Not in Express 5.3.0: set by app.render on the options object res.render
+ * passed (its own copy) when the callback threw on a missing view, so that
+ * res.render prints the deprecation. A registered symbol, so response.ts
+ * gets the same one without a new export.
+ * @private
+ */
+
+const RENDER_CALLBACK_THREW = Symbol.for('express.renderCallbackThrew')
 const View = require('./view') as ViewConstructor
 const http = require('node:http') as typeof import('node:http')
 const methods = (require('./utils') as typeof import('./utils')).methods as HttpMethod[]
@@ -487,7 +498,7 @@ app.set = function set(this: Application, setting: string, val?: unknown) {
       this.set('query parser fn', compileQueryParser(val))
       break
     case 'trust proxy':
-      this.set('trust proxy fn', compileTrust(val))
+      this.set('trust proxy fn', compileTrustSetting(val))
 
       // trust proxy inherit back-compat
       Object.defineProperty(this.settings, trustProxyDefaultSymbol, {
@@ -500,6 +511,25 @@ app.set = function set(this: Application, setting: string, val?: unknown) {
 
   return this
 } as Application['set']
+
+/**
+ * compileTrust, with a deprecation for a hop count, which 6.x rejects
+ * (#6541). Not in Express 5.3.0. The check lives here and not in app.set(),
+ * because app.get() goes through app.set() on every request, and any code
+ * added to app.set() changed how V8 optimized app.handle (0.3% more
+ * instructions per request).
+ * @private
+ */
+
+function compileTrustSetting(val: unknown): ReturnType<typeof compileTrust> {
+  if (typeof val === 'number') {
+    deprecate(
+      "app.set('trust proxy', " + val + '): a hop count throws in 6.x; list the proxy addresses or subnets instead'
+    )
+  }
+
+  return compileTrust(val)
+}
 
 /**
  * Return the app's absolute pathname
@@ -701,7 +731,23 @@ app.render = function render(
         'EXPRESS_ERR_VIEW_NOT_FOUND'
       )
       err.view = view
-      return done(err)
+
+      // Not in Express 5.3.0: 6.x looks views up asynchronously, where a throw
+      // from this callback would end the process. The same value is rethrown.
+      // res.render (which always passes _locals) prints the warning itself,
+      // so that it names the res.render call rather than this file.
+      try {
+        return done(err)
+      } catch (thrown) {
+        if (opts._locals === undefined) {
+          deprecate(
+            'render callback threw on a missing view: in 6.x this ends the process; pass the error to next(err)'
+          )
+        } else {
+          ;(opts as Record<symbol, unknown>)[RENDER_CALLBACK_THREW] = true
+        }
+        throw thrown
+      }
     }
 
     // prime the cache

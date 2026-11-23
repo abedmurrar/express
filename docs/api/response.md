@@ -843,6 +843,8 @@ vulnerabilities](/advanced/best-practice-security#prevent-open-redirects).
 
   Called as `callback(err, html)`. When provided, the rendered HTML is not sent automatically.
 
+  On a missing view, the callback runs before `res.render()` returns, so a callback that throws the error sends it to the error handler. That prints a deprecation warning in the fork: its 6.x looks views up asynchronously, where the throw would end the process. Pass the error to `next(err)` instead. See [Deprecations](/fork/differences#deprecations).
+
 Renders a `view` and sends the rendered HTML string to the client.
 Optional parameters:
 
@@ -938,6 +940,12 @@ When the parameter is an `Array` or `Object`, Express responds with the JSON rep
 res.send({ user: 'tobi' });
 res.send([1, 2, 3]);
 ```
+
+::: warning Deprecated in the fork
+
+Sending an object, array, number or boolean with `res.send()` still sends JSON, but prints a deprecation warning once per process (`res.send(object): Use res.json(object) instead`, [#2249](https://github.com/expressjs/express/issues/2249)). Use [res.json()](#resjson) for JSON. See [Deprecations](/fork/differences#deprecations).
+
+:::
 
 ### res.sendFile()
 
@@ -1160,6 +1168,12 @@ res.set({
 ```
 
 Aliased as `res.header(field [, value])`.
+
+::: warning Deprecated in the fork
+
+`res.set('Content-Type', 'json')`, a file extension instead of a type, still sets `application/json; charset=utf-8`, but prints a deprecation warning once per process: the fork's 6.x sets the value as given. Use [res.type('json')](#restype), or the full type. See [Deprecations](/fork/differences#deprecations).
+
+:::
 
 ### res.status()
 

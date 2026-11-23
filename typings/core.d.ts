@@ -64,7 +64,19 @@ declare global {
     }
     interface Response {}
     interface Locals {}
-    interface Application {}
+    interface Application {
+      /**
+       * Add error handlers, with an optional path, as `app.use()` adds
+       * middleware. They run only for an error, whatever their length, so a
+       * wrapped, bound or compiled handler, or one without `next`, works; a
+       * function of length 4 added with `app.use()` still works too.
+       *
+       * Not in Express 5.3.0. Declared here, on the interface every Express
+       * application type extends (`@types/express-serve-static-core`'s too),
+       * so the two stay assignable to each other.
+       */
+      error: IRouterErrorMatcher<this>
+    }
   }
 }
 
@@ -379,6 +391,57 @@ export interface IRouterHandler<T, Route extends string | RegExp = string> {
 }
 /* eslint-enable @definitelytyped/no-unnecessary-generics */
 
+/**
+ * `app.error()` and `router.error()`: error handlers, with an optional path
+ * as `use()` takes, which run only for an error, whatever their length (a fork
+ * addition).
+ */
+export interface IRouterErrorMatcher<T> {
+  <
+    P = ParamsDictionary,
+    ResBody = any,
+    ReqBody = any,
+    ReqQuery = ParsedQs,
+    LocalsObj extends Record<string, any> = Record<string, any>
+  >(
+    // (This generic is meant to be passed explicitly.)
+    ...handlers: Array<
+      | ErrorRequestHandler<P, ResBody, ReqBody, ReqQuery, LocalsObj>
+      | Array<ErrorRequestHandler<P, ResBody, ReqBody, ReqQuery, LocalsObj>>
+    >
+  ): T
+  <
+    Route extends string | RegExp,
+    P = RouteParameters<Route>,
+    ResBody = any,
+    ReqBody = any,
+    ReqQuery = ParsedQs,
+    LocalsObj extends Record<string, any> = Record<string, any>
+  >(
+    // (it's used as the default type parameter for P)
+    path: Route,
+    // (This generic is meant to be passed explicitly.)
+    ...handlers: Array<
+      | ErrorRequestHandler<P, ResBody, ReqBody, ReqQuery, LocalsObj>
+      | Array<ErrorRequestHandler<P, ResBody, ReqBody, ReqQuery, LocalsObj>>
+    >
+  ): T
+  <
+    P = ParamsDictionary,
+    ResBody = any,
+    ReqBody = any,
+    ReqQuery = ParsedQs,
+    LocalsObj extends Record<string, any> = Record<string, any>
+  >(
+    path: PathParams,
+    // (This generic is meant to be passed explicitly.)
+    ...handlers: Array<
+      | ErrorRequestHandler<P, ResBody, ReqBody, ReqQuery, LocalsObj>
+      | Array<ErrorRequestHandler<P, ResBody, ReqBody, ReqQuery, LocalsObj>>
+    >
+  ): T
+}
+
 export interface IRouter extends RequestHandler {
   /**
    * Map the given param placeholder `name`(s) to the given callback(s).
@@ -465,6 +528,8 @@ export interface ILayer {
   keys: string[]
   path?: string
   method: string
+  /** Added with `error()`: runs only for an error, whatever the length of `handle` (a fork addition). */
+  errorOnly?: boolean
   /** @deprecated router 2 (Express 5) layers match with `matchers` and have no `regexp`. */
   regexp: RegExp
   handle: (req: Request, res: Response, next: NextFunction) => any
@@ -500,7 +565,15 @@ export interface IRoute<Route extends string | RegExp = string> {
   unsubscribe: IRouterHandler<this, Route>
 }
 
-export interface Router extends IRouter {}
+export interface Router extends IRouter {
+  /**
+   * Not in Express 5.3.0: add error handlers, with an optional path, as
+   * `use()` adds middleware. They run only for an error, whatever their
+   * length, so a wrapped, bound or compiled handler, or one without `next`,
+   * works; a function of length 4 added with `use()` still works too.
+   */
+  error: IRouterErrorMatcher<this>
+}
 
 /**
  * Options passed down into `res.cookie`
@@ -1371,7 +1444,12 @@ export interface Application<LocalsObj extends Record<string, any> = Record<stri
   listen(path: string, callback?: (error?: Error) => void): http.Server
   listen(handle: any, listeningListener?: (error?: Error) => void): http.Server
 
-  router: Router
+  /**
+   * `IRouter`, the same type as `Router` without the fork's `router.error()`,
+   * so an app typed with `@types/express-serve-static-core`, whose router
+   * has no `error`, stays assignable to this one (`app.error()` is the same).
+   */
+  router: IRouter
 
   settings: any
 

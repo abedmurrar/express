@@ -126,6 +126,32 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 })
 app.get('/mixed', [asyncMiddleware, asyncMiddleware], onError)
 
+// app.error() and router.error() (a fork addition): error
+// handlers of any length, contextually typed, with an optional path as use().
+app.error((err, req, res) => {
+  const message: string = err instanceof Error ? err.message : String(err)
+  const url: string = req.originalUrl
+  res.status(500).send(message + url)
+})
+app.error(onError, [onError, (_err, _req, _res, next) => next()])
+app.error('/users/:id', (_err, req, res) => {
+  const id: string = req.params.id
+  res.send(id)
+})
+app.error(['/a', /^\/b/], onError)
+app.error(async (_err, _req, res) => {
+  await Promise.resolve()
+  res.end()
+})
+const chained: express.Express = app.error(onError).error('/x', onError)
+void chained
+const errorRouter: express.Router = express.Router().error(onError).error('/x', onError)
+void errorRouter
+// @ts-expect-error a handler, not a value
+app.error(42)
+// @ts-expect-error a handler, not a value
+express.Router().error('/x', 'nope')
+
 // A handler typed with the base http types still fits.
 app.use((req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => {
   void req.url

@@ -171,6 +171,42 @@ the example is much like before, but it only restricts paths prefixed with
 router.all('/api/{*splat}', requireAuthentication);
 ```
 
+### router.error()
+
+**Parameters**
+
+- **`path`** · `String | RegExp | Array` · _optional_, default `'/'`
+
+  The path the error handlers are mounted at, as for [`router.use()`](#routeruse).
+
+- **`callback`** · `Function | Function[]`
+
+  One or more error handlers, called as `(err, req, res, next)`.
+
+**Returns:** `Router`
+
+This is a fork addition; Express 5.3.0 has no `router.error()`.
+
+Adds error handlers to the router, as [`app.error()`](/api/application#apperror) adds them to an
+app: mounted at `path` as `router.use()` mounts middleware, and run only when there is an error,
+whatever the number of parameters the function declares. An error the router's handlers don't
+handle leaves the router, to the error handlers of the app or router it is mounted on.
+
+```js
+const api = express.Router();
+
+api.get('/users/:id', loadUser);
+
+api.error((err, req, res, next) => {
+  if (err.code !== 'USER_NOT_FOUND') return next(err);
+  res.status(404).json({ error: 'not found' });
+});
+
+app.use('/api', api);
+```
+
+The layers it adds have `errorOnly` set to `true` in `router.stack`.
+
 ### router.METHOD()
 
 **Parameters**

@@ -63,6 +63,7 @@ export interface Layer {
   rawMatchers: Array<MatchFunction<Params>> // one per rawPath entry
   method?: string | undefined // set by the route
   route?: Route | undefined // set by the router
+  errorOnly: boolean // registered with error(): an error handler whatever its length (false on the prototype)
   handleError(error: unknown, req: RouterRequest, res: RouterResponse, next: NextFunction): void
   handleRequest(req: RouterRequest, res: RouterResponse, next: NextFunction): void
   match(path: string | null | undefined): boolean
@@ -178,6 +179,11 @@ function Layer(this: Layer, path: PathParams, options: LayerOptions | undefined,
 
 const proto = Layer.prototype as Layer
 
+// Not in upstream (router 2.2.0, 2.3.0): router.error() (and app.error())
+// set it on their layers, which then handle errors only, whatever their
+// handler's length. Other layers read this default.
+proto.errorOnly = false
+
 /**
  * Handle the error for the layer.
  *
@@ -191,7 +197,7 @@ const proto = Layer.prototype as Layer
 proto.handleError = function handleError(error, req, res, next) {
   const fn = this.handle as ErrorRequestHandler
 
-  if (fn.length !== 4) {
+  if (fn.length !== 4 && !this.errorOnly) {
     // not a standard error handler
     return next(error)
   }
@@ -227,7 +233,7 @@ proto.handleError = function handleError(error, req, res, next) {
 proto.handleRequest = function handleRequest(req, res, next) {
   const fn = this.handle as RequestHandler
 
-  if (fn.length > 3) {
+  if (fn.length > 3 || this.errorOnly) {
     // not a standard request handler
     return next()
   }

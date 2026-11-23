@@ -446,6 +446,12 @@ proto.handle = function handleRequest(req, res, callback) {
         noSlash,
         parent: (req as RouterRequest & MatchedRequest)[mountMatch]
       }
+
+      // Router 2.3.0 (tracing): the route's pattern, for its parameter
+      // callbacks and handlers (see setMatchedRoute). Here, not in the
+      // callback below, which would make noSlash a context variable that the
+      // matching loop reads on every layer.
+      if (traced) setMatchedRoute(req, layer, path, noSlash)
     }
 
     // Capture one-time layer values
@@ -457,9 +463,7 @@ proto.handle = function handleRequest(req, res, callback) {
       if (err) {
         next(layerError || err)
       } else if (route) {
-        // a route's own layer: route.dispatch traces its handlers, with the
-        // route's pattern (see setMatchedRoute)
-        if (traced) setMatchedRoute(req, layer, path, noSlash)
+        // a route's own layer: route.dispatch traces its handlers
         layer.handleRequest(req, res, next)
       } else {
         trimPrefix(layer, layerError, layerPath, path)

@@ -611,10 +611,16 @@ describe('fork: diagnostics_channel', function () {
         await null
         next()
       })
-      api.get(['/a', '/:id'], async function item(req, res) {
-        await null
-        throw new Error('item failed')
-      })
+      api.get(
+        ['/a', '/:id'],
+        async function item(req, res) {
+          await null
+          throw new Error('item failed')
+        },
+        function itemRecover(err, req, res, next) {
+          next(err)
+        }
+      )
       api.use(function apiRecover(err, req, res, next) {
         next(err)
       })

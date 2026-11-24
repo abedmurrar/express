@@ -78,6 +78,10 @@ jobs:
       - name: Type tests on TypeScript 5.x
         run: npm run test:types:ts5
 
+      # every public declaration has a type test (uses the 5.9 compiler API)
+      - name: Check that the type tests cover the public API
+        run: npm run test:types:coverage
+
       - name: Check the published types (attw)
         run: npm run attw
 

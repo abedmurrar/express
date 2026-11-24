@@ -13,7 +13,7 @@ var start = require('../../examples/graceful-shutdown')
 
 describe('graceful-shutdown', function () {
   it('should answer 503 on /readyz, and keep answering with Connection: close, until it stops', async function () {
-    var example = await listen({ readinessDelay: 300, timeout: 5000 })
+    var example = await listen({ readinessDelay: 2000, timeout: 5000 }) // time for three requests on a busy machine
     var agent = new http.Agent({ keepAlive: true })
     var port = example.server.address().port
 
@@ -32,8 +32,9 @@ describe('graceful-shutdown', function () {
   it('should wait for the responses in progress, and close their kept-alive connections', async function () {
     var example = await listen({ readinessDelay: 0, timeout: 5000 })
     var agent = new http.Agent({ keepAlive: true })
+    var received = once(example.server, 'request')
     var response = get(example, '/slow', agent)
-    await sleep(100)
+    await received
 
     var stopped = example.stop()
 
@@ -72,9 +73,10 @@ describe('graceful-shutdown', function () {
   it('should cut off what is left at the timeout', async function () {
     var example = await listen({ readinessDelay: 0, timeout: 300 })
     example.app.get('/never', function () {})
+    var received = once(example.server, 'request')
     var response = get(example, '/never')
     response.catch(function () {})
-    await sleep(100)
+    await received
 
     assert.strictEqual(await example.stop(), false)
     await assert.rejects(response, { code: 'ECONNRESET' })
@@ -98,6 +100,8 @@ describe('graceful-shutdown', function () {
 
       var port = Number(/port (\d+)/.exec(output)[1])
       var response = request(port, '/slow')
+      // answered after the process has accepted /slow, which was sent first
+      await request(port, '/livez')
       await sleep(200)
       child.kill('SIGTERM')
 

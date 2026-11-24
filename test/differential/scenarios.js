@@ -2273,6 +2273,442 @@ scenarios.push(
   }
 )
 
+// ETags. Express 5.3.0 sends the ETag it computes on every response res.send
+// makes, whatever the status, the method or Cache-Control, and calls a custom
+// `etag` function once for each one, or not at all. None of these may differ:
+// an app sees the header, and each call to its function.
+var ETAG_REQUESTS = {
+  GET: get('/'),
+  HEAD: { method: 'HEAD', path: '/', headers: {} },
+  // "*" matches any ETag, so only a fresh status (2xx or 304) becomes a 304
+  'If-None-Match *': get('/', { 'if-none-match': '*' })
+}
+
+function etagScenario(name, setting, handler, req) {
+  return {
+    name: 'ETag: ' + name,
+    setup: function (app) {
+      if (setting !== undefined) app.set('etag', setting)
+      app.use(handler)
+      app.use(function (err, req, res, next) {
+        res.status(err.status || 500).send('handled: ' + err.message)
+      })
+    },
+    req: req
+  }
+}
+
+// Every way to answer, including those that go past res.send and so make no
+// ETag (res.end, res.write) or make their own (res.sendFile, through send).
+var ETAG_RESPONDERS = {
+  'res.send string': function (res) {
+    res.send('body')
+  },
+  'res.send long string': function (res) {
+    res.send('aé'.repeat(1000))
+  },
+  'res.send Buffer': function (res) {
+    res.send(Buffer.from('body'))
+  },
+  'res.send empty string': function (res) {
+    res.send('')
+  },
+  'res.send null': function (res) {
+    res.send(null)
+  },
+  'res.send undefined': function (res) {
+    res.send()
+  },
+  'res.json': function (res) {
+    res.json({ a: 1 })
+  },
+  'res.jsonp': function (res) {
+    res.jsonp({ a: 1 })
+  },
+  'res.format': function (res) {
+    res.format({
+      text: function () {
+        res.send('text')
+      },
+      json: function () {
+        res.json({ a: 1 })
+      }
+    })
+  },
+  'res.end': function (res) {
+    res.end('body')
+  },
+  'res.end without a body': function (res) {
+    res.end()
+  },
+  'res.write then res.end': function (res) {
+    res.write('bo')
+    res.end('dy')
+  },
+  'res.set ETag then res.end': function (res) {
+    res.set('ETag', '"set"').end('body')
+  },
+  'res.sendFile': function (res) {
+    res.sendFile(path.join(FIXTURES, 'name.txt'), { lastModified: false })
+  }
+}
+
+Object.keys(ETAG_RESPONDERS).forEach(function (responder) {
+  Object.keys(ETAG_REQUESTS).forEach(function (kind) {
+    ;[205, 404, 500].forEach(function (status) {
+      scenarios.push(
+        etagScenario(
+          status + ' ' + responder + ', ' + kind,
+          undefined,
+          function (req, res) {
+            ETAG_RESPONDERS[responder](res.status(status))
+          },
+          ETAG_REQUESTS[kind]
+        )
+      )
+    })
+    scenarios.push(
+      etagScenario(
+        'Cache-Control: no-store, ' + responder + ', ' + kind,
+        undefined,
+        function (req, res) {
+          ETAG_RESPONDERS[responder](res.set('Cache-Control', 'no-store'))
+        },
+        ETAG_REQUESTS[kind]
+      )
+    )
+  })
+})
+
+// The other settings on the same responses, and no-store with more values, on
+// other statuses, and from the request.
+;['strong', false].forEach(function (setting) {
+  ;[205, 404, 500].forEach(function (status) {
+    scenarios.push(
+      etagScenario(
+        'etag ' + setting + ', ' + status + ' res.json',
+        setting,
+        function (req, res) {
+          res.status(status).json({ a: 1 })
+        },
+        get('/')
+      )
+    )
+  })
+  scenarios.push(
+    etagScenario(
+      'etag ' + setting + ', Cache-Control: no-store',
+      setting,
+      function (req, res) {
+        res.set('Cache-Control', 'no-store').send('body')
+      },
+      get('/')
+    )
+  )
+})
+;['private, no-store', 'NO-STORE', 'no-store, max-age=0', 'no-cache', 'private'].forEach(function (value) {
+  scenarios.push(
+    etagScenario(
+      'Cache-Control: ' + value,
+      undefined,
+      function (req, res) {
+        res.set('Cache-Control', value).send('body')
+      },
+      get('/')
+    )
+  )
+})
+;[201, 205, 404, 500].forEach(function (status) {
+  scenarios.push(
+    etagScenario(
+      status + ' with Cache-Control: no-store',
+      undefined,
+      function (req, res) {
+        res.status(status).set('Cache-Control', 'no-store').send('body')
+      },
+      get('/')
+    )
+  )
+})
+scenarios.push(
+  etagScenario(
+    'Cache-Control: no-store in the request',
+    undefined,
+    function (req, res) {
+      res.send('body')
+    },
+    get('/', { 'cache-control': 'no-store', 'if-none-match': '*' })
+  )
+)
+
+// A custom `etag` function that records its calls. X-ETag-Calls, set as the
+// head is written, has each call's arguments (and not only the number of
+// calls), so responses without a body (HEAD, 204, 304) show them too.
+function etagCallsScenario(name, handler, req, options) {
+  options = options || {}
+  return {
+    name: 'custom etag calls: ' + name,
+    setup: function (app, express) {
+      var calls = []
+      app.set('etag', function (body, encoding) {
+        calls.push([arguments.length, Buffer.isBuffer(body), body.length, typeof encoding])
+        if (options.throws) throw new Error('etag failed')
+        return Object.hasOwn(options, 'returns') ? options.returns : '"custom"'
+      })
+      app.use(function (req, res, next) {
+        var writeHead = res.writeHead
+        res.writeHead = function () {
+          res.setHeader('X-ETag-Calls', JSON.stringify(calls))
+          return writeHead.apply(res, arguments)
+        }
+        next()
+      })
+      if (options.setup) options.setup(app, express)
+      app.use(handler)
+      app.use(function (err, req, res, next) {
+        if (options.unhandled) return next(err)
+        res.status(500).send('handled: ' + err.message)
+      })
+    },
+    req: req || get('/')
+  }
+}
+
+// Every way to answer, on each of these requests.
+var CUSTOM_ETAG_REQUESTS = {
+  GET: get('/'),
+  HEAD: { method: 'HEAD', path: '/', headers: {} },
+  'If-None-Match hit': get('/', { 'if-none-match': '"custom"' }),
+  'If-None-Match miss': get('/', { 'if-none-match': '"other"' })
+}
+
+var CUSTOM_ETAG_RESPONDERS = Object.assign({}, ETAG_RESPONDERS, {
+  'res.send boolean': function (res) {
+    res.send(true)
+  },
+  'res.send object': function (res) {
+    res.send({ a: 1 })
+  },
+  'res.send Uint8Array': function (res) {
+    res.send(new Uint8Array([104, 105]))
+  },
+  'res.send empty Buffer': function (res) {
+    res.send(Buffer.alloc(0))
+  },
+  'res.json undefined': function (res) {
+    res.json(undefined)
+  },
+  'res.sendStatus 200': function (res) {
+    res.sendStatus(200)
+  },
+  'res.render': function (res) {
+    res.render('user.tmpl', { user: { name: 'tobi' } })
+  },
+  'res.redirect': function (res) {
+    res.redirect('/elsewhere')
+  },
+  'res.download': function (res) {
+    res.download(path.join(FIXTURES, 'name.txt'), 'n.txt', { lastModified: false })
+  },
+  // the error handler answers
+  "res.send object that can't be JSON": function (res) {
+    var cycle = {}
+    cycle.self = cycle
+    res.send(cycle)
+  },
+  'ETag already set': function (res) {
+    res.set('ETag', '"custom"').send('body')
+  },
+  'ETag already set, res.json': function (res) {
+    res.set('ETag', '"custom"').json({ a: 1 })
+  },
+  'ETag already set to an empty string': function (res) {
+    res.set('ETag', '').send('body')
+  },
+  'ETag set with res.setHeader in lower case': function (res) {
+    res.setHeader('etag', '"custom"')
+    res.send('body')
+  },
+  'Cache-Control: no-store': function (res) {
+    res.set('Cache-Control', 'no-store').send('body')
+  }
+})
+
+Object.keys(CUSTOM_ETAG_RESPONDERS).forEach(function (responder) {
+  Object.keys(CUSTOM_ETAG_REQUESTS).forEach(function (kind) {
+    scenarios.push(
+      etagCallsScenario(
+        responder + ', ' + kind,
+        function (req, res) {
+          CUSTOM_ETAG_RESPONDERS[responder](res)
+        },
+        CUSTOM_ETAG_REQUESTS[kind],
+        { setup: views }
+      )
+    )
+  })
+})
+;[201, 204, 205, 301, 304, 404, 500].forEach(function (status) {
+  Object.keys(CUSTOM_ETAG_REQUESTS).forEach(function (kind) {
+    ;['res.send string', 'res.send undefined', 'res.json', 'res.end without a body'].forEach(function (responder) {
+      scenarios.push(
+        etagCallsScenario(
+          status + ' ' + responder + ', ' + kind,
+          function (req, res) {
+            CUSTOM_ETAG_RESPONDERS[responder](res.status(status))
+          },
+          CUSTOM_ETAG_REQUESTS[kind]
+        )
+      )
+    })
+    scenarios.push(
+      etagCallsScenario(
+        status + ' res.sendStatus, ' + kind,
+        function (req, res) {
+          res.sendStatus(status)
+        },
+        CUSTOM_ETAG_REQUESTS[kind]
+      )
+    )
+  })
+})
+
+// More requests, on two ways to answer.
+var MORE_ETAG_REQUESTS = {
+  POST: post('/', ''),
+  'POST If-None-Match hit': post('/', '', { 'if-none-match': '"custom"' }),
+  'HEAD If-None-Match hit': { method: 'HEAD', path: '/', headers: { 'if-none-match': '"custom"' } },
+  'If-None-Match *': get('/', { 'if-none-match': '*' }),
+  'If-None-Match weak hit in a list': get('/', { 'if-none-match': '"other", W/"custom"' }),
+  'If-None-Match hit with Cache-Control: no-cache': get('/', {
+    'if-none-match': '"custom"',
+    'cache-control': 'no-cache'
+  })
+}
+
+Object.keys(MORE_ETAG_REQUESTS).forEach(function (kind) {
+  ;['res.send string', 'res.json'].forEach(function (responder) {
+    scenarios.push(
+      etagCallsScenario(
+        responder + ', ' + kind,
+        function (req, res) {
+          CUSTOM_ETAG_RESPONDERS[responder](res)
+        },
+        MORE_ETAG_REQUESTS[kind]
+      )
+    )
+  })
+})
+
+// What the function returns: a value that isn't truthy sends no ETag.
+;['', undefined, null, false, 0, 'unquoted', 7].forEach(function (value) {
+  scenarios.push(
+    etagCallsScenario(
+      'returns ' + util.inspect(value),
+      function (req, res) {
+        res.send('body')
+      },
+      get('/', { 'if-none-match': '"custom"' }),
+      { returns: value }
+    )
+  )
+})
+
+scenarios.push(
+  etagCallsScenario(
+    'throws, then again for the error handler',
+    function (req, res) {
+      res.send('body')
+    },
+    get('/'),
+    { throws: true }
+  ),
+  etagCallsScenario(
+    'throws, unhandled',
+    function (req, res) {
+      res.send('body')
+    },
+    get('/'),
+    { throws: true, unhandled: true }
+  ),
+  etagCallsScenario('unhandled 404', function (req, res, next) {
+    next()
+  }),
+  etagCallsScenario(
+    'unhandled error',
+    function (req, res, next) {
+      var err = new Error('boom')
+      err.status = 503
+      res.set('ETag', '"kept"')
+      next(err)
+    },
+    get('/'),
+    { unhandled: true }
+  ),
+  etagCallsScenario('error handler response', function (req, res, next) {
+    next(new Error('boom'))
+  }),
+  etagCallsScenario(
+    'express.static',
+    function (req, res, next) {
+      next()
+    },
+    get('/name.txt'),
+    {
+      setup: function (app, express) {
+        app.use(express.static(FIXTURES, { lastModified: false }))
+      }
+    }
+  ),
+  etagCallsScenario(
+    'automatic OPTIONS response',
+    function (req, res, next) {
+      next()
+    },
+    { method: 'OPTIONS', path: '/options', headers: {} },
+    {
+      setup: function (app) {
+        app.get('/options', function (req, res) {
+          res.send('get')
+        })
+      }
+    }
+  ),
+  etagCallsScenario(
+    'sub-app does not inherit the function',
+    function (req, res, next) {
+      next()
+    },
+    get('/sub'),
+    {
+      setup: function (app, express) {
+        var sub = express()
+        sub.get('/', function (req, res) {
+          res.send('sub')
+        })
+        app.use('/sub', sub)
+      }
+    }
+  ),
+  etagCallsScenario(
+    'sub-app with the etag setting off',
+    function (req, res, next) {
+      next()
+    },
+    get('/sub'),
+    {
+      setup: function (app, express) {
+        var sub = express()
+        sub.get('/', function (req, res) {
+          res.send('sub')
+        })
+        app.use('/sub', sub)
+        sub.set('etag', false)
+      }
+    }
+  )
+)
+
 var allowed = {
   'res.render with frozen options':
     "fixed in the fork: `res.render` mutates the caller's options (it now merges res.locals into a copy)",

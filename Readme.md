@@ -105,6 +105,7 @@ npm test                              # all tests
 npm run test-ci                       # all tests, with the 100% coverage gate
 npm run lint                          # Biome
 npm run test:types                    # type tests (strict, loose, @types/express snippets) and the type-size budget
+npm run test:types:ts5:install && npm run test:types:ts5   # the same type tests on TypeScript 5.2 and 5.9
 npm run attw                          # check the packed types and exports with Are the Types Wrong
 npm run test:types:drift              # check the types in typings/ against src/ and the built lib/
 REGRESSIONS_ALL=1 npm test            # also run the skipped bug tests (they fail until fixed)

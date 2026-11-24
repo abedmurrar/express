@@ -199,13 +199,18 @@ describe('property: extended query parser fast path', function () {
     )
   })
 
-  it('equals qs around the 1,000-parameter limit', function () {
-    check(
-      fc.property(manyPartsQuery, function (str) {
-        assert.strictEqual(assertLikeQs(str), expectedCalls(str))
-      })
-    )
-  })
+  it(
+    'equals qs around the 1,000-parameter limit',
+    function () {
+      check(
+        fc.property(manyPartsQuery, function (str) {
+          assert.strictEqual(assertLikeQs(str), expectedCalls(str))
+        })
+      )
+      // about 20 times the work of the others here: 2 to 4 s, more on a busy machine
+    },
+    timeout(PROPERTY.numRuns, 100)
+  )
 
   it('skips qs for a flat string unless a key repeats more than 20 times', function () {
     check(

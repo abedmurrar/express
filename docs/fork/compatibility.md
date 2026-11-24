@@ -17,7 +17,7 @@ Every pull request has to pass all of these before it merges:
 
 | Check | What it does |
 |---|---|
-| Differential harness | Sends the same requests to Express 5.3.0 (installed from npm) and to the fork: 329 hand-written scenarios and 3,306 generated ones covering every `res` method and `req` property, combined with app settings, HTTP methods, paths and headers. Responses and error logs must be byte-identical, apart from differences listed on purpose. |
+| Differential harness | Sends the same requests to Express 5.3.0 (installed from npm) and to the fork: 799 hand-written scenarios and 3,306 generated ones covering every `res` method and `req` property, combined with app settings, HTTP methods, paths and headers. Responses and error logs must be byte-identical, apart from differences listed on purpose. |
 | Ecosystem check | Runs body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport and express-rate-limit on both, including multi-request flows such as sessions, and requires byte-identical responses and log lines. |
 | Middleware test suites | Runs the own test suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests) against both. Every test that passes on 5.3.0 must pass on the fork. |
 | Security suite | Checks auth guards against path tricks, header injection, redirect targets, prototype pollution and path traversal. |

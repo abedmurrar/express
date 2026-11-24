@@ -1,0 +1,9 @@
+{
+  "name": "express-type-tests-ts5",
+  "private": true,
+  "description": "The TypeScript 5.x compilers for `npm run test:types:ts5`, apart from the root install so its tsc stays 7",
+  "devDependencies": {
+    "typescript-5.2": "npm:typescript@5.2.2",
+    "typescript-5.9": "npm:typescript@5.9.3"
+  }
+}

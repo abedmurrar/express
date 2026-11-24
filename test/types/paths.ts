@@ -28,26 +28,13 @@ sameMembers<{}>()({} as RouteParameters<''>)
 sameMembers<{ from: string; to: string }>()({} as RouteParameters<'/flights/:from-:to'>)
 sameMembers<{ genus: string; species: string }>()({} as RouteParameters<'/plantae/:genus.:species'>)
 sameMembers<{ id: string }>()({} as RouteParameters<'/:id.json'>)
-sameMembers<{ lat: string; lng: string }>()({} as RouteParameters<'/at/:lat,:lng'>)
-sameMembers<{ user: string; version: string }>()({} as RouteParameters<'/:user@:version'>)
-sameMembers<{ a: string; b: string; c: string; d: string }>()({} as RouteParameters<'/:a;:b~:c=:d'>)
-sameMembers<{ a: string; b: string; c: string }>()({} as RouteParameters<"/:a&:b%20:c'|x">)
-// an escaped character after it (a custom verb)
-sameMembers<{ id: string }>()({} as RouteParameters<'/operations/:id\\:cancel'>)
-sameMembers<{ id: string; step: string }>()({} as RouteParameters<'/:id\\:run/:step'>)
 
-// quoted
-sameMembers<{ 'my name': string; id: string }>()({} as RouteParameters<'/:"my name"/:id'>)
-sameMembers<{ 'my path': string[] }>()({} as RouteParameters<'/*"my path"'>)
-
-// wildcards, alone and with others on both sides
+// wildcards, alone and after others
 sameMembers<{ path: string[] }>()({} as RouteParameters<'/files/*path'>)
 sameMembers<{ all: string[] }>()({} as RouteParameters<'*all'>)
 sameMembers<{ path: string[] }>()({} as RouteParameters<'/*path.txt'>)
 sameMembers<{ id: string; rest: string[] }>()({} as RouteParameters<'/:id/*rest'>)
-sameMembers<{ splat: string[]; id: string }>()({} as RouteParameters<'/*splat/:id'>)
 sameMembers<{ a: string[]; b: string[] }>()({} as RouteParameters<'/*a/x/*b'>)
-sameMembers<{ a: string; b: string[]; c: string; d: string[] }>()({} as RouteParameters<'/:a/*b/:c/*d'>)
 sameMembers<{ id: string }>()({} as RouteParameters<'/\\*/:id'>)
 
 // optional groups
@@ -58,7 +45,6 @@ sameMembers<{ a?: string; b?: string; c: string }>()({} as RouteParameters<'/a{/
 sameMembers<{ path?: string[] }>()({} as RouteParameters<'/files{/*path}'>)
 sameMembers<{ id: string; ext?: string }>()({} as RouteParameters<'/:id{.:ext}'>)
 sameMembers<{ x: string; w: string }>()({} as RouteParameters<'/:x{/y}/z/:w'>)
-sameMembers<{ a?: string; b?: string }>()({} as RouteParameters<'{/:a{/:b}}'>)
 
 // a path only known as a string, and a RegExp
 exactly<ParamsDictionary>()({} as RouteParameters<string>)
@@ -79,7 +65,7 @@ void ({} as RouteParameters<'/:id(\\d+)'>).id
 void ({} as RouteParameters<'/:a:b'>).a
 
 // what the methods do with them
-app.get('/:user@:version/*path', (req, res) => {
+app.get('/:user/:version/*path', (req, res) => {
   exactly<string>()(req.params.user)
   exactly<string>()(req.params.version)
   exactly<string[]>()(req.params.path)

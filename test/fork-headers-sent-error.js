@@ -15,6 +15,7 @@ var path = require('node:path')
 var express = require('..')
 var baseline = require('express-baseline')
 var request = require('supertest')
+var recordCalls = require('./support/calls')
 var tmpl = require('./support/tmpl')
 
 var NODE_MESSAGE = 'Cannot set headers after they are sent to the client'
@@ -192,13 +193,13 @@ describe('the error for a second response (fork)', function () {
       app.set('views', path.join(__dirname, 'fixtures'))
       app.get('/', handler)
       app.use(function (err, req, res, next) {
-        errors.push({ code: err.code, message: err.message })
+        errors.record({ code: err.code, message: err.message })
       })
       return app
     }
 
-    it('without a callback, names res.render() in the error it passes on', function (done) {
-      var errors = []
+    it('without a callback, names res.render() in the error it passes on', async function () {
+      var errors = recordCalls()
       var app = renderApp(
         express,
         function (req, res) {
@@ -207,19 +208,13 @@ describe('the error for a second response (fork)', function () {
         },
         errors
       )
-      request(app)
-        .get('/')
-        .expect(200, 'first', function (err) {
-          if (err) return done(err)
-          setTimeout(function () {
-            assert.deepStrictEqual(errors, [{ code: 'ERR_HTTP_HEADERS_SENT', message: named('res.render()') }])
-            done()
-          }, 20)
-        })
+      await request(app).get('/').expect(200, 'first')
+      await errors.settled()
+      assert.deepStrictEqual(errors.calls, [{ code: 'ERR_HTTP_HEADERS_SENT', message: named('res.render()') }])
     })
 
-    it("with a callback that sends, names the callback's res.send()", function (done) {
-      var errors = []
+    it("with a callback that sends, names the callback's res.send()", async function () {
+      var errors = recordCalls()
       var app = renderApp(
         express,
         function (req, res, next) {
@@ -234,15 +229,9 @@ describe('the error for a second response (fork)', function () {
         },
         errors
       )
-      request(app)
-        .get('/')
-        .expect(200, 'first', function (err) {
-          if (err) return done(err)
-          setTimeout(function () {
-            assert.deepStrictEqual(errors, [{ code: 'ERR_HTTP_HEADERS_SENT', message: named('res.send()') }])
-            done()
-          }, 20)
-        })
+      await request(app).get('/').expect(200, 'first')
+      await errors.settled()
+      assert.deepStrictEqual(errors.calls, [{ code: 'ERR_HTTP_HEADERS_SENT', message: named('res.send()') }])
     })
   })
 

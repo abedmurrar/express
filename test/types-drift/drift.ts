@@ -202,6 +202,8 @@ export const staticOptions: OptionDifferences<
 > = {
   dotfiles: 'other type: any other string throws, but a string as in @types/express',
   end: byteOffset,
+  extensions:
+    "narrower in typings: a string works, but allowing it would stop these fitting @types/serve-static's options",
   index: booleanList,
   maxage,
   root: "not in typings: send's option, which express.static() sets from its first argument",

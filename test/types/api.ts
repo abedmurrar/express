@@ -123,7 +123,6 @@ app.use(
   })
 )
 app.use(express.static('public'))
-app.use(express.static('public', { extensions: 'html' }))
 app.use(
   '/static',
   express.static('public', {

@@ -20,7 +20,7 @@ The full list is the "Unreleased (fork)" section of [History.md](https://github.
 - **`res.send` sends binary bodies byte for byte.** An ArrayBuffer, SharedArrayBuffer, DataView or any typed array is sent as the bytes it covers. Express 5.3.0 sent an ArrayBuffer as `{}`, a DataView as nothing, and a `Uint16Array` or `Float64Array` one byte per element, or answered 500.
 - **`res.set` keeps an unknown Content-Type as given.** `res.set('Content-Type', 'custom-type')` sends `custom-type`, where Express 5.3.0 sent `false`. `res.send`, `res.json` and `res.sendFile` then keep it too, where 5.3.0 used their default type.
 - **`res.redirect` sends no Content-Length with Transfer-Encoding**, as `res.send` already did, so clients accept the response.
-- **`res.cookie` honours `expires: 0`** with a `maxAge`: the cookie gets `Max-Age` and no `Expires`.
+- **`res.cookie` honours `expires: 0`** with a `maxAge`: the cookie gets `Max-Age` and no `Expires`. The `CookieOptions` type takes only a `Date`, as `@types/express`'s does, so TypeScript code needs a cast for `0`.
 - **`res.jsonp` falls back to JSON** when the callback name has no allowed characters, instead of sending JavaScript that doesn't parse.
 - **`res.sendFile` and `res.download` honour a per-call `etag` option.** The app's `etag` setting is only the default, and the options object you pass is no longer changed.
 - **`res.render` after another response no longer crashes the process.** Without a callback, the "headers already sent" error goes to the error handler. Express 5.3.0 threw it from a deferred callback and ended the process.

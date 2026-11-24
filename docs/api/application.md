@@ -902,6 +902,52 @@ actually supported.
 
 :::
 
+### app.listRoutes()
+
+**Returns:** `Array`
+
+This is a fork addition; Express 5.3.0 has no `app.listRoutes()`.
+
+Lists the routes registered on the app, and the routers and apps mounted on it, in the order they
+were added: one `{ path, methods, router }` object per path. See
+[`router.listRoutes()`](/api/router#routerlistroutes) for what each property is, and what is left
+out.
+
+```js
+const app = express();
+const admin = express();
+
+app.get('/', home);
+app.use('/admin', admin);
+admin.get('/users', listUsers);
+
+console.log(app.listRoutes());
+// [
+//   { path: '/', methods: ['GET', 'HEAD'], router: undefined },
+//   { path: '/admin', methods: undefined, router: admin }
+// ]
+```
+
+Nested routes are not expanded. To list a whole app, call `listRoutes()` on each `router`:
+
+```js
+function list(app, prefix = '') {
+  return app.listRoutes().flatMap(({ path, methods, router }) => {
+    const full = `${prefix}${path}`;
+    if (!router) return methods.map((method) => `${method} ${full}`);
+    // a router or an app of another package may have no listRoutes()
+    return router.listRoutes ? list(router, full) : [];
+  });
+}
+```
+
+A mounted app's `router` is the app itself. Its own router is neither created nor read, so listing
+an app never fixes its `case sensitive routing`, `strict routing` and `strict mount routing`
+settings: an app that has no routes yet is listed as having none, and can still be set up.
+
+`app.all()` adds a handler for each HTTP method, so its entry lists them all; `app.route(path).all()`
+is listed as `'*'`.
+
 ### app.METHOD()
 
 **Parameters**

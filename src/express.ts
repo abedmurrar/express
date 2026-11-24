@@ -28,6 +28,7 @@ const proto = require('./application') as Application
 const Router = require('./router') as RouterConstructor
 const req = require('./request') as Request
 const res = require('./response') as ExpressResponse
+const { hasRouter } = require('./router/lib/list-routes') as typeof import('./router/lib/list-routes')
 const { originalRoute } = require('./router/lib/original-route') as typeof import('./router/lib/original-route')
 const dc = require('node:diagnostics_channel') as typeof import('node:diagnostics_channel')
 
@@ -56,6 +57,16 @@ const additions = {
   error: function error(this: Application, fn: unknown, ...rest: unknown[]) {
     this.router.error(fn as PathParams | HandlerList, ...(rest as HandlerList[]))
     return this
+  },
+
+  /**
+   * Proxy `Router#listRoutes()` to list the app router's routes and mounted
+   * routers and apps. Ported from expressjs/express#7531 by bjohansebas
+   * (open), where it creates the app's router, and so fixes its routing
+   * settings; here an app whose router has not been created has no routes.
+   */
+  listRoutes: function listRoutes(this: Application) {
+    return hasRouter(this) ? this.router.listRoutes() : []
   }
 }
 

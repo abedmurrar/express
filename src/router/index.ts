@@ -25,6 +25,7 @@ const symbols = require('./lib/symbols') as typeof import('./lib/symbols')
 const { checkPath, trackRoute } = require('./lib/warnings') as typeof import('./lib/warnings')
 const { recordError, requestChannel, traceParam } = require('./lib/tracing') as typeof import('./lib/tracing')
 const { matchedPattern } = require('./lib/original-route') as typeof import('./lib/original-route')
+const routeList = require('./lib/list-routes') as typeof import('./lib/list-routes')
 const { withCode } = require('../error-code') as typeof import('../error-code')
 const mountMatch: typeof symbols.mountMatch = symbols.mountMatch
 const routeMatch: typeof symbols.routeMatch = symbols.routeMatch
@@ -42,6 +43,7 @@ import type {
   RouterRequest,
   RouterResponse
 } from './lib/layer'
+import type { RouteInfo } from './lib/list-routes'
 import type { HandlerList, HttpMethod, HttpMethods, Route as RouteInstance, RouteConstructor } from './lib/route'
 import type { MatchedRequest, MatchRecord } from './lib/symbols'
 
@@ -55,6 +57,7 @@ export type {
   RouterRequest,
   RouterResponse
 } from './lib/layer'
+export type { MountedRouter, RouteInfo } from './lib/list-routes'
 export type { HandlerList, HttpMethod, HttpMethods, RouteMethod } from './lib/route'
 
 export interface RouterOptions {
@@ -90,6 +93,7 @@ export interface Router extends HttpMethods<RouterMethod> {
   use(handler: PathParams | HandlerList, ...handlers: HandlerList[]): Router
   error(handler: PathParams | HandlerList, ...handlers: HandlerList[]): Router
   route(path: PathParams): RouteInstance
+  listRoutes(): RouteInfo[]
   all: RouterMethod
 }
 
@@ -721,6 +725,29 @@ proto.route = function route(path) {
   trackRoute(this, route, this.stack.length - 1)
 
   return route
+}
+
+/**
+ * List the routes and mounted routers registered on this router.
+ *
+ * Returns one `{ path, methods, router }` object per registered path.
+ * `methods` lists registered HTTP methods in first registration order,
+ * with `'*'` representing `.all()` handlers. The automatic `HEAD` for
+ * `GET` routes is appended unless explicitly registered. It is `undefined`
+ * for mounted routers. Plain middleware is not listed.
+ * `router` is the mounted router instance for
+ * `.use(path, router)` layers, so consumers can recurse by calling
+ * `router.listRoutes()` themselves when it is available.
+ *
+ * Not in router 2.2.0: router 2.3.0's (pillarjs/router#174), in
+ * lib/list-routes, which lists mounted Express apps too.
+ *
+ * @return {Array<{path: string|RegExp, methods: Array<string>|undefined, router: Router|undefined}>}
+ * @public
+ */
+
+proto.listRoutes = function listRoutes() {
+  return routeList.listRoutes(this)
 }
 
 // create Router#VERB functions

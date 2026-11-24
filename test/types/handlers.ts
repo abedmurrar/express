@@ -162,6 +162,28 @@ app.error(42)
 // @ts-expect-error a handler, not a value
 express.Router().error('/x', 'nope')
 
+// app.listRoutes() and router.listRoutes() (a fork addition): `methods` and
+// `router` tell a route from a mounted router or app.
+function paths(routes: express.RouteInfo[], prefix = ''): string[] {
+  return routes.flatMap((route) => {
+    const path: string = prefix + String(route.path)
+    if (route.router === undefined) {
+      const methods: string[] = route.methods
+      return methods.map((method) => `${method} ${path}`)
+    }
+    // a router or app of another package may not have it
+    return paths(route.router.listRoutes?.() ?? [], path)
+  })
+}
+void [paths(app.listRoutes()), paths(express.Router().listRoutes())]
+const mountedRouter: express.MountedRouter = express.Router()
+const mountedApp: express.MountedRouter = app
+void [mountedRouter, mountedApp]
+// @ts-expect-error annotated as express.Router, which has no listRoutes() in the types
+annotated.listRoutes()
+// @ts-expect-error it takes no arguments
+app.listRoutes('/x')
+
 // A handler typed with the base http types still fits.
 app.use((req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => {
   void req.url

@@ -78,6 +78,25 @@ describe('fork: public function signatures', function () {
     })
   })
 
+  // Every function the fork adds to these objects, so that none is added unseen
+  it('adds only the functions declared here', function () {
+    var added = { Router: ['error', 'listRoutes'] }
+    Object.keys(targets).forEach(function (label) {
+      var theirs = Object.keys(functionsOf(targets[label](baseline)))
+      var extra = Object.keys(functionsOf(targets[label](express))).filter(function (key) {
+        return !theirs.includes(key)
+      })
+      assert.deepStrictEqual(extra.sort(), added[label] || [], label)
+    })
+
+    // and to each app
+    var theirApp = Object.keys(functionsOf(baseline()))
+    var appExtra = Object.keys(functionsOf(express())).filter(function (key) {
+      return !theirApp.includes(key)
+    })
+    assert.deepStrictEqual(appExtra.sort(), ['error', 'listRoutes'])
+  })
+
   it('checks every public function of Express 5.3.0', function () {
     var count = Object.keys(targets).reduce(function (sum, label) {
       return sum + Object.keys(functionsOf(targets[label](baseline))).length

@@ -76,6 +76,13 @@ declare global {
        * so the two stay assignable to each other.
        */
       error: IRouterErrorMatcher<this>
+      /**
+       * List the routes, and the routers and apps mounted, on this app, one
+       * entry per path, without changing how the app routes. Nested routes are
+       * not expanded: call `listRoutes()` on an entry's `router`. Not in
+       * Express 5.3.0; declared here as `error` is.
+       */
+      listRoutes(): RouteInfo[]
     }
   }
 }
@@ -568,11 +575,28 @@ export interface IRoute<Route extends string | RegExp = string> {
 export interface Router extends IRouter {}
 
 /**
- * What `express.Router()` returns: a `Router` with the fork's `error()`. Not
- * in Express 5.3.0. `Router` itself has no `error`, so a router typed with
- * `@types/express-serve-static-core` stays assignable to it; a variable
- * annotated `Router` therefore doesn't show `error()` (annotate it with this
- * type, or let it be inferred).
+ * A router or app mounted with `use()`, as `listRoutes()` gives it. Ours have
+ * `listRoutes()`; one of another package may not.
+ */
+export interface MountedRouter {
+  listRoutes?(): RouteInfo[]
+}
+
+/**
+ * One entry of `listRoutes()`: a path, with the route's methods (uppercase,
+ * `'*'` for `route.all()`, `HEAD` for `GET`) or what is mounted there.
+ */
+export type RouteInfo = { path: string | RegExp } & (
+  | { methods: string[]; router: undefined }
+  | { methods: undefined; router: MountedRouter }
+)
+
+/**
+ * What `express.Router()` returns: a `Router` with the fork's `error()` and
+ * `listRoutes()`. Not in Express 5.3.0. `Router` itself has neither, so a
+ * router typed with `@types/express-serve-static-core` stays assignable to it;
+ * a variable annotated `Router` therefore doesn't show them (annotate it with
+ * this type, or let it be inferred).
  */
 export interface RouterWithErrorHandlers extends Router {
   /**
@@ -582,6 +606,12 @@ export interface RouterWithErrorHandlers extends Router {
    * added with `use()` still works too.
    */
   error: IRouterErrorMatcher<this>
+  /**
+   * List the routes, and the routers and apps mounted, on this router, one
+   * entry per path. Nested routes are not expanded: call `listRoutes()` on an
+   * entry's `router`.
+   */
+  listRoutes(): RouteInfo[]
 }
 
 /**

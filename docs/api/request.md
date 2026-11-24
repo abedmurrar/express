@@ -258,7 +258,7 @@ console.dir(req.fresh);
 
 ### req.hostname
 
-**Type:** `String`
+**Type:** `String | undefined`
 
 Contains the hostname derived from the `Host` HTTP header.
 
@@ -288,7 +288,7 @@ console.dir(req.hostname);
 
 ### req.host
 
-**Type:** `String`
+**Type:** `String | undefined`
 
 Contains the host derived from the `Host` HTTP header.
 
@@ -887,20 +887,23 @@ The `req` object also contains a number of methods that can be used to perform v
 
 **Parameters**
 
-- **`types`** · `String | String[]`
+- **`types`** · `String | String[]` · optional
 
   The content type(s) to check: a MIME type (such as `application/json`), an extension name
-  (such as `json`), a comma-delimited list, or an array.
+  (such as `json`), several of them as arguments, or an array. If omitted, all accepted types
+  are returned as an array.
 
-**Returns:** `String | false`
+**Returns:** `String | String[] | false`
 
 Checks if the specified content types are acceptable, based on the request's `Accept` HTTP header field.
 The method returns the best match, or if none of the specified content types is acceptable, returns
 `false` (in which case, the application should respond with `406 "Not Acceptable"`).
 
 The `type` value may be a single MIME type string (such as "application/json"),
-an extension name such as "json", a comma-delimited list, or an array. For a
-list or array, the method returns the _best_ match (if any).
+an extension name such as "json", several of them as arguments, or an array. With more than
+one, the method returns the _best_ match (if any). A comma-delimited string is one type, not a list.
+
+Without arguments, it returns the types the client accepts as an `Array`, in order of its preference.
 
 ```js
 // Accept: text/html
@@ -924,7 +927,10 @@ req.accepts('png');
 
 // Accept: text/*;q=.5, application/json
 req.accepts(['html', 'json']);
+req.accepts('html', 'json');
 // => 'json'
+req.accepts();
+// => ['application/json', 'text/*']
 ```
 
 For more information, or if you have issues or concerns, see [accepts](https://github.com/expressjs/accepts).
@@ -933,15 +939,17 @@ For more information, or if you have issues or concerns, see [accepts](https://g
 
 **Parameters**
 
-- **`charset`** · `String | String[]`
+- **`charset`** · `String | String[]` · optional
 
-  One or more character sets to test against the request's `Accept-Charset` header.
+  One or more character sets to test against the request's `Accept-Charset` header. If omitted, all
+  accepted charsets are returned as an array.
 
-**Returns:** `String | false`
+**Returns:** `String | String[] | false`
 
-Returns the first accepted charset of the specified character sets,
+Returns the accepted charset that the client prefers among the specified character sets,
 based on the request's `Accept-Charset` HTTP header field.
 If none of the specified charsets is accepted, returns `false`.
+Without arguments, it returns all the accepted charsets as an `Array`, in order of the client's preference.
 
 ```js
 // Accept-Charset: utf-8, iso-8859-1;q=0.5
@@ -950,6 +958,9 @@ req.acceptsCharsets('utf-8', 'iso-8859-1');
 
 req.acceptsCharsets('us-ascii');
 // => false
+
+req.acceptsCharsets();
+// => ['utf-8', 'iso-8859-1']
 ```
 
 For more information, or if you have issues or concerns, see [accepts](https://github.com/expressjs/accepts).
@@ -958,15 +969,17 @@ For more information, or if you have issues or concerns, see [accepts](https://g
 
 **Parameters**
 
-- **`encoding`** · `String | String[]`
+- **`encoding`** · `String | String[]` · optional
 
-  One or more encodings to test against the request's `Accept-Encoding` header.
+  One or more encodings to test against the request's `Accept-Encoding` header. If omitted, all
+  accepted encodings are returned as an array.
 
-**Returns:** `String | false`
+**Returns:** `String | String[] | false`
 
-Returns the first accepted encoding of the specified encodings,
+Returns the accepted encoding that the client prefers among the specified encodings,
 based on the request's `Accept-Encoding` HTTP header field.
 If none of the specified encodings is accepted, returns `false`.
+Without arguments, it returns all the accepted encodings as an `Array`, in order of the client's preference.
 
 ```js
 // Accept-Encoding: gzip, deflate
@@ -975,6 +988,13 @@ req.acceptsEncodings('gzip', 'deflate');
 
 req.acceptsEncodings('br');
 // => false
+
+// unless the client excludes it
+req.acceptsEncodings('identity');
+// => 'identity'
+
+req.acceptsEncodings();
+// => ['gzip', 'deflate', 'identity']
 ```
 
 For more information, or if you have issues or concerns, see [accepts](https://github.com/expressjs/accepts).
@@ -990,7 +1010,7 @@ For more information, or if you have issues or concerns, see [accepts](https://g
 
 **Returns:** `String | String[] | false`
 
-Returns the first accepted language of the specified languages,
+Returns the accepted language that the client prefers among the specified languages,
 based on the request's `Accept-Language` HTTP header field.
 If none of the specified languages is accepted, returns `false`.
 
@@ -1064,12 +1084,12 @@ Returns `false` otherwise.
 // With Content-Type: text/html; charset=utf-8
 req.is('html'); // => 'html'
 req.is('text/html'); // => 'text/html'
-req.is('text/*'); // => 'text/*'
+req.is('text/*'); // => 'text/html'
 
 // When Content-Type is application/json
 req.is('json'); // => 'json'
 req.is('application/json'); // => 'application/json'
-req.is('application/*'); // => 'application/*'
+req.is('application/*'); // => 'application/json'
 
 // Using arrays
 // When Content-Type is application/json

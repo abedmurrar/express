@@ -599,7 +599,7 @@ res.sendStatus = function sendStatus(this: ExpressResponse, statusCode: number) 
  *   - `maxAge`   defaulting to 0 (can be string converted by `ms`)
  *   - `root`     root directory for relative filenames
  *   - `headers`  object of headers to serve with file
- *   - `dotfiles` serve dotfiles, defaulting to false; can be `"allow"` to send them
+ *   - `dotfiles` `"ignore"` (404), `"allow"` to send them, or `"deny"` (403), defaulting to `"ignore"`
  *
  * Other options are passed along to `send`.
  *
@@ -618,7 +618,7 @@ res.sendStatus = function sendStatus(this: ExpressResponse, statusCode: number) 
  *         if (yes) {
  *           res.sendFile('/uploads/' + uid + '/' + file);
  *         } else {
- *           res.send(403, 'Sorry! you can\'t see that.');
+ *           res.status(403).send('Sorry! you can\'t see that.');
  *         }
  *       });
  *     });
@@ -997,7 +997,7 @@ res.set = res.header = function header(this: ExpressResponse, field: string | Re
  * Get value for header `field`.
  *
  * @param {String} field
- * @return {String}
+ * @return {String|Number|String[]|undefined}
  * @public
  */
 

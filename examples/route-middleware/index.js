@@ -6,7 +6,7 @@
 
 var express = require('../../lib/express')
 
-var app = express()
+var app = (module.exports = express())
 
 // Example requests:
 //     curl http://localhost:3000/user/0
@@ -24,7 +24,8 @@ var users = [
 
 function loadUser(req, res, next) {
   // You would fetch your user from the db
-  var user = users[req.params.id]
+  // digits only, so that 'length' or '__proto__' is not a user
+  var user = /^\d+$/.test(req.params.id) ? users[req.params.id] : undefined
   if (user) {
     req.user = user
     next()
@@ -84,7 +85,7 @@ app.delete('/user/:id', loadUser, andRestrictTo('admin'), function (req, res) {
 })
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

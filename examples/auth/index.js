@@ -59,9 +59,10 @@ hash({ password: 'foobar' }, function (err, pass, salt, hash) {
 // Authenticate using our plain-object database of doom!
 
 function authenticate(name, pass, fn) {
-  if (!module.parent) console.log('authenticating %s:%s', name, pass)
-  var user = users[name]
-  // query the db for the given username
+  if (require.main === module) console.log('authenticating %s:%s', name, pass)
+  // query the db for the given username. Own properties only, so that
+  // '__proto__' or 'constructor' is not a user
+  var user = Object.hasOwn(users, name) ? users[name] : undefined
   if (!user) return fn(null, null)
   // apply the same algorithm to the POSTed password, applying
   // the hash against the pass / salt, if there is a match we
@@ -130,7 +131,7 @@ app.post('/login', function (req, res, next) {
 })
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

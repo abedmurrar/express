@@ -11,7 +11,7 @@ exports.prefix = '/user/:user_id'
 
 exports.create = function (req, res, next) {
   var id = req.params.user_id
-  var user = db.users[id]
+  var user = /^\d+$/.test(id) ? db.users[id] : undefined
   var body = req.body
   if (!user) return next('route')
   var pet = { name: body.pet.name }

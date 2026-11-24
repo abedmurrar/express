@@ -134,7 +134,7 @@ app.use('/api', function(req, res, next){
 
 /*
 
-app.all('/api/*', function(req, res, next){
+app.all('/api/*splat', function(req, res, next){
   res.locals.user = req.user;
   res.locals.sess = req.session;
   next();
@@ -143,7 +143,7 @@ app.all('/api/*', function(req, res, next){
 */
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

@@ -13,8 +13,9 @@ exports.list = function (req, res) {
 
 exports.load = function (req, res, next) {
   var id = req.params.id
-  req.user = users[id]
-  if (req.user) {
+  // digits only: users['__proto__'] is Array.prototype, which update() would change
+  if (/^\d+$/.test(id) && users[id]) {
+    req.user = users[id]
     next()
   } else {
     var err = new Error('cannot find user ' + id)

@@ -29,14 +29,16 @@ The full plan, with a decision for every open upstream issue and pull request, i
   * the same check with popular middleware (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit);
   * a fuzzer that builds random apps and requests and runs that check on each, and property tests that check query parsing, routing, content negotiation, cookies, ranges, ETags and freshness on random inputs;
   * a 100% coverage gate.
-* **Regression tests for 21 confirmed bugs**, which stay skipped until each fix lands.
+* **Bug fixes**, each with a regression test. They are listed in [Differences from Express 5.3.0](https://abedmurrar.github.io/express/fork/differences).
+* **Opt-in additions**, such as `req.signal`, `req.originalRoute`, `app.error()`, error codes and diagnostics channels. An app that doesn't use them behaves as on Express 5.3.0.
 * **A security test suite** that checks auth guards against path tricks (case, slashes, encoding, RegExp paths), header injection, redirect targets, prototype pollution and path traversal. Each check was shown to fail when its guard is broken on purpose.
 * **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
-* **Our own copies of `router` and `send`** (see [VENDORED.md](VENDORED.md)), so routing and file-sending bugs can be fixed here.
+* **Our own copies of `router`, `send`, `serve-static`, `qs`, `body-parser`, `negotiator` and `accepts`** (see [VENDORED.md](VENDORED.md)), so their bugs can be fixed here.
+* **Strict TypeScript sources**, compiled to the CommonJS in `lib/` that is published.
 * **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.
 * **Built-in TypeScript types and an ES module entry** (see [TypeScript and ES modules](#typescript-and-es-modules)), checked by type tests and [`attw`](https://github.com/arethetypeswrong/arethetypeswrong.github.io).
 
-Coming next: bug fixes, speed-ups and strict TypeScript, all on the drop-in line. See [ROADMAP.md](ROADMAP.md).
+Coming next: the rest of the drop-in line, then the breaking changes on `6.x`. See [ROADMAP.md](ROADMAP.md).
 
 ## Installation
 

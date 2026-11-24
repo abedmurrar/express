@@ -151,7 +151,7 @@ module.exports = req
  * Aliased as `req.header()`.
  *
  * @param {String} name
- * @return {String}
+ * @return {String|String[]|undefined} an array for `Set-Cookie` only
  * @public
  */
 
@@ -186,21 +186,29 @@ function header(this: Request, name: string): string | string[] | undefined {
 }
 
 /**
- * Check if the given `type(s)` is acceptable, returning
+ * Check if the given `types` are acceptable, returning
  * the best match when true, otherwise `false`, in which
- * case you should respond with 406 "Not Acceptable".
+ * case you should respond with 406 "Not Acceptable" or
+ * send a default representation.
  *
- * The `type` value may be a single MIME type string
- * such as "application/json", an extension name
- * such as "json", an argument list such as `"json", "html", "text/plain"`,
- * or an array `["json", "html", "text/plain"]`. When a list
- * or array is given, the _best_ match, if any is returned.
+ * The `types` can be:
+ * - A single MIME type or extension name (e.g., `'application/json'` or `'json'`)
+ * - Several of them as arguments (e.g., `'json', 'html', 'text/plain'`)
+ * - An array of them (e.g., `['json', 'html', 'text/plain']`)
+ *
+ * With more than one, the _best_ match is returned, if any.
+ * A comma-delimited string is one type, not a list.
+ *
+ * Without arguments, returns an array of the accepted types
+ * in order of the client's preference.
  *
  * Examples:
  *
  *     // Accept: text/html
  *     req.accepts('html');
  *     // => "html"
+ *     req.accepts();
+ *     // => ["text/html"]
  *
  *     // Accept: text/*, application/json
  *     req.accepts('html');
@@ -221,9 +229,11 @@ function header(this: Request, name: string): string | string[] | undefined {
  *     req.accepts(['html', 'json']);
  *     req.accepts('html', 'json');
  *     // => "json"
+ *     req.accepts();
+ *     // => ["application/json", "text/*"]
  *
- * @param {String|Array} type(s)
- * @return {String|Array|Boolean}
+ * @param {...(String|String[])} types
+ * @return {String|String[]|false}
  * @public
  */
 
@@ -233,10 +243,38 @@ req.accepts = function (this: Request, ...types: string[]) {
 } as Request['accepts']
 
 /**
- * Check if the given `encoding`s are accepted.
+ * Check if the given `encodings` are accepted, returning
+ * the best match when true, otherwise `false`.
+ * `identity` is accepted unless the client excludes it.
  *
- * @param {String} ...encoding
- * @return {String|Array}
+ * The `encodings` can be a string, several strings as
+ * arguments, or an array. Without arguments, returns an
+ * array of the accepted encodings in order of the client's
+ * preference.
+ *
+ * Examples:
+ *
+ *     // Accept-Encoding: gzip
+ *     req.acceptsEncodings('gzip');
+ *     // => "gzip"
+ *     req.acceptsEncodings('identity');
+ *     // => "identity"
+ *     req.acceptsEncodings('zstd');
+ *     // => false
+ *     req.acceptsEncodings();
+ *     // => ["gzip", "identity"]
+ *
+ *     // Accept-Encoding: gzip;q=0.5, br, identity;q=0
+ *     req.acceptsEncodings('identity');
+ *     // => false
+ *     req.acceptsEncodings('gzip', 'br');
+ *     req.acceptsEncodings(['gzip', 'br']);
+ *     // => "br"
+ *     req.acceptsEncodings();
+ *     // => ["br", "gzip"]
+ *
+ * @param {...(String|String[])} encodings
+ * @return {String|String[]|false}
  * @public
  */
 
@@ -246,28 +284,31 @@ req.acceptsEncodings = function (this: Request, ...encodings: string[]) {
 } as Request['acceptsEncodings']
 
 /**
- * Checks if the specified `charset`s are acceptable based on the request's `Accept-Charset` header.
- * Returns the best matching charset or an array of acceptable charsets.
+ * Check if the given `charsets` are accepted, returning
+ * the best match when true, otherwise `false`.
  *
- * The `charset` argument(s) can be:
- * - A single charset string (e.g., "utf-8")
- * - Multiple charset strings as arguments (e.g., `"utf-8", "iso-8859-1"`)
- * - A comma-delimited list of charsets (e.g., `"utf-8, iso-8859-1"`)
+ * The `charsets` can be a string, several strings as
+ * arguments, or an array. Without arguments, returns an
+ * array of the accepted charsets in order of the client's
+ * preference. The `Accept-Charset` header is deprecated, and
+ * most clients don't send it.
  *
  * Examples:
  *
  *     // Accept-Charset: utf-8, iso-8859-1
  *     req.acceptsCharsets('utf-8');
  *     // => "utf-8"
- *
+ *     req.acceptsCharsets('utf-16');
+ *     // => false
  *     req.acceptsCharsets('utf-8', 'iso-8859-1');
  *     // => "utf-8"
- *
- *     req.acceptsCharsets('utf-8, utf-16');
+ *     req.acceptsCharsets(['utf-8', 'utf-16']);
  *     // => "utf-8"
+ *     req.acceptsCharsets();
+ *     // => ["utf-8", "iso-8859-1"]
  *
- * @param {...String} charsets - The charset(s) to check against the `Accept-Charset` header.
- * @return {String|Array} - The best matching charset, or an array of acceptable charsets.
+ * @param {...(String|String[])} charsets
+ * @return {String|String[]|false}
  * @public
  */
 
@@ -277,11 +318,32 @@ req.acceptsCharsets = function (this: Request, ...charsets: string[]) {
 } as Request['acceptsCharsets']
 
 /**
- * Check if the given `lang`s are acceptable,
- * otherwise you should respond with 406 "Not Acceptable".
+ * Check if the given `languages` are accepted, returning
+ * the best match when true, otherwise `false`, in which
+ * case you should respond with 406 "Not Acceptable" or
+ * send a default representation.
  *
- * @param {String} ...lang
- * @return {String|Array}
+ * The `languages` can be a string, several strings as
+ * arguments, or an array. Without arguments, returns an
+ * array of the accepted languages in order of the client's
+ * preference.
+ *
+ * Examples:
+ *
+ *     // Accept-Language: en-gb, en;q=0.9
+ *     req.acceptsLanguages('en-gb');
+ *     // => "en-gb"
+ *     req.acceptsLanguages('de');
+ *     // => false
+ *     req.acceptsLanguages('en', 'en-us', 'en-gb');
+ *     // => "en-gb"
+ *     req.acceptsLanguages(['en', 'en-us']);
+ *     // => "en"
+ *     req.acceptsLanguages();
+ *     // => ["en-gb", "en"]
+ *
+ * @param {...(String|String[])} languages
+ * @return {String|String[]|false}
  * @public
  */
 
@@ -310,7 +372,7 @@ req.acceptsLanguages = function (this: Request, ...languages: string[]) {
  * @param {number} size
  * @param {object} [options]
  * @param {boolean} [options.combine=false]
- * @return {number|array}
+ * @return {number|array|undefined}
  * @public
  */
 
@@ -326,7 +388,7 @@ req.range = function range(size, options) {
  * This uses the "query parser" setting to parse the raw
  * string into an object.
  *
- * @return {String}
+ * @return {Object}
  * @api public
  */
 
@@ -393,21 +455,25 @@ function warnQueryLimit(req: Request, str: string): void {
 
 /**
  * Check if the incoming request contains the "Content-Type"
- * header field, and it contains the given mime `type`.
+ * header field, and it contains the given mime `type`,
+ * returning the type that matched, otherwise `false`, or
+ * `null` when the request has no body.
  *
  * Examples:
  *
  *      // With Content-Type: text/html; charset=utf-8
  *      req.is('html');
+ *      // => "html"
  *      req.is('text/html');
  *      req.is('text/*');
- *      // => true
+ *      // => "text/html"
  *
  *      // When Content-Type is application/json
  *      req.is('json');
+ *      // => "json"
  *      req.is('application/json');
  *      req.is('application/*');
- *      // => true
+ *      // => "application/json"
  *
  *      req.is('html');
  *      // => false
@@ -484,7 +550,7 @@ defineGetter(req, 'secure', function secure() {
  * This is the remote address on the socket unless
  * "trust proxy" is set.
  *
- * @return {String}
+ * @return {String|undefined}
  * @public
  */
 
@@ -572,7 +638,7 @@ defineGetter(req, 'path', function path() {
  * Userinfo before an "@" is dropped, and a value whose
  * port is not all digits gives `undefined`.
  *
- * @return {String}
+ * @return {String|undefined}
  * @public
  */
 
@@ -613,7 +679,7 @@ defineGetter(req, 'host', function host() {
  * address, the "X-Forwarded-Host" header field will
  * be trusted.
  *
- * @return {String}
+ * @return {String|undefined}
  * @api public
  */
 

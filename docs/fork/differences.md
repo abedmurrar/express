@@ -5,7 +5,7 @@ description: Everything abedmurrar/express has changed compared with Express 5.3
 
 # Differences from Express 5.3.0
 
-So far the fork changes **how Express is tested and built**, not how it behaves: an app gets the same responses as on Express 5.3.0, except where 5.3.0 crashes the process or has a bug the fork fixes (see below). Bug fixes, speed-ups and strict TypeScript come next, on the same drop-in line (see the [roadmap](./roadmap)).
+An app gets the same responses as on Express 5.3.0, except where 5.3.0 crashes the process or has a bug the fork fixes (see below). What else the fork changes is how Express is built, tested and typed, and opt-in additions. What comes next is in the [roadmap](./roadmap).
 
 The full list is the "Unreleased (fork)" section of [History.md](https://github.com/abedmurrar/express/blob/master/History.md).
 
@@ -87,7 +87,7 @@ The ones that can fire on every request print once per process, at the first cal
 - **Middleware's own test suites.** The test suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests) run against Express 5.3.0 and against the fork. Every test that passes on 5.3.0 must pass on the fork, and today all of them do.
 - **Security test suite.** Checks that an auth guard always runs before the route it protects however the path is spelled, that CR and LF never inject a header, where redirects point, that no request pollutes `Object.prototype`, and that file serving never leaves its root.
 - **100% coverage.** Statements, branches, functions and lines of `lib/` are measured with c8 and must stay at 100%, or CI fails.
-- **Regression tests for 29 confirmed bugs.** Each one asserts the correct behaviour and stays skipped until its fix lands.
+- **Regression tests for the confirmed bugs.** Each one asserts the correct behaviour. All of them pass.
 - **Upstream test PRs.** Eight upstream test-coverage pull requests are ported, keeping their authors.
 
 ## Tooling

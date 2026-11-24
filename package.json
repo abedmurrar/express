@@ -159,6 +159,7 @@
     "test-tap": "npm run build && vitest run --reporter=tap",
     "bench:install": "npm --prefix benchmarks/compare install",
     "bench": "node benchmarks/compare/run.ts",
+    "test:package": "npm run build && node scripts/check-package.js",
     "test:ecosystem-suites": "node scripts/ecosystem-suites.js",
     "release": "node scripts/release.js",
     "build": "node scripts/build.js",

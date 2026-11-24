@@ -338,7 +338,7 @@ res.clearCookie('name', { path: '/admin' });
 
   - **`expires`** · `Date`
 
-    Expiry date of the cookie in GMT. If not specified or set to `0`, creates a session cookie.
+    Expiry date of the cookie in GMT. If not specified or set to `0`, creates a session cookie. With `maxAge` as well, `0` sends `Max-Age` and no `Expires` (Express 5.3.0 sends both).
 
   - **`httpOnly`** · `Boolean`
 
@@ -380,6 +380,7 @@ Sets cookie `name` to `value`. The `value` parameter may be a string or object c
 
 All `res.cookie()` does is set the HTTP `Set-Cookie` header with the options provided. Any option
 not specified defaults to the value stated in [RFC 6265](https://datatracker.ietf.org/doc/html/rfc6265).
+See [Cookies](/guide/cookies) for `SameSite`, and for secure cookies behind a proxy.
 
 :::
 
@@ -428,7 +429,7 @@ The following is equivalent to the second example above.
 res.cookie('remember_me', '1', { maxAge: 900000, httpOnly: true });
 ```
 
-You can pass an object as the `value` parameter; it is then serialized as JSON and parsed by `bodyParser()` middleware.
+You can pass an object as the `value` parameter; it is then serialized as JSON, and [cookie-parser](https://www.npmjs.com/package/cookie-parser) parses it back into an object.
 
 ```js
 res.cookie('cart', { items: [1, 2, 3] });
@@ -492,6 +493,10 @@ Later, you may access this value through the [req.signedCookies](/api/request#re
   - **`immutable`** · `Boolean` · default: `false`
 
     Enable or disable the `immutable` directive in the `Cache-Control` response header. If enabled, the `maxAge` option should also be specified to enable caching.
+
+  - **`etag`** · `Boolean` · default: the app's `etag` setting
+
+    Set `false` to leave the `ETag` header out, or `true` to send it when the app's `etag` setting is off. Not in Express 5.3.0, which uses the setting whatever this option says ([#4750](https://github.com/expressjs/express/issues/4750)).
 
 - **`fn`** · `Function` · optional
 
@@ -897,9 +902,9 @@ res.render('user', { name: 'Tobi' }, (err, html) => {
 
 **Parameters**
 
-- **`body`** · `String | Buffer | Object | Array | Boolean` · optional
+- **`body`** · `String | Buffer | ArrayBuffer | SharedArrayBuffer | TypedArray | DataView | Object | Array | Boolean` · optional
 
-  The response body. Strings are sent as HTML; objects and arrays as JSON; Buffers as binary.
+  The response body. Strings are sent as HTML; objects and arrays as JSON; Buffers, ArrayBuffers and their views as binary.
 
 **Returns:** `Response`
 
@@ -927,6 +932,8 @@ response header field to "application/octet-stream", unless previously defined a
 res.set('Content-Type', 'text/html');
 res.send(Buffer.from('<p>some html</p>'));
 ```
+
+An `ArrayBuffer`, a `SharedArrayBuffer`, a `DataView` or a typed array is sent the same way, as exactly the bytes it covers. (Express 5.3.0 does that only for a `Buffer` and a `Uint8Array`; see [Differences](/fork/differences#runtime).)
 
 When the parameter is a `String`, the method sets the `Content-Type` to "text/html":
 
@@ -990,6 +997,10 @@ Sending an object, array, number or boolean with `res.send()` still sends JSON, 
   - **`immutable`** · `Boolean` · default: `false`
 
     Enable or disable the `immutable` directive in the `Cache-Control` response header. If enabled, the `maxAge` option should also be specified to enable caching.
+
+  - **`etag`** · `Boolean` · default: the app's `etag` setting
+
+    Set `false` to leave the `ETag` header out, or `true` to send it when the app's `etag` setting is off. Not in Express 5.3.0, which uses the setting whatever this option says ([#4750](https://github.com/expressjs/express/issues/4750)).
 
 - **`fn`** · `Function` · optional
 

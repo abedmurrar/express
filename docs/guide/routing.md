@@ -175,7 +175,7 @@ app.get('/random.text', (req: Request, res: Response) => {
 
 ::: danger
 
-The characters `?`, `+`, `*`, `[]`, `()`, and `!` are reserved and cannot be used as literal characters in route paths, and braces are reserved for [optional segments](#optional-segments). Use `\` to escape them if needed.
+The characters `?`, `+`, `*`, `[]`, `()`, and `!` are reserved and cannot be used as literal characters in route paths, and braces are reserved for [optional segments](#optional-segments). Use `\` to escape them if needed. Paths from Express 4 often use them: see [Express 5 path syntax](/guide/path-syntax).
 
 :::
 
@@ -235,7 +235,7 @@ app.get('/users/:userId/books/:bookId', (req, res) => {
 });
 ```
 
-In TypeScript, `@types/express` infers the parameters from the route path, so in the handler above
+In TypeScript, the types infer the parameters from the route path, so in the handler above
 `req.params.userId` and `req.params.bookId` are already typed as `string` with no extra annotation.
 Reading a name that is not in the route (such as `req.params.other`) is a type error. You only need
 to annotate the parameters when the handler is defined separately from the route, because the type

@@ -84,12 +84,15 @@ export default defineConfig({
 
       '/guide/': section('Guide', '/guide/', {
         routing: 'Routing',
+        'path-syntax': 'Express 5 path syntax',
         'writing-middleware': 'Writing middleware',
         'using-middleware': 'Using middleware',
         'using-template-engines': 'Using template engines',
         'error-handling': 'Error handling',
         debugging: 'Debugging',
         'behind-proxies': 'Express behind proxies',
+        cookies: 'Cookies and proxies',
+        testing: 'Testing without a port',
         'database-integration': 'Database integration',
         'overriding-express-api': 'Overriding the Express API',
         'migrating-5': 'Migrating to Express 5'
@@ -102,7 +105,8 @@ export default defineConfig({
         request: 'Request',
         response: 'Response',
         router: 'Router',
-        errors: 'Error codes'
+        errors: 'Error codes',
+        diagnostics: 'Diagnostics channels'
       }),
 
       '/advanced/': section('Advanced topics', '/advanced/', {

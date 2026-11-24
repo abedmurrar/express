@@ -85,7 +85,7 @@ app.set('trust proxy', (ip: string) => {
 Enabling `trust proxy` will have the following impact:
 
 - The value of [req.hostname](/api/request#reqhostname) is derived from the value set in the `X-Forwarded-Host` header, which can be set by the client or by the proxy.
-- `X-Forwarded-Proto` can be set by the reverse proxy to tell the app whether it is `https` or `http` or even an invalid name. This value is reflected by [req.protocol](/api/request#reqprotocol).
+- `X-Forwarded-Proto` can be set by the reverse proxy to tell the app whether it is `https` or `http` or even an invalid name. This value is reflected by [req.protocol](/api/request#reqprotocol) and [req.secure](/api/request#reqsecure), which session middleware reads before it sets a secure cookie. See [Secure cookies behind a proxy](/guide/cookies#behind-a-proxy).
 - The [req.ip](/api/request#reqip) and [req.ips](/api/request#reqips) values are populated based on the socket address and `X-Forwarded-For` header, starting at the first untrusted address.
 
 The `trust proxy` setting is implemented using the [proxy-addr](https://www.npmjs.com/package/proxy-addr) package. For more information, see its documentation.

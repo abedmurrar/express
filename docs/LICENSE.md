@@ -20,11 +20,13 @@ These pages are not endorsed by the Express project or the OpenJS Foundation.
 - Converted the pages from Astro MDX to VitePress Markdown. Notes and warnings became VitePress callouts; the function signature boxes became parameter lists; the CommonJS, ESM and TypeScript variants of an example became tabs; the package manager command boxes became plain `npm` commands; one HTML table and one HTML list became Markdown.
 - Links to pages that this site doesn't include (other Express versions, the middleware pages, community, support and security updates) now go to expressjs.com. Links to the Express examples go to the copy of the examples in this fork.
 - Added notes for this fork: the supported Node.js versions (22, 24 and 26) and how to install the fork, on the Installing, FAQ, Migrating to Express 5 and API overview pages.
+- Rewrote the graceful shutdown part of Health checks and graceful shutdown, with a tested example.
+- Documented the fork's additions on the API pages, each marked as not in Express 5.3.0.
 - Left out: other languages, the blog, the 3.x and 4.x documentation, Moving to Express 4, Security updates, and the resources pages.
 
 ## The fork's own pages
 
-The home page and the pages in the [Fork](/fork/) section are © 2026-present Abed Murrar, and are also available under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+The home page, the pages in the [Fork](/fork/) section, and [Express 5 path syntax](/guide/path-syntax), [Cookies](/guide/cookies), [Testing without a port](/guide/testing), [Error codes](/api/errors) and [Diagnostics channels](/api/diagnostics) are © 2026-present Abed Murrar, and are also available under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## The code
 

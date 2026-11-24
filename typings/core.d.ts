@@ -18,6 +18,9 @@
  *   `app.map`, `app.routes`, `app.stack`, `layer.regexp`, `req.accepted`,
  *   `res.charset`) are marked `@deprecated`. Their types are unchanged, so
  *   code that still mentions them compiles.
+ * - `RouteParameters` reads more of path-to-regexp 8's syntax: a wildcard
+ *   before a parameter, nested groups, quoted names, an escaped character
+ *   after a name, and names that end at `,` `;` `@` `~` `=` `&` `%` `'` or `|`.
  *
  * MIT License
  *
@@ -269,11 +272,13 @@ export type RequestHandlerParams<
   | ErrorRequestHandler<P, ResBody, ReqBody, ReqQuery, LocalsObj>
   | Array<RequestHandler<P> | ErrorRequestHandler<P>>
 
-type RemoveTail<S extends string, Tail extends string> = S extends `${infer P}${Tail}` ? P : S
-type GetRouteParameter<S extends string> = RemoveTail<
-  RemoveTail<RemoveTail<S, `/${string}`>, `-${string}`>,
-  `.${string}`
->
+/** What ends a parameter's name, as in path-to-regexp 8: what can't be in an identifier. */
+type NameEnd = '/' | '-' | '.' | ',' | ';' | '@' | '~' | '=' | '&' | '%' | "'" | '|' | '{' | '}' | '\\'
+type GetRouteParameter<S extends string, Name extends string = ''> = S extends `${infer Char}${infer Rest}`
+  ? Char extends NameEnd
+    ? Name
+    : GetRouteParameter<Rest, `${Name}${Char}`>
+  : `${Name}${S}`
 
 // dprint-ignore
 export type RouteParameters<Route extends string | RegExp> = Route extends string
@@ -284,13 +289,24 @@ export type RouteParameters<Route extends string | RegExp> = Route extends strin
 
 type ParseRouteParameters<Route extends string> = string extends Route
   ? ParamsDictionary
-  : Route extends `${string}:${infer Rest}`
-    ? (GetRouteParameter<Rest> extends never ? ParamsDictionary : { [P in GetRouteParameter<Rest>]: string }) &
-        (Rest extends `${GetRouteParameter<Rest>}${infer Next}` ? RouteParameters<Next> : unknown)
+  : Route extends `${infer Text}:${infer Rest}`
+    ? // a wildcard before it, rather than an escaped asterisk
+      Text extends `${string}\\*${string}`
+      ? RouteParameter<Rest, string>
+      : Text extends `${string}*${infer Wildcard}`
+        ? RouteParameter<`${Wildcard}:${Rest}`, string[]>
+        : RouteParameter<Rest, string>
     : Route extends `${string}*${infer Rest}`
-      ? (GetRouteParameter<Rest> extends never ? ParamsDictionary : { [P in GetRouteParameter<Rest>]: string[] }) &
-          (Rest extends `${GetRouteParameter<Rest>}${infer Next}` ? RouteParameters<Next> : unknown)
+      ? RouteParameter<Rest, string[]>
       : {}
+
+/** The parameter whose name `Rest` starts with, quoted or not, and those after it. */
+type RouteParameter<Rest extends string, Value> = Rest extends `"${infer Name}"${infer Next}`
+  ? { [P in Name]: Value } & RouteParameters<Next>
+  : { [P in Exclude<GetRouteParameter<Rest>, ''>]: Value } & (Rest extends `${GetRouteParameter<Rest>}${infer Next}`
+      ? // an escaped character after a name is text (`/:id\\:cancel`)
+        RouteParameters<Value extends string ? (Next extends `\\${string}${infer After}` ? After : Next) : Next>
+      : unknown)
 
 /* eslint-disable @definitelytyped/no-unnecessary-generics */
 export interface IRouterMatcher<

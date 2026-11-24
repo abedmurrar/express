@@ -1,6 +1,6 @@
 'use strict'
 
-// Tests for code paths no other test reached (found by the c8 coverage
+// Tests for code paths no other test reached (found by the coverage
 // report). Each pins today's behaviour.
 
 var assert = require('node:assert')

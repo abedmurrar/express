@@ -134,7 +134,7 @@ jobs:
           echo "NPM version: $(npm -v)"
           npm ls router --all
 
-      # Coverage must stay at 100% (see .c8rc.json)
+      # Coverage must stay at 100% (see vitest.config.js)
       - name: Run tests with coverage
         shell: bash
         run: npm run test-ci

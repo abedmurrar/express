@@ -5,8 +5,8 @@
 // (expressjs/express#2249). Each case runs in its own Node process, because
 // the warnings print once per process (or once per call site) to stderr, and
 // test/support/env.js turns them off for the rest of the suite with
-// NO_DEPRECATION. The child keeps the parent's environment otherwise, so c8
-// still collects its coverage.
+// NO_DEPRECATION. The child keeps the parent's environment otherwise, so its
+// coverage is still collected.
 
 var assert = require('node:assert')
 var path = require('node:path')

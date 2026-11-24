@@ -862,7 +862,6 @@ function withPrototype(Base: Function, proto: object): Function {
  */
 
 function logerror(this: Application, err: unknown) {
-  /* istanbul ignore next */
   if (this.get('env') !== 'test') console.error(err)
 }
 

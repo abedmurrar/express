@@ -545,7 +545,10 @@ res.jsonp = function jsonp(this: ExpressResponse, obj?: unknown) {
       if (body === undefined) {
         // empty argument
         body = ''
+        // JSON.stringify gives a string or undefined, so the check is always true
+        /* c8 ignore start */
       } else if (typeof body === 'string') {
+        /* c8 ignore stop */
         // replace chars not allowed in JavaScript that are in JSON
         body = body.replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
       }

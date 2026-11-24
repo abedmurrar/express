@@ -155,7 +155,7 @@ function createStrictSyntaxError(str: string, char: string | undefined): SyntaxE
 
   try {
     JSON.parse(partial)
-    /* istanbul ignore next */ throw new SyntaxError('strict violation')
+    throw new SyntaxError('strict violation')
   } catch (e) {
     return normalizeJsonSyntaxError(e as SyntaxError, {
       message: (e as SyntaxError).message.replace(JSON_SYNTAX_REGEXP, function (placeholder) {

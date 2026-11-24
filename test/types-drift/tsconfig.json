@@ -1,0 +1,18 @@
+{
+  // The drift check (npm run test:types:drift): src/ and typings/ in one
+  // program, with src's own options. scripts/check-types-drift.js writes the
+  // surface.json it imports, then runs it.
+  "extends": "../../tsconfig.build.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    // for `import type express = require()`, the typings being `export =`
+    "erasableSyntaxOnly": false,
+    // an option given as undefined is one not given, so src's `root?: string`
+    // and the typings' `root?: string | undefined` are the same
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["."]
+}

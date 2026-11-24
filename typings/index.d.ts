@@ -255,7 +255,7 @@ declare namespace e {
      * The first that exists will be served. Example: ['html', 'htm'].
      * The default value is false.
      */
-    extensions?: string[] | false | undefined
+    extensions?: string | string[] | false | undefined
 
     /**
      * Set the middleware to have client errors fall-through as just unhandled requests,

@@ -35,3 +35,6 @@ docs/.vitepress/dist/
 
 # built from src/ by `npm run build`
 /lib/
+
+# written by `npm run test:types:drift`
+/test/types-drift/surface.json

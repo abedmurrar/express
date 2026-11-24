@@ -73,6 +73,10 @@ jobs:
       - name: Check the published types (attw)
         run: npm run attw
 
+      # typings/ against src/ and the members the built lib/ has
+      - name: Check the types against the implementation
+        run: npm run test:types:drift
+
   test:
     strategy:
       fail-fast: false

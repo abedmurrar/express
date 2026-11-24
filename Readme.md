@@ -106,6 +106,7 @@ npm run test-ci                       # all tests, with the 100% coverage gate
 npm run lint                          # Biome
 npm run test:types                    # type tests (strict, loose, @types/express snippets) and the type-size budget
 npm run attw                          # check the packed types and exports with Are the Types Wrong
+npm run test:types:drift              # check the types in typings/ against src/ and the built lib/
 REGRESSIONS_ALL=1 npm test            # also run the skipped bug tests (they fail until fixed)
 PROPERTY_RUNS=10000 FUZZ_RUNS=10000 npm test   # longer property and fuzz runs (add PROPERTY_SEED / FUZZ_SEED for a new seed)
 

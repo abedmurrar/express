@@ -103,10 +103,10 @@ declare const dtOptions: DtOptions
 const fromDtOptions: OurOptions = dtOptions
 const toDtOptions: DtOptions = ourOptions
 
-// Cookie options differ in two on purpose: ours accept `expires: 0` and
-// `priority: undefined`.
+// Cookie options differ in one on purpose: under exactOptionalPropertyTypes,
+// ours accept `priority: undefined`.
 declare const dtCookie: dt.CookieOptions
-declare const ourCookie: Omit<express.CookieOptions, 'expires' | 'priority'>
+declare const ourCookie: Omit<express.CookieOptions, 'priority'>
 const fromDtCookie: express.CookieOptions = dtCookie
 const toDtCookie: dt.CookieOptions = ourCookie
 

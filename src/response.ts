@@ -136,8 +136,12 @@ export interface SendFileOptions {
   [option: string]: unknown
 }
 
-/** `res.cookie` options: the `cookie` package's, plus `signed`. */
-export interface CookieOptions extends CookieSerializeOptions {
+/**
+ * `res.cookie` options: the `cookie` package's, plus `signed`, and `expires: 0`
+ * for a Max-Age without Expires (#5150).
+ */
+export interface CookieOptions extends Omit<CookieSerializeOptions, 'expires'> {
+  expires?: Date | 0 | undefined
   signed?: boolean | undefined
 }
 
@@ -1076,8 +1080,8 @@ res.cookie = function (this: ExpressResponse, name: string, value: unknown, opti
 
       if (!isNaN(maxAge)) {
         // expires: 0 asks for Max-Age without Expires, so it is kept (cookie
-        // leaves out a falsy expires); the type only lists a Date
-        if ((opts.expires as unknown) !== 0) {
+        // leaves out a falsy expires)
+        if (opts.expires !== 0) {
           opts.expires = new Date(Date.now() + maxAge)
         }
         opts.maxAge = Math.floor(maxAge / 1000)
@@ -1088,7 +1092,7 @@ res.cookie = function (this: ExpressResponse, name: string, value: unknown, opti
       opts.path = '/'
     }
 
-    this.append('Set-Cookie', cookie.serialize(name, String(val), opts))
+    this.append('Set-Cookie', cookie.serialize(name, String(val), opts as CookieSerializeOptions))
 
     return this
   } catch (err) {

@@ -221,9 +221,8 @@ app.get('/response', (_req, res) => {
     encode: String
   })
   res.cookie('cart', { items: [1, 2, 3] })
+  // @ts-expect-error only a Date: 0 works (#5150), but our CookieOptions has to fit @types/express's
   res.cookie('session', 'x', { expires: 0, maxAge: 60000 })
-  // @ts-expect-error only 0 is accepted besides a Date
-  res.cookie('session', 'x', { expires: 1 })
   res.clearCookie('name', { path: '/admin' })
   res.location('/foo/bar')
   const contentType: string | undefined = res.get('Content-Type')

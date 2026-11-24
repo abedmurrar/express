@@ -235,7 +235,8 @@ export const download: OptionDifferences<
 }
 
 export const cookie: OptionDifferences<core.CookieOptions, CookieOptions, CookieOptions> = {
-  expires: 'other type: 0 is accepted (with maxAge); the cookie package types only a Date'
+  expires:
+    "narrower in typings: 0 (with maxAge, #5150) works, but allowing it would stop these fitting @types/express's options"
 }
 
 /**

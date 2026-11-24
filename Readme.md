@@ -35,7 +35,7 @@ The full plan, with a decision for every open upstream issue and pull request, i
 * **A benchmark on every PR** against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. It runs in CI, and the results are in [benchmarks/results](benchmarks/results).
 * **Our own copies of `router`, `send`, `serve-static`, `qs`, `body-parser`, `negotiator` and `accepts`** (see [VENDORED.md](VENDORED.md)), so their bugs can be fixed here.
 * **Strict TypeScript sources**, compiled to the CommonJS in `lib/` that is published.
-* **Leaner tooling:** Biome for linting and formatting, c8 for coverage, and fewer installed packages.
+* **Leaner tooling:** Biome for linting and formatting, V8 coverage, and fewer installed packages.
 * **Built-in TypeScript types and an ES module entry** (see [TypeScript and ES modules](#typescript-and-es-modules)), checked by type tests and [`attw`](https://github.com/arethetypeswrong/arethetypeswrong.github.io).
 
 Coming next: the rest of the drop-in line, then the breaking changes on `6.x`. See [ROADMAP.md](ROADMAP.md).

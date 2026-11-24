@@ -20,7 +20,7 @@ var { execFile } = require('node:child_process')
 var SCRIPT = path.join(__dirname, '..', '..', 'scripts', 'heap-check.js')
 
 function run(args) {
-  // no coverage for the child: c8's NODE_V8_COVERAGE keeps per-function
+  // no coverage for the child: NODE_V8_COVERAGE keeps per-function
   // counters, and every line of lib/ is covered by the other tests anyway
   var env = Object.assign({}, process.env)
   delete env.NODE_V8_COVERAGE

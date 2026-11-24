@@ -2,7 +2,7 @@
 
 // Fails when a source file is missing from the coverage report, so a file
 // can't drop out of the 100% gate unnoticed (for example through an include
-// pattern that doesn't match its extension). Run after c8 writes lcov.
+// pattern that doesn't match its extension). Run after the coverage run writes lcov.
 
 var fs = require('node:fs')
 var path = require('node:path')

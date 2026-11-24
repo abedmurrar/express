@@ -87,7 +87,7 @@ The ones that can fire on every request print once per process, at the first cal
 - **Ecosystem check.** Ten popular middleware packages (body-parser, cors, helmet, morgan, cookie-parser, express-session, compression, multer, passport, express-rate-limit) run on both and must give byte-identical responses and log lines.
 - **Middleware's own test suites.** The test suites of cors, express-session, multer, express-rate-limit, http-proxy-middleware, express-openapi-validator, express-fileupload, express-basic-auth, hpp and express-mongo-sanitize (1,678 tests) run against Express 5.3.0 and against the fork. Every test that passes on 5.3.0 must pass on the fork, and today all of them do.
 - **Security test suite.** Checks that an auth guard always runs before the route it protects however the path is spelled, that CR and LF never inject a header, where redirects point, that no request pollutes `Object.prototype`, and that file serving never leaves its root.
-- **100% coverage.** Statements, branches, functions and lines of `lib/` are measured with c8 and must stay at 100%, or CI fails.
+- **100% coverage.** Statements, branches, functions and lines of `lib/` are measured with `@vitest/coverage-v8` and must stay at 100%, or CI fails. Each side of `&&`, `||`, `??` and `?:` counts as a branch.
 - **Regression tests for the confirmed bugs.** Each one asserts the correct behaviour. All of them pass.
 - **Upstream test PRs.** Eight upstream test-coverage pull requests are ported, keeping their authors.
 
@@ -95,4 +95,4 @@ The ones that can fire on every request print once per process, at the first cal
 
 - **Biome** is the only linter and formatter (no ESLint, no Prettier).
 - **A benchmark on every PR** that changes code, against Express 5.3.0, Fastify, Koa, Hono, polka and plain `node:http`. See [Benchmarks](./benchmarks).
-- **Fewer installed packages** for development: c8 replaces `nyc` (137 packages), and Biome replaces ESLint (63 packages).
+- **Fewer installed packages** for development: V8 coverage replaces `nyc` (137 packages), and Biome replaces ESLint (63 packages).

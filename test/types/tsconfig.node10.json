@@ -1,0 +1,24 @@
+{
+  // Loose type tests as an app on TypeScript 5's older defaults compiles:
+  // CommonJS output and `node10` resolution, which ignores package.json
+  // `exports` and reads `types`. TypeScript 7 has no node10, so only
+  // scripts/type-tests-ts5.js uses this config.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "strict": false,
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": false,
+    "noImplicitReturns": false,
+    "esModuleInterop": true,
+    "paths": {
+      // node10 has no self-reference: the package folder, through its
+      // package.json, as node_modules/express would resolve.
+      "express": ["../.."],
+      "express-serve-static-core": ["../../typings/core.d.ts"]
+    }
+  },
+  "exclude": ["**/*.strict.ts"]
+}

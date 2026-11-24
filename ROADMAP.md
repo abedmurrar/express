@@ -187,19 +187,19 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `content-disposition` | ^2.0.1 | 3.1.0 (2026-11-18, inside the window until 2026-11-25) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `content-type` | ^2.0.0 | 3.1.1 (2026-09-17) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `cookie` | ^0.7.1 | 2.0.2 (2026-11-05) | Update on 6.x (supersedes the `cookie@1` item); serialisation changes | 6.x |
-| [ ] | `cookie-signature` | ^1.2.1 | 1.2.2 | Update | master |
+| [x] | `cookie-signature` | ^1.2.2 | 1.2.2 | Updated ([#91](https://github.com/abedmurrar/express/pull/91)): the range starts at 1.2.2, which installed already, so the production tree is unchanged. Its `index.js` is the same as 1.2.1's | master |
 | [ ] | `debug` | ^4.4.0 | 4.4.3 | Replace with `util.debuglog` (the `DEBUG=express:*` switch changes, so 6.x) | 6.x |
 | [ ] | `depd` | ^2.0.0 | 2.0.0 | Replace with `util.deprecate` | 6.x |
 | [ ] | `encodeurl` | ^2.0.0 | 3.0.1 (2026-11-12) | Stays on 2.x: 3.x is ESM-only and breaks Jest users (#21). Our fork ships a CommonJS build (never ESM-only, on either line) | master |
 | [ ] | `escape-html` | ^1.0.3 | 1.0.3 | Keep (Node has no built-in) | master |
 | [ ] | `etag` | ^1.8.1 | 2.0.0 (2026-11-21, inside the window until 2026-11-28) | Update after the window, harness-checked | master |
-| [ ] | `finalhandler` | ^2.1.0 | 2.1.1 | Update now; vendor on 6.x for the 4xx logging change | both |
+| [~] | `finalhandler` | ^2.1.1 | 2.1.1 | Updated on master ([#91](https://github.com/abedmurrar/express/pull/91)): the range starts at 2.1.1, which installed already; its `index.js` is the same as 2.1.0's. Still to do: vendor on 6.x for the 4xx logging change | both |
 | [ ] | `fresh` | ^2.0.0 | 2.0.0 | Keep | master |
-| [ ] | `http-errors` | ^2.0.0 | 2.0.1 | Update | master |
+| [x] | `http-errors` | ^2.0.1 | 2.0.1 | Updated ([#91](https://github.com/abedmurrar/express/pull/91)): the range starts at 2.0.1, which installed already. Against 2.0.0 only a `substr` became `slice`, and it asks for `statuses` `~2.0.2` | master |
 | [ ] | `iconv-lite` | ^0.7.3 | 0.7.3 | Keep (body-parser's charset decoding; was a dev dependency); fork to drop `safer-buffer` (Forks section) | master |
 | [x] | `merge-descriptors` | ^2.0.0 | 2.0.0 | Dropped (#24): a three-line `mixin` with `Object.getOwnPropertyNames` and `Object.defineProperty`, same semantics (skips names the app already has) | master |
-| [ ] | `mime-types` | ^3.0.0 | 3.0.2 | Update | master |
-| [ ] | `on-finished` | ^2.4.1 | 2.4.2 | Update | master |
+| [x] | `mime-types` | ^3.0.2 | 3.0.2 | Updated ([#91](https://github.com/abedmurrar/express/pull/91)): the range starts at 3.0.2, which installed already. Against 3.0.0, 2 of 1,239 extensions differ: `mp4` and `mpg4` are `video/mp4`, not `application/mp4` | master |
+| [x] | `on-finished` | ^2.4.2 | 2.4.2 | Updated ([#91](https://github.com/abedmurrar/express/pull/91)): the range starts at 2.4.2, which installed already. Against 2.4.1 it reads `writableEnded` before the deprecated `finished` | master |
 | [x] | `once` | ^1.4.0 | 1.4.0 | Dropped (#24): a small local `once` in `app.listen`; this also removes `wrappy` | master |
 | [ ] | `parseurl` | ^1.3.3 | 1.3.3 | Keep (WHATWG `URL` parses differently) | master |
 | [ ] | `proxy-addr` | ^2.0.8 | 2.0.8 | Keep | master |
@@ -209,7 +209,7 @@ Each dependency is moved to its latest release once it is outside the 7-day npm 
 | [ ] | `router` | vendored 2.2.0 | 2.3.0 (2026-11-17) | Re-sync after the window (Foundation row) | master |
 | [ ] | `send` | vendored 1.2.1 | 1.2.1 | Vendored | master |
 | [x] | `serve-static` | vendored 2.2.1 | 2.2.1 | Vendored ([#54](https://github.com/abedmurrar/express/pull/54)): `express.static` needed the `send` fixes (a throwing `setHeaders` crashed the process). The dependency is removed; 2 security tests fail with an uncaught error on the npm package and pass on the copy | master |
-| [ ] | `statuses` | ^2.0.1 | 2.0.2 | Update; check whether `http.STATUS_CODES` can replace it on 6.x | both |
+| [~] | `statuses` | ^2.0.2 | 2.0.2 | Updated on master ([#91](https://github.com/abedmurrar/express/pull/91)): the range starts at 2.0.2, which installed already; same code and codes as 2.0.1. Still to do: check whether `http.STATUS_CODES` can replace it on 6.x | both |
 | [ ] | `type-is` | ^2.1.0 | 3.0.0 (2026-09-21) | Stays on 2.x: 3.x is ESM-only (breaks Jest users, #21) and changes what `req.is()` returns. Our fork, or 6.x | master |
 | [ ] | `vary` | ^1.1.2 | 1.1.2 | Keep | master |
 | [ ] | `is-promise` (router) | ^4.0.0 | | Drop: `instanceof Promise` (Our 6.0 row, router#137) | 6.x |

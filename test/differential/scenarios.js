@@ -2224,6 +2224,55 @@ scenarios.push(
   }
 )
 
+// A req.url rewritten inside a mounted layer (router 2.3.0's fix,
+// pillarjs/router#206, in src/router/index.ts), and the statusCode of a
+// parameter that can't be decoded (pillarjs/router#171). The baseline has
+// router 2.2.0, so the ones in `allowed` differ on purpose; on router 2.3.0
+// every one of these is the same.
+function rewriteAt(mount, to) {
+  return function (app) {
+    app.use(mount, function (req, res, next) {
+      req.url = to
+      next()
+    })
+    app.use(function (req, res) {
+      res.json([req.url, req.baseUrl, req.path, req.originalUrl])
+    })
+  }
+}
+
+scenarios.push(
+  { name: 'req.url rewritten under "/app": GET /app', setup: rewriteAt('/app', '/index.html'), req: get('/app') },
+  {
+    name: 'req.url rewritten under "/app": GET /app?q=1',
+    setup: rewriteAt('/app', '/index.html?q=1'),
+    req: get('/app?q=1')
+  },
+  { name: 'req.url rewritten under "/app": GET /app/', setup: rewriteAt('/app', '/index.html'), req: get('/app/') },
+  { name: 'req.url rewritten under "/app": GET /app/x', setup: rewriteAt('/app', '/index.html'), req: get('/app/x') },
+  { name: 'req.url rewritten to "/" under "/app"', setup: rewriteAt('/app', '/'), req: get('/app') },
+  { name: 'req.url rewritten to "/?x=1" under "/app"', setup: rewriteAt('/app', '/?x=1'), req: get('/app') },
+  {
+    name: 'statusCode of an undecodable route parameter',
+    setup: function (app) {
+      app.get('/:id', function (req, res) {
+        res.end()
+      })
+      app.use(function (err, req, res, next) {
+        res.status(err.statusCode || 500).json([err.status, err.statusCode, err.message])
+      })
+    },
+    req: get('/%ZZ')
+  },
+  {
+    name: 'default error page of an undecodable route parameter',
+    setup: route('get', '/:id', function (req, res) {
+      res.end()
+    }),
+    req: get('/%ZZ')
+  }
+)
+
 // ETags. Express 5.3.0 sends the ETag it computes on every response res.send
 // makes, whatever the status, the method or Cache-Control, and calls a custom
 // `etag` function once for each one, or not at all. None of these may differ:
@@ -2732,6 +2781,12 @@ var allowed = {
     'fixed in the fork: a `#` fragment in the request target no longer changes the routed path',
   'strict router at "/dir" with a "" route: GET /dir':
     'fixed in the fork: mount-path edge case from #3798 (a strict router\'s "" route now answers "/dir")',
+  'req.url rewritten under "/app": GET /app':
+    'fixed in the fork: a `req.url` rewrite in a mounted router loses a slash (#4059, router 2.3.0): "/app/index.html", where 5.3.0 gave "/appindex.html"',
+  'req.url rewritten under "/app": GET /app?q=1':
+    'fixed in the fork: a `req.url` rewrite in a mounted router loses a slash (#4059, router 2.3.0)',
+  'statusCode of an undecodable route parameter':
+    'router 2.3.0 (pillarjs/router#171): the 400 error has statusCode as well as status, so a handler that reads statusCode answers 400, not 500',
   'router.use(subApp) then a parent middleware':
     "fixed in the fork: `router.use(subApp)` restores req/res prototypes like `app.use` (the parent's req.app and trust proxy apply again)",
 

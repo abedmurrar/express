@@ -336,9 +336,13 @@ proto.handle = function handleRequest(req, res, callback) {
     // has subscribers, so an untraced request gets nothing new.
     if (err && requestChannel.hasSubscribers) recordError(req, err)
 
-    // remove added slash
+    // remove added slash, unless the layer rewrote the path under a mount
+    // path that has no trailing slash
     if (slashAdded) {
-      req.url = req.url.slice(1)
+      const pathIsRoot = req.url === '/' || req.url.startsWith('/?')
+      if (pathIsRoot || (removed.endsWith('/') && req.url[0] === '/')) {
+        req.url = req.url.slice(1)
+      }
       slashAdded = false
     }
 
@@ -390,30 +394,44 @@ proto.handle = function handleRequest(req, res, callback) {
 
     // find next matching layer
     let layer!: LayerInstance
-    let match: unknown
+    let layerKeys!: string[]
+    let layerParams!: Params
+    let layerPath!: string
+    let match = false
     let route: RouteInstance | undefined
 
-    while (match !== true && idx < stack.length) {
+    while (!match && idx < stack.length) {
       layer = stack[idx++] as LayerInstance
-      match =
-        noSlash && layer.route !== undefined
-          ? matchLayer(layer, '') === true || (self.strictMount !== true && matchLayer(layer, path))
-          : matchLayer(layer, path)
       route = layer.route
 
-      if (typeof match !== 'boolean') {
+      try {
+        match =
+          noSlash && route !== undefined
+            ? layer.match('') || (self.strictMount !== true && layer.match(path))
+            : layer.match(path)
+      } catch (err) {
         // Router 2.3.0 (tracing): matching can fail before a handler runs (for
         // example, URI decoding). Forwarding that error must not attribute it
         // to a later handler. Only while traced, as above.
-        if (requestChannel.hasSubscribers) recordError(req, match)
+        if (requestChannel.hasSubscribers) recordError(req, err)
 
         // hold on to layerError
-        layerError = layerError || match
+        layerError = layerError || err
+        match = false
       }
 
-      if (match !== true) {
+      if (!match) {
         continue
       }
+
+      // Keep matched values local to this request before param callbacks can
+      // yield. Router 2.3.0's match() returns them (pillarjs/router#216); here
+      // it still stores them on the layer, so they are read before anything
+      // else can run: an accessor on req (method, route, params) or a traced
+      // pattern's RegExp may handle another request with this layer.
+      layerKeys = layer.keys
+      layerParams = layer.params as Params
+      layerPath = layer.path as string
 
       if (!route) {
         // process non-route handlers normally
@@ -441,7 +459,7 @@ proto.handle = function handleRequest(req, res, callback) {
     }
 
     // no match
-    if (match !== true) {
+    if (!match) {
       return done(layerError)
     }
 
@@ -466,12 +484,10 @@ proto.handle = function handleRequest(req, res, callback) {
       if (traced) setMatchedRoute(req, layer, path, noSlash)
     }
 
-    // Capture one-time layer values
-    req.params = self.mergeParams ? mergeParams(layer.params as Params, parentParams) : (layer.params as Params)
-    const layerPath = layer.path as string
+    req.params = self.mergeParams ? mergeParams(layerParams, parentParams) : layerParams
 
     // this should be done for the layer
-    processParams(self.params, layer, paramcalled, req, res, function (err) {
+    processParams(self.params, layer, layerKeys, path, paramcalled, req, res, function (err) {
       if (err) {
         next(layerError || err)
       } else if (route) {
@@ -769,22 +785,6 @@ function getProtohost(url: string) {
 }
 
 /**
- * Match path to a layer.
- *
- * @param {Layer} layer
- * @param {string} path
- * @private
- */
-
-function matchLayer(layer: LayerInstance, path: string): unknown {
-  try {
-    return layer.match(path)
-  } catch (err) {
-    return err
-  }
-}
-
-/**
  * Router 2.3.0's `req[matchedRoute] = match.pattern` (tracing): the pattern
  * the layer matched with, which the tracing context reports as `route`. Not
  * in 2.3.0: set only while traced, right before the layer's parameter
@@ -876,7 +876,8 @@ function mountsAtRoot(router: Router, target: Router, seen: Set<Router>): boolea
 }
 
 /**
- * Process any parameters for the layer.
+ * Process any parameters for the layer. `path` is the one it matched, for the
+ * traced pattern (not in router 2.3.0, see setMatchedRoute).
  *
  * @private
  */
@@ -884,19 +885,40 @@ function mountsAtRoot(router: Router, target: Router, seen: Set<Router>): boolea
 function processParams(
   params: Record<string, ParamCallback[]>,
   layer: LayerInstance,
+  keys: string[],
+  path: string,
   called: Record<string, ParamCalled>,
   req: RouterRequest,
   res: RouterResponse,
   done: NextFunction
 ) {
-  // captured parameters from the layer, keys and values
-  const keys = layer.keys
-
   // fast track
   if (!keys || keys.length === 0) {
     return done()
   }
 
+  runParams(params, layer, keys, path, called, req, res, done)
+}
+
+/**
+ * The rest of processParams, for a layer that has parameters. Not in upstream
+ * (router 2.2.0, 2.3.0), where they are one function: its closures over two
+ * more arguments kept V8 from inlining it where it has nothing to do (2.5%
+ * more instructions per request through ten middleware).
+ *
+ * @private
+ */
+
+function runParams(
+  params: Record<string, ParamCallback[]>,
+  layer: LayerInstance,
+  keys: string[],
+  path: string,
+  called: Record<string, ParamCalled>,
+  req: RouterRequest,
+  res: RouterResponse,
+  done: NextFunction
+) {
   // typed as set: nextParam checks them before paramCallback reads them
   let i = 0
   let paramIndex = 0
@@ -963,9 +985,10 @@ function processParams(
     // Not in router 2.2.0: router 2.3.0's tracing (lib/tracing), only while
     // the channel has subscribers
     if (requestChannel.hasSubscribers) {
-      // the pattern of the layer whose parameter it is (the path of a route's
-      // "" entry has no parameters, so noSlash can't apply)
-      setMatchedRoute(req, layer, getPathname(req) as string, false)
+      // the pattern of the layer whose parameter it is, from the path the layer
+      // matched, not req.url, which an earlier callback may have rewritten (the
+      // path of a route's "" entry has no parameters, so noSlash can't apply)
+      setMatchedRoute(req, layer, path, false)
       traceParam(
         fn,
         {

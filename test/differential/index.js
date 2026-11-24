@@ -57,7 +57,8 @@ describe('differential: responses match Express 5.3.0', function () {
   // The baseline's dependencies are pinned in package.json `overrides`, so
   // every npm version compares against the same Express 5.3.0. Without the
   // pins, npm 10 (Node 22) installed router 2.3.0, which differs from the
-  // router 2.2.0 that 5.3.0 shipped with and that src/router is based on.
+  // router 2.2.0 that 5.3.0 shipped with. src/router is based on 2.3.0 now; the
+  // pin stays, so `allowed` lists what that changed.
   it('runs Express 5.3.0 with its pinned dependencies', function () {
     var path = require('node:path')
     var root = path.join(__dirname, '..', '..')

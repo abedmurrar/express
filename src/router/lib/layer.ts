@@ -451,7 +451,7 @@ proto.match = function match(path) {
 function decodeParam(val: string): string
 function decodeParam(val: string | undefined): string | undefined
 function decodeParam(val: string | undefined): string | undefined {
-  if (typeof val !== 'string' || val.length === 0) {
+  if (typeof val !== 'string' || val.length === 0 || val.indexOf('%') === -1) {
     return val
   }
 
@@ -460,7 +460,8 @@ function decodeParam(val: string | undefined): string | undefined {
   } catch (err) {
     if (err instanceof URIError) {
       err.message = "Failed to decode param '" + val + "'"
-      ;(err as URIError & { status: number }).status = 400
+      const httpError = err as URIError & { status: number; statusCode: number }
+      httpError.status = httpError.statusCode = 400
       withCode(err, 'EXPRESS_ERR_PARAM_DECODE_FAILED')
     }
 

@@ -79,6 +79,8 @@ npm install --save-dev typescript @types/node
 
 Code written for `@types/express` compiles unchanged: the same type names and generics (`Request<P, ResBody, ReqBody, ReqQuery, Locals>`, `Response<ResBody, Locals>`, `RequestHandler`, `ErrorRequestHandler`, `NextFunction`, `Router`, `Application`, `Express`), route parameters inferred from the path, and the global `Express` namespace that middleware types add to (for example `req.user` from passport and `req.file` from multer). Other `@types` packages for middleware keep working; they pick up these types.
 
+Route parameters come from the path string, in Express 5's syntax: `'/:id'` gives `id: string`, `'/files/*path'` gives `path: string[]`, and `'/list{/:page}'` gives `page?: string`. A path array and a path that is only known as a `string` give `ParamsDictionary`, and a RegExp gives `ParamsFlatDictionary`. A nested router with `mergeParams` takes its parent's parameters as a type argument: `router.get<{ team: string; member: string }>('/:member', ...)`. The body, query and `res.locals` are typed the same way, through `Request` and `Response` or the method's type arguments.
+
 The types are tested on TypeScript 7, 5.9 and 5.2, the oldest version that `@types/node` 22 supports.
 
 If your code imports from `express-serve-static-core`, those imports keep working while another `@types` package still installs it. To point them at the fork's types instead, add a `paths` entry to `tsconfig.json`:

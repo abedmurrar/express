@@ -410,7 +410,7 @@ These APIs still exist but their behavior has changed. Review these changes to m
 
 ### Path route matching syntax
 
-Path route matching syntax is when a string is supplied as the first parameter to the `app.all()`, `app.use()`, `app.METHOD()`, `router.all()`, `router.METHOD()`, and `router.use()` APIs. The following changes have been made to how the path string is matched to an incoming request:
+Path route matching syntax is when a string is supplied as the first parameter to the `app.all()`, `app.use()`, `app.METHOD()`, `router.all()`, `router.METHOD()`, and `router.use()` APIs. The following changes have been made to how the path string is matched to an incoming request. [Express 5 path syntax](/guide/path-syntax) has the full list, what each error means, and the Express 4 paths that still register but match something else:
 
 - The wildcard `*` must have a name, matching the behavior of parameters `:`, use `/*splat` instead of `/*`
 

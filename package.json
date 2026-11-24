@@ -160,6 +160,7 @@
     "test:ecosystem-suites": "node scripts/ecosystem-suites.js",
     "release": "node scripts/release.js",
     "build": "node scripts/build.js",
+    "test:types:drift": "npm run build && node scripts/check-types-drift.js",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.loose.json && tsc -p test/types/tsconfig.dt.json && node scripts/check-type-size.js",
     "test:types:ts5:install": "npm --prefix test/types/ts5 install --ignore-scripts --no-package-lock",

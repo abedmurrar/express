@@ -14,9 +14,10 @@
  *   describes the send 1.2.1 vendored in lib/send).
  * - `CookieOptions.priority` accepts `undefined`, like every other option, so
  *   it works under `exactOptionalPropertyTypes`.
- * - Members that Express 5 no longer has (`app._router`, `app.resource`,
- *   `app.map`, `app.routes`, `layer.regexp`) are marked `@deprecated`. Their
- *   types are unchanged, so code that still mentions them compiles.
+ * - Members that Express 5 doesn't have (`app._router`, `app.resource`,
+ *   `app.map`, `app.routes`, `app.stack`, `layer.regexp`, `req.accepted`,
+ *   `res.charset`) are marked `@deprecated`. Their types are unchanged, so
+ *   code that still mentions them compiles.
  *
  * MIT License
  *
@@ -770,6 +771,8 @@ export interface Request<
   /**
    * Return an array of Accepted media types
    * ordered from highest quality to lowest.
+   *
+   * @deprecated Express 5 has no `req.accepted`; use `req.accepts()`.
    */
   accepted: MediaType[]
 
@@ -1264,6 +1267,7 @@ export interface Response<
 
   locals: LocalsObj & Locals
 
+  /** @deprecated Express 5 has no `res.charset`; use `res.type()`. */
   charset: string
 
   /**
@@ -1483,6 +1487,9 @@ export interface Application<LocalsObj extends Record<string, any> = Record<stri
    * @deprecated Express 5 has no `app._router`; use `app.router`.
    */
   _router: any
+
+  /** @deprecated An app has no `stack`; use `app.router.stack`. */
+  stack: ILayer[]
 
   use: ApplicationRequestHandler<this>
 

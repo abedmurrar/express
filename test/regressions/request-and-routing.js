@@ -7,7 +7,7 @@
 var assert = require('node:assert')
 var path = require('node:path')
 var express = require('../../')
-var { bug, request } = require('./support')
+var { request } = require('./support')
 
 describe('regressions: request, app and routing', function () {
   it('#7532 req.subdomains is empty for an IPv6 host', async function () {
@@ -91,24 +91,20 @@ describe('regressions: request, app and routing', function () {
     assert.strictEqual(r.body.toString(), 'main app')
   })
 
-  bug(
-    '#4059 a req.url rewritten inside a mounted router keeps its slash',
-    'A `req.url` rewrite in a mounted router loses a slash',
-    async function () {
-      var app = express()
-      var router = express.Router()
-      router.use(function (req, res, next) {
-        req.url = '/index.html'
-        next()
-      })
-      app.use('/app', router)
-      app.use(function (req, res) {
-        res.send(req.url)
-      })
-      var r = await request(app, { path: '/app' })
-      assert.strictEqual(r.body.toString(), '/app/index.html')
-    }
-  )
+  it('#4059 a req.url rewritten inside a mounted router keeps its slash', async function () {
+    var app = express()
+    var router = express.Router()
+    router.use(function (req, res, next) {
+      req.url = '/index.html'
+      next()
+    })
+    app.use('/app', router)
+    app.use(function (req, res) {
+      res.send(req.url)
+    })
+    var r = await request(app, { path: '/app' })
+    assert.strictEqual(r.body.toString(), '/app/index.html')
+  })
 
   it('#6809 mounting a router on itself is rejected with a clear error', function () {
     var r = express.Router()

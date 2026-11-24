@@ -42,7 +42,8 @@ is still a `TypeError`), and `status`, `statusCode` and `expose` where they have
 property is defined like an error's `cause`, and like `code` in the
 [TC39 proposal](https://github.com/jasnell/proposal-error-code-property): an own property that you
 can assign or delete, but not an enumerable one. So `JSON.stringify(err)`, `Object.keys(err)`,
-`{ ...err }` and `console.log(err)` show the same as on Express 5.3.0.
+`{ ...err }` and `console.log(err)` show the same as on Express 5.3.0. One error has a property more:
+`EXPRESS_ERR_PARAM_DECODE_FAILED` has `statusCode` as well as `status`, as with router 2.3.0.
 
 ::: info
 
@@ -117,7 +118,7 @@ with no error, so the request can reach the routes after it.
 | `EXPRESS_ERR_HANDLER_NOT_FUNCTION` | `TypeError` | the same calls with a handler that isn't a function |
 | `EXPRESS_ERR_ROUTER_MOUNTS_ITSELF` | `TypeError` | `router.use()` mounting a router at `/` on itself, directly or through routers mounted at `/` (a fork addition: Express 5.3.0 accepts it and loops on every request) |
 | `EXPRESS_ERR_ERROR_HANDLER_IS_ROUTER` | `TypeError` | `router.error()` or `app.error()` given a router or an Express app, which can't take the error (a fork addition, like the `error()` methods) |
-| `EXPRESS_ERR_PARAM_DECODE_FAILED` | `URIError` (status 400) | a request whose route parameter isn't valid percent-encoding, such as `/users/%E0` for `/users/:id`; passed to `next()` |
+| `EXPRESS_ERR_PARAM_DECODE_FAILED` | `URIError` (`status` and `statusCode` 400) | a request whose route parameter isn't valid percent-encoding, such as `/users/%E0` for `/users/:id`; passed to `next()` |
 | `EXPRESS_ERR_REJECTED_PROMISE` | `Error` | a handler, error handler or `param` callback whose promise rejects with no reason (`undefined` or another falsy value); passed to `next()` |
 
 ## Sending files

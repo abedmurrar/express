@@ -255,7 +255,9 @@ var CASES = [
   [
     'EXPRESS_ERR_PARAM_DECODE_FAILED',
     'a route parameter that is not valid percent-encoding',
-    (lib) => caught(lib, (app) => app.get('/users/:id', (req, res) => res.end()), '/users/%E0')
+    (lib) => caught(lib, (app) => app.get('/users/:id', (req, res) => res.end()), '/users/%E0'),
+    // router 2.3.0 (pillarjs/router#171); the baseline has 2.2.0
+    { added: { statusCode: 400 } }
   ],
   [
     'EXPRESS_ERR_REJECTED_PROMISE',
@@ -424,6 +426,7 @@ describe('error codes (fork)', function () {
     var get = c[2]
     var forkOnly = c[3] && c[3].forkOnly
     var addedFrame = c[3] && c[3].addedFrame
+    var added = (c[3] && c[3].added) || {}
 
     describe(code + ': ' + when, function () {
       it('has the code, as an own property that is writable and configurable but not enumerable', function () {
@@ -447,6 +450,11 @@ describe('error codes (fork)', function () {
           var ours = errs[0]
           var theirs = errs[1]
           assert.ok(!('code' in theirs), '5.3.0 has a code')
+          Object.keys(added).forEach(function (name) {
+            assert.ok(!(name in theirs), '5.3.0 has ' + name)
+            assert.strictEqual(ours[name], added[name])
+            delete ours[name]
+          })
           assert.strictEqual(ours.message, theirs.message)
           assert.strictEqual(ours.constructor, theirs.constructor)
           assert.strictEqual(Object.getPrototypeOf(ours), Object.getPrototypeOf(theirs))

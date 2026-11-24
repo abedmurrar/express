@@ -1396,9 +1396,7 @@ describeTracing('TracingChannel', function () {
             if (mounted) router.use('/api', target)
             router.use(forward)
             router.use(function respond(err, req, res, next) {
-              // err.status: router 2.3.0 also sets statusCode on the decoding
-              // error (pillarjs/router#171), which this copy doesn't have yet
-              res.statusCode = err.status || 500
+              res.statusCode = err.statusCode || 500
               res.end(err.message)
             })
 

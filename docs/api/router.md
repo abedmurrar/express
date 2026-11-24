@@ -713,6 +713,10 @@ The "mount" path is stripped and is _not_ visible to the middleware function.
 The main effect of this feature is that a mounted middleware function may operate without
 code changes regardless of its "prefix" pathname.
 
+The stripped path is added back to `req.url` when the middleware calls `next()`. A `req.url` rewritten
+by the middleware is treated as relative to the mount path, so rewriting it to `/index.html` inside a
+router mounted at `/app` gives `/app/index.html` to what comes after.
+
 The order in which you define middleware with `router.use()` is very important.
 They are invoked sequentially, thus the order defines middleware precedence. For example,
 usually a logger is the very first middleware you would use, so that every request gets logged.

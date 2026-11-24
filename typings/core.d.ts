@@ -624,11 +624,8 @@ export interface CookieOptions {
   maxAge?: number | undefined
   /** Indicates if the cookie should be signed. */
   signed?: boolean | undefined
-  /**
-   * Expiry date of the cookie in GMT. If not specified (undefined), creates a session cookie.
-   * `0` together with `maxAge` sends only `Max-Age`, with no `Expires`.
-   */
-  expires?: Date | 0 | undefined
+  /** Expiry date of the cookie in GMT. If not specified (undefined), creates a session cookie. */
+  expires?: Date | undefined
   /** Flags the cookie to be accessible only by the web server. */
   httpOnly?: boolean | undefined
   /** Path for the cookie. Defaults to “/”. */

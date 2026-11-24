@@ -224,6 +224,13 @@ export type Differences<Public, Src, Runtime, Inherited = unknown, Direction ext
   ] extends [never]
     ? never
     : K]: `${Difference<Public, Src, Runtime, Inherited, Direction, K>}: ${string}`
+} & Listing
+
+declare const listing: unique symbol
+
+/** Keeps a type with nothing to list from being `{}`, which takes any property. */
+export interface Listing {
+  [listing]?: never
 }
 
 /** The same, for options: the values the typings accept must be ones src does. */

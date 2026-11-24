@@ -29,8 +29,8 @@ interface Public {
 }
 
 type Equal<A, B> = {
-  [K in keyof A | keyof B]: K extends keyof A & keyof B ? ([A[K], B[K]] extends [B[K], A[K]] ? never : K) : K
-}[keyof A | keyof B]
+  [K in (keyof A | keyof B) & string]: K extends keyof A & keyof B ? ([A[K], B[K]] extends [B[K], A[K]] ? never : K) : K
+}[(keyof A | keyof B) & string]
 type Same<A, B> = [Equal<A, B>] extends [never] ? true : Equal<A, B>
 
 /** A method the typings lost, one src doesn't have, a runtime member nobody typed, and other types. */
@@ -96,3 +96,9 @@ export const missing: OneDifference = {}
 export const stale: OneDifference = { accepted: 'only in typings: a reason', accept: 'only in typings: a reason' }
 // @ts-expect-error it is of another kind
 export const otherKind: OneDifference = { accepted: 'other type: a reason' }
+
+type NoDifference = Differences<{ accepts: string }, { accepts: string }, { accepts: true }>
+
+export const nothing: NoDifference = {}
+// @ts-expect-error nothing differs, so nothing can be listed
+export const staleAlone: NoDifference = { accepts: 'other type: a reason' }

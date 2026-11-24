@@ -23,7 +23,7 @@ import type { Route } from '../../src/router/lib/route'
 import type { TraceContext } from '../../src/router/lib/tracing'
 import type { SendOptions } from '../../src/send'
 import type { ServeStaticFunction, ServeStaticOptions } from '../../src/serve-static'
-import type { Differences, OptionDifferences, Signatures } from './compare'
+import type { Differences, Listing, OptionDifferences, Signatures } from './compare'
 import type * as Surface from './surface.json'
 
 const rareMethod = 'not in typings: an HTTP method that @types/express leaves out too'
@@ -235,7 +235,8 @@ export const download: OptionDifferences<
 }
 
 export const cookie: OptionDifferences<core.CookieOptions, CookieOptions, CookieOptions> = {
-  expires: 'other type: 0 is accepted (with maxAge); the cookie package types only a Date'
+  expires:
+    "narrower in typings: 0 (with maxAge, #5150) works, but allowing it would stop these fitting @types/express's options"
 }
 
 /**
@@ -250,4 +251,4 @@ type SettingName = Parameters<App['set']>[0] &
   Parameters<App['disable']>[0]
 type UsedSetting = keyof typeof Surface.settings | keyof ApplicationSettings
 
-export const settings: Record<Exclude<UsedSetting, SettingName>, string> = {}
+export const settings: Record<Exclude<UsedSetting, SettingName>, string> & Listing = {}

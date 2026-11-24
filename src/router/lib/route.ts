@@ -84,7 +84,7 @@ export interface Route extends HttpMethods<RouteMethod> {
   stack: LayerInstance[]
   methods: Record<string, boolean> // route handlers for various http methods
   _handlesMethod(method: string | undefined): boolean
-  _methods(): string[]
+  _methods(includeAll?: boolean): string[]
   dispatch(req: RouterRequest, res: RouterResponse, done: NextFunction): void
   all: RouteMethod
 }
@@ -152,11 +152,15 @@ proto._handlesMethod = function _handlesMethod(method) {
 }
 
 /**
+ * @param {boolean} [includeAll=false] include a wildcard for `.all()` handlers
  * @return {array} supported HTTP methods
  * @private
  */
 
-proto._methods = function _methods() {
+// includeAll is router 2.3.0's (pillarjs/router#174), for listRoutes(). Without
+// it this is router 2.2.0's: 2.3.0 leaves "_ALL" out. A default value, so the
+// function's length stays 0.
+proto._methods = function _methods(includeAll = false) {
   const methods = Object.keys(this.methods)
 
   // append automatic head
@@ -166,7 +170,7 @@ proto._methods = function _methods() {
 
   for (let i = 0; i < methods.length; i++) {
     // make upper case
-    methods[i] = (methods[i] as string).toUpperCase()
+    methods[i] = includeAll && methods[i] === '_all' ? '*' : (methods[i] as string).toUpperCase()
   }
 
   return methods

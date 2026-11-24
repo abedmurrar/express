@@ -232,6 +232,50 @@ const typed: express.Router = express.Router();
 typed.error(onError); // type error: express.Router has no error()
 ```
 
+### router.listRoutes()
+
+**Returns:** `Array`
+
+This is a fork addition; Express 5.3.0 has no `router.listRoutes()` (with router 2.3.0 it has, but
+it doesn't list mounted apps).
+
+Lists the routes registered on the router, and the routers and apps mounted on it, in the order they
+were added: one `{ path, methods, router }` object per path, so an array of paths gives one for each,
+nested arrays included.
+
+- `path` is the path as it was registered: a string, or a copy of the regular expression. A route
+  matches the full path; a mounted router matches it as a prefix.
+- `methods` is the route's HTTP methods in uppercase, in the order they were first added. `.all()`
+  is `'*'`, and `HEAD` comes last for a route with `GET` and no `HEAD` of its own. It is empty for a
+  route with no handlers yet, and `undefined` for a mounted router or app.
+- `router` is the router or app that was passed to `use()`, and `undefined` for a route. It is not
+  expanded: call its `listRoutes()`. A router or an app of another package, such as one made with
+  Express 5.3.0, may have none.
+
+```js
+const router = express.Router();
+const users = express.Router();
+
+users.get('/:id', loadUser);
+router.use('/users', users);
+router.route('/status').all(logRequest).get(status);
+
+console.log(router.listRoutes());
+// [
+//   { path: '/users', methods: undefined, router: users },
+//   { path: '/status', methods: ['*', 'GET', 'HEAD'], router: undefined }
+// ]
+```
+
+Middleware and error handlers are not listed. Anything else with a `stack` array is taken for a
+router, whatever made it. An empty array in a path array has no path to list.
+
+Listing changes nothing: the array, its objects and their `methods` and regular expressions are
+copies, so changing them doesn't change how the router routes. Only `router` is the real one.
+
+In TypeScript the entries are `express.RouteInfo`. As with [`router.error()`](#routererror), the
+method is on what `express.Router()` returns, not on the `express.Router` type.
+
 ### router.METHOD()
 
 **Parameters**

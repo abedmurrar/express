@@ -20,3 +20,17 @@ app.get(/^\/(\d+)$/, (req, res) => {
   const id: string = req.params[1]
   res.send(id)
 })
+
+// app.listRoutes() (a fork addition): an entry is a route or something mounted.
+for (const route of app.listRoutes()) {
+  // @ts-expect-error a mounted router or app has no methods
+  void route.methods.length
+  // @ts-expect-error a route has no router
+  void route.router.listRoutes
+  if (route.router !== undefined) {
+    const methods: undefined = route.methods
+    // @ts-expect-error one of another package may not have listRoutes()
+    route.router.listRoutes()
+    void methods
+  }
+}

@@ -95,7 +95,7 @@ declare namespace e {
    */
   var urlencoded: (options?: OptionsUrlencoded) => BodyParserHandler
 
-  /** Returns a router with the fork's `error()` (`RouterWithErrorHandlers`, a `Router`). */
+  /** Returns a router with the fork's `error()` and `listRoutes()` (`RouterWithErrorHandlers`, a `Router`). */
   export function Router(options?: RouterOptions): core.RouterWithErrorHandlers
 
   /**
@@ -360,6 +360,8 @@ declare namespace e {
   type ParamsFlatDictionary = core.ParamsFlatDictionary
   type Query = core.Query
   type PathParams = core.PathParams
+  type MountedRouter = core.MountedRouter
+  type RouteInfo = core.RouteInfo
   type RouteParameters<Route extends string | RegExp> = core.RouteParameters<Route>
   type RequestHandlerParams<
     P = core.ParamsDictionary,

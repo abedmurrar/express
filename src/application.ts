@@ -24,6 +24,7 @@ import type {
   Router as RouterInstance,
   RouterConstructor
 } from './router'
+import type { RouteInfo } from './router/lib/list-routes'
 import type { Route } from './router/lib/route'
 import type { QueryParser, TrustFunction } from './utils'
 import type { Engine, View as ViewInstance, ViewConstructor, ViewOptions } from './view'
@@ -58,6 +59,8 @@ const compileTrust = (require('./utils') as typeof import('./utils')).compileTru
 const resolve = (require('node:path') as typeof import('node:path')).resolve
 const Router = require('./router') as RouterConstructor
 const { withCode } = require('./error-code') as typeof import('./error-code')
+const { mountedApps, unusedRouterGetters } =
+  require('./router/lib/list-routes') as typeof import('./router/lib/list-routes')
 
 /**
  * The settings read with a known type: the defaults `defaultConfiguration()`
@@ -114,6 +117,8 @@ export interface Application extends EventEmitter, Omit<HttpMethods<ApplicationM
   /** Not in Express 5.3.0: defined by `src/express` on each app, not on this prototype object. */
   error(...handlers: HandlerList[]): this
   error(path: PathParams, ...handlers: HandlerList[]): this
+  /** Not in Express 5.3.0: defined by `src/express` on each app, not on this prototype object. */
+  listRoutes(): RouteInfo[]
   route(path: PathParams): Route
   engine(ext: string, fn: Engine): this
   param(name: string | string[], fn: ParamCallback): this
@@ -183,22 +188,28 @@ app.init = function init(this: Application) {
 
   this.defaultConfiguration()
 
+  // Not in 5.3.0: app.listRoutes() lists an app without creating its router
+  unusedRouterGetters.add(getrouter)
+
   // Setup getting to lazily add base router
   Object.defineProperty(this, 'router', {
     configurable: true,
     enumerable: true,
-    get: function getrouter(this: Application) {
-      if (router === null) {
-        router = new Router({
-          caseSensitive: this.enabled('case sensitive routing'),
-          strict: this.enabled('strict routing'),
-          strictMount: this.enabled('strict mount routing')
-        })
-      }
-
-      return router
-    }
+    get: getrouter
   })
+
+  function getrouter(this: Application) {
+    if (router === null) {
+      unusedRouterGetters.delete(getrouter)
+      router = new Router({
+        caseSensitive: this.enabled('case sensitive routing'),
+        strict: this.enabled('strict routing'),
+        strictMount: this.enabled('strict mount routing')
+      })
+    }
+
+    return router
+  }
 }
 
 /**
@@ -365,9 +376,13 @@ app.use = function use(this: Application, fn: unknown, ...rest: unknown[]) {
     fn.parent = this
 
     // app.handle gives req and res back this app's prototypes (and .app) when it is done
-    router.use(path, function mounted_app(req: Request, res: ExpressResponse, next: NextFunction) {
+    function mounted_app(req: Request, res: ExpressResponse, next: NextFunction) {
       fn.handle!(req, res, next)
-    })
+    }
+
+    // Not in 5.3.0: so that listRoutes() can tell which app it is
+    mountedApps.set(mounted_app, fn as Application)
+    router.use(path, mounted_app)
 
     // mounted an app
     fn.emit!('mount', this)

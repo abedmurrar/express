@@ -43,8 +43,14 @@ app.error(dtErrorHandler)
 dtApp.error('/x', dtErrorHandler)
 express.Router().error(dtErrorHandler)
 
-// Routers stay assignable both ways: express.Router has no error() in the
-// types; only what express.Router() returns (RouterWithErrorHandlers) does.
+// app.listRoutes() (a fork addition) is declared the same way.
+const ourRoutes: express.RouteInfo[] = app.listRoutes()
+const dtRoutes: express.RouteInfo[] = dtApp.listRoutes()
+void [ourRoutes, dtRoutes]
+
+// Routers stay assignable both ways: express.Router has no error() or
+// listRoutes() in the types; only what express.Router() returns
+// (RouterWithErrorHandlers) does.
 const fromDtRouter: express.Router = dtRouter
 const fromFactory: express.Router = express.Router()
 const toDtRouter: dt.Router = express.Router()

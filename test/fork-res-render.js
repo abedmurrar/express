@@ -11,6 +11,7 @@ var os = require('node:os')
 var path = require('node:path')
 var express = require('..')
 var request = require('supertest')
+var recordCalls = require('./support/calls')
 var tmpl = require('./support/tmpl')
 
 var FIXTURES = path.join(__dirname, 'fixtures')
@@ -40,31 +41,25 @@ function createApp() {
 }
 
 describe('res.render after a response was sent (fork)', function () {
-  it('passes the send error to the error handler, once', function (done) {
+  it('passes the send error to the error handler, once', async function () {
     var app = createApp()
-    var errors = []
+    var errors = recordCalls()
     app.use(function (req, res) {
       res.end('already sent')
       res.render('user.tmpl', { user: { name: 'tobi' } })
     })
     app.use(function (err, req, res, next) {
-      errors.push(err.code)
+      errors.record(err.code)
     })
 
-    request(app)
-      .get('/')
-      .expect(200, 'already sent', function (err) {
-        if (err) return done(err)
-        setTimeout(function () {
-          assert.deepStrictEqual(errors, ['ERR_HTTP_HEADERS_SENT'])
-          done()
-        }, 20)
-      })
+    await request(app).get('/').expect(200, 'already sent')
+    await errors.settled()
+    assert.deepStrictEqual(errors.calls, ['ERR_HTTP_HEADERS_SENT'])
   })
 
-  it('passes it on with a synchronous engine too', function (done) {
+  it('passes it on with a synchronous engine too', async function () {
     var app = createApp()
-    var seen
+    var errors = recordCalls()
     app.engine('sync', function (file, options, callback) {
       callback(null, 'sync')
     })
@@ -73,39 +68,27 @@ describe('res.render after a response was sent (fork)', function () {
       res.render(path.join(viewsWith({ 'name.sync': '' }), 'name.sync'))
     })
     app.use(function (err, req, res, next) {
-      seen = err.code
+      errors.record(err.code)
     })
 
-    request(app)
-      .get('/')
-      .expect(200, 'already sent', function (err) {
-        if (err) return done(err)
-        setTimeout(function () {
-          assert.strictEqual(seen, 'ERR_HTTP_HEADERS_SENT')
-          done()
-        }, 20)
-      })
+    await request(app).get('/').expect(200, 'already sent')
+    await errors.settled()
+    assert.deepStrictEqual(errors.calls, ['ERR_HTTP_HEADERS_SENT'])
   })
 
-  it('still gives a custom callback the HTML, with no error', function (done) {
+  it('still gives a custom callback the HTML, with no error', async function () {
     var app = createApp()
-    var result
+    var results = recordCalls()
     app.use(function (req, res) {
       res.end('already sent')
       res.render('user.tmpl', { user: { name: 'tobi' } }, function (err, html) {
-        result = [err, html]
+        results.record([err, html])
       })
     })
 
-    request(app)
-      .get('/')
-      .expect(200, 'already sent', function (err) {
-        if (err) return done(err)
-        setTimeout(function () {
-          assert.deepStrictEqual(result, [null, '<p>tobi</p>'])
-          done()
-        }, 20)
-      })
+    await request(app).get('/').expect(200, 'already sent')
+    await results.settled()
+    assert.deepStrictEqual(results.calls, [[null, '<p>tobi</p>']])
   })
 
   it('still sends the rendered view when nothing was sent', function (done) {

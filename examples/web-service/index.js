@@ -80,7 +80,8 @@ app.get('/api/repos', function (req, res) {
 // example: http://localhost:3000/api/user/tobi/repos/?api-key=foo
 app.get('/api/user/:name/repos', function (req, res, next) {
   var name = req.params.name
-  var user = userRepos[name]
+  // own properties only, so that '__proto__' or 'constructor' is not a user
+  var user = Object.hasOwn(userRepos, name) && userRepos[name]
 
   if (user) res.send(user)
   else next()
@@ -107,7 +108,7 @@ app.use(function (req, res) {
 })
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

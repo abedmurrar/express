@@ -13,7 +13,8 @@ exports.before = function (req, res, next) {
   if (!id) return next()
   // pretend to query a database...
   process.nextTick(function () {
-    req.user = db.users[id]
+    // digits only: db.users['__proto__'] is Array.prototype, which update would change
+    req.user = /^\d+$/.test(id) ? db.users[id] : undefined
     // can't find that user
     if (!req.user) return next('route')
     // found it, move on to the routes

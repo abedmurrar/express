@@ -19,7 +19,7 @@ This page contains list of examples using Express.
 - [markdown](https://github.com/abedmurrar/express/tree/master/examples/markdown) - Markdown as template engine
 - [multi-router](https://github.com/abedmurrar/express/tree/master/examples/multi-router) - Working with multiple Express routers
 - [mvc](https://github.com/abedmurrar/express/tree/master/examples/mvc) - MVC-style controllers
-- [online](https://github.com/abedmurrar/express/tree/master/examples/online) - Tracking online user activity with `online` and `redis` packages
+- [online](https://github.com/abedmurrar/express/tree/master/examples/online) - Tracking online user activity with the `redis` package
 - [params](https://github.com/abedmurrar/express/tree/master/examples/params) - Working with route parameters
 - [resource](https://github.com/abedmurrar/express/tree/master/examples/resource) - Multiple HTTP operations on the same resource
 - [route-map](https://github.com/abedmurrar/express/tree/master/examples/route-map) - Organizing routes using a map

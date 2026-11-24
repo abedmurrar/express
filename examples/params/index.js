@@ -26,7 +26,8 @@ app.param(['to', 'from'], function (req, res, next, num, name) {
 // Load user by id
 
 app.param('user', function (req, res, next, id) {
-  req.user = users[id]
+  // digits only, so that 'length' or '__proto__' is not a user
+  req.user = /^\d+$/.test(id) ? users[id] : undefined
   if (req.user) {
     next()
   } else {
@@ -64,7 +65,7 @@ app.get('/users/:from-:to', function (req, res) {
 })
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

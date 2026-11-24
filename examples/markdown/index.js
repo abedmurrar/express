@@ -17,7 +17,7 @@ var app = (module.exports = express())
 app.engine('md', function (path, options, fn) {
   fs.readFile(path, 'utf8', function (err, str) {
     if (err) return fn(err)
-    var html = marked.parse(str).replace(/\{([^}]+)\}/g, function (_, name) {
+    var html = marked.parse(str).replace(/\{([^{}]+)\}/g, function (_, name) {
       return escapeHtml(options[name] || '')
     })
     fn(null, html)
@@ -38,7 +38,7 @@ app.get('/fail', function (req, res) {
 })
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

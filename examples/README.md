@@ -14,7 +14,7 @@ This page contains list of examples using Express.
 - [markdown](./markdown) - Markdown as template engine
 - [multi-router](./multi-router) - Working with multiple Express routers
 - [mvc](./mvc) - MVC-style controllers
-- [online](./online) - Tracking online user activity with `online` and `redis` packages
+- [online](./online) - Tracking online user activity with the `redis` package
 - [params](./params) - Working with route parameters
 - [resource](./resource) - Multiple HTTP operations on the same resource
 - [route-map](./route-map) - Organizing routes using a map

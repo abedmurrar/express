@@ -4,6 +4,7 @@
  * Module dependencies.
  */
 
+var escapeHtml = require('escape-html')
 var express = require('../../')
 var GithubView = require('./github-view')
 var md = require('marked').parse
@@ -14,8 +15,8 @@ var app = (module.exports = express())
 app.engine('md', function (str, options, fn) {
   try {
     var html = md(str)
-    html = html.replace(/\{([^}]+)\}/g, function (_, name) {
-      return options[name] || ''
+    html = html.replace(/\{([^{}]+)\}/g, function (_, name) {
+      return escapeHtml(options[name] || '')
     })
     fn(null, html)
   } catch (err) {
@@ -42,7 +43,7 @@ app.get('/Readme.md', function (req, res) {
 })
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

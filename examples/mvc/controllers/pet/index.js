@@ -9,7 +9,9 @@ var db = require('../../db')
 exports.engine = 'ejs'
 
 exports.before = function (req, res, next) {
-  var pet = db.pets[req.params.pet_id]
+  var id = req.params.pet_id
+  // digits only: db.pets['__proto__'] is Array.prototype, which update would change
+  var pet = /^\d+$/.test(id) ? db.pets[id] : undefined
   if (!pet) return next('route')
   req.pet = pet
   next()

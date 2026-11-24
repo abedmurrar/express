@@ -43,7 +43,9 @@ var User = {
     res.send(users)
   },
   show: function (req, res) {
-    res.send(users[req.params.id] || { error: 'Cannot find user' })
+    // digits only, so that 'length' or '__proto__' is not a user
+    var user = /^\d+$/.test(req.params.id) && users[req.params.id]
+    res.send(user || { error: 'Cannot find user' })
   },
   destroy: function (req, res, id) {
     var destroyed = id in users
@@ -96,7 +98,7 @@ app.get('/', function (req, res) {
 })
 
 /* istanbul ignore next */
-if (!module.parent) {
+if (require.main === module) {
   app.listen(3000)
   console.log('Express started on port 3000')
 }

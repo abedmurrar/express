@@ -70,6 +70,14 @@ jobs:
       - name: Type tests
         run: npm run test:types
 
+      # The same tests on the oldest and the latest TypeScript 5.x supported,
+      # installed on their own in test/types/ts5 (the root tsc stays 7)
+      - name: Install TypeScript 5.x
+        run: npm run test:types:ts5:install
+
+      - name: Type tests on TypeScript 5.x
+        run: npm run test:types:ts5
+
       - name: Check the published types (attw)
         run: npm run attw
 

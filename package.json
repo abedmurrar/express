@@ -162,6 +162,8 @@
     "build": "node scripts/build.js",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
     "test:types": "tsc -p test/types/tsconfig.json && tsc -p test/types/tsconfig.loose.json && tsc -p test/types/tsconfig.dt.json && node scripts/check-type-size.js",
+    "test:types:ts5:install": "npm --prefix test/types/ts5 install --ignore-scripts --no-package-lock",
+    "test:types:ts5": "node scripts/type-tests-ts5.js",
     "attw": "attw --pack ."
   },
   "bugs": {

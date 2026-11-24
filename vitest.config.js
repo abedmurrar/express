@@ -20,7 +20,7 @@ module.exports = defineConfig({
       'test/**/support.js',
       'test/differential/scenarios.js',
       'test/differential/generated.js',
-      'node_modules/**'
+      '**/node_modules/**'
     ],
     setupFiles: ['test/support/env.js', 'test/support/vitest-setup.js'],
     testTimeout: 10000,
